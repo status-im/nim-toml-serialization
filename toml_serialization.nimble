@@ -12,5 +12,5 @@ requires "nim >= 1.1.2",
          "stew"
 
 task test, "Run all tests":
-  exec "nim c -r --threads:off tests/test_all"
-  exec "nim c -r --threads:on tests/test_all"
+  exec "nim c -r --threads:off -d:release tests/test_all"
+  exec "nim c -r --threads:on -d:release tests/test_all"

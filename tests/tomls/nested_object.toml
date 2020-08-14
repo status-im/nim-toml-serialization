@@ -1,0 +1,4 @@
+# nested object
+[child]
+  name  = "TOML"
+  child = { name = "CHILD", age = 10}
