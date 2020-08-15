@@ -27,16 +27,19 @@ TOML spec and pass these test suites:
   - [burntsushi toml test suite](https://github.com/BurntSushi/toml-test)
 
 ## Non standard features
-TOML key comparison according to the spec is case sensitive and this is the default mode
-for both encoder/decoder. But nim-toml-serialization also support:
+- TOML key comparison according to the spec is case sensitive and this is the default mode
+  for both encoder/decoder. But nim-toml-serialization also support:
 
   - Case insensitive key comparison.
   - Nim ident sensitivity key comparison mode (only the first char is case sensitive).
 
-TOML key supports Unicode chars but the comparison mentioned above only applied to ASCII chars.
+  TOML key supports Unicode chars but the comparison mentioned above only applied to ASCII chars.
 
-TOML inline table disallow newline inside the table.
-nim-toml-serialization provide a switch to enable newline in inline table(**TomlInlineTableNewline**).
+- TOML inline table disallow newline inside the table.
+  nim-toml-serialization provide a switch to enable newline in inline table via `TomlInlineTableNewline`.
+
+- TOML standard does not support xHH escape sequence, only uHHHH or UHHHHHHHH.
+  Use `TomlHexEscape` to enable this feature, otherwise it will raise exception.
 
 ## Keyed mode
 When decoding, only object, tuple or `TomlValueRef` allowed at top level.

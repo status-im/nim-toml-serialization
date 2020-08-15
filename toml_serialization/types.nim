@@ -37,6 +37,7 @@ type
 
   TomlFlag* = enum
     TomlInlineTableNewline
+    TomlHexEscape
 
   TomlFlags* = set[TomlFlag]
 
