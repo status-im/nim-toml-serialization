@@ -113,6 +113,11 @@ proc main() =
       var z = Toml.decode(toml, Encoding, "encoding", TomlCaseInsensitive, {TomlInlineTableNewline})
       check z.name == "TOML"
 
+      var w = Toml.decode(toml, TomlValueRef, {TomlInlineTableNewline})
+
+      expect TomlError:
+        discard Toml.decode(toml, TomlValueRef)
+
     test "bignum":
       var z = Toml.decode("bignum = 1234567890_1234567890", Uint256, "bignum")
       check $z == "12345678901234567890"
