@@ -173,12 +173,24 @@ assert $z == "12345678901234567890"
 
 ## Helper functions
   - `parseNumber(r: var TomlReader, value: var string): (Sign, NumberBase)`
-  - `parseDateTime*(r: var TomlReader): TomlDateTime`
+  - `parseDateTime(r: var TomlReader): TomlDateTime`
   - `parseString(r: var TomlReader, value: var string): (bool, bool)`
-  - `parseAsString*(r: var TomlReader): string`
+  - `parseAsString(r: var TomlReader): string`
   - `parseFloat(r: var TomlReader, value: var string): Sign`
 
 `parseAsString` can parse any valid TOML value into Nim string including mixed array or inline table.
+`parseString` return a tuple:
+  - field 0:
+    - false: is a single line string.
+    - true: is a multi line string.
+  - field 1:
+    - false: is a basic string.
+    - true: is a literal string.
+
+`Sign` can be one of:
+  - `Sign.None`
+  - `Sign.Pos`
+  - `Sign.Neg`
 
 ## Implementation specifics
 TOMLTime contains subsecond field. The spec says the precision is implementation specific.
