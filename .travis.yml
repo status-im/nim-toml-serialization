@@ -23,4 +23,5 @@ install:
 
 script:
   - nimble install -y
+  - nimble install -y stint
   - nimble test

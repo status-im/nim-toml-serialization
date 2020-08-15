@@ -20,10 +20,6 @@ type
     pushLine: int
     flags: TomlFlags
 
-  StringType* {.pure.} = enum
-    Basic   # Enclosed within double quotation marks
-    Literal # Enclosed within single quotation marks
-
   TomlReaderError* = object of TomlError
     line*, col*: int
 
@@ -54,9 +50,6 @@ type
     errDoubleBracket      = "double bracket not allowed"
     errDuplicateTableKey  = "duplicate table key not allowed"
     errKeyNotFound        = "key not found: "
-
-  NumberBase* = enum
-    base10, base16, base8, base2
 
 const
   CR   = '\r'

@@ -8,7 +8,8 @@
 import
   unittest, os, strutils,
   ../toml_serialization,
-  ../toml_serialization/lexer
+  ../toml_serialization/lexer,
+  stint
 
 type
   Owner = object
@@ -27,6 +28,39 @@ type
   Encoding = object
     name: string
     charset: string
+
+  HoldDateTime = object
+    dt: TomlDateTime
+
+  HoldString = object
+    name: string
+    multiLine: bool
+    literal: bool
+
+  DateString = object
+    date: string
+
+proc readValue*(r: var TomlReader, value: var Uint256) =
+  var z: string
+  let (sign, base) = r.parseNumber(z)
+
+  if sign == Sign.Neg:
+    raiseTomlErr(r.lex, errNegateUint)
+
+  case base
+  of base10: value = parse(z, Uint256, 10)
+  of base16: value = parse(z, Uint256, 16)
+  of base8:  value = parse(z, Uint256, 8)
+  of base2:  value = parse(z, Uint256, 2)
+
+proc readValue*(r: var TomlReader, value: var HoldDateTime) =
+  value.dt = r.parseDateTime()
+
+proc readValue*(r: var TomlReader, value: var HoldString) =
+  (value.multiLine, value.literal) = r.parseString(value.name)
+
+proc readValue*(r: var TomlReader, value: var DateString) =
+  value.date = r.parseAsString
 
 proc main() =
   suite "features test suite":
@@ -78,5 +112,22 @@ proc main() =
 
       var z = Toml.decode(toml, Encoding, "encoding", TomlCaseInsensitive, {TomlInlineTableNewline})
       check z.name == "TOML"
+
+    test "bignum":
+      var z = Toml.decode("bignum = 1234567890_1234567890", Uint256, "bignum")
+      check $z == "12345678901234567890"
+
+    test "builtins":
+      var u = Toml.decode("val = 1970-08-08 07:10:11", HoldDateTime, "val")
+      check u.dt.date.isSome
+
+      var v = Toml.decode("val = \'Toml Literal\'", HoldString, "val")
+      check:
+        v.name == "Toml Literal"
+        v.multiLine == false
+        v.literal == true
+
+      var w = Toml.decode("val = 1970-08-08 07:10:11", DateString, "val")
+      check w.date == "1970-08-08 07:10:11"
 
 main()
