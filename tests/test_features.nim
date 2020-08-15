@@ -6,7 +6,7 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  unittest, os, strutils,
+  unittest, os, strutils, tables,
   ../toml_serialization,
   ../toml_serialization/lexer,
   stint
@@ -40,6 +40,10 @@ type
   DateString = object
     date: string
 
+  HoldFloat = object
+    data: string
+    sign: Sign
+
 proc readValue*(r: var TomlReader, value: var Uint256) =
   var z: string
   let (sign, base) = r.parseNumber(z)
@@ -61,6 +65,9 @@ proc readValue*(r: var TomlReader, value: var HoldString) =
 
 proc readValue*(r: var TomlReader, value: var DateString) =
   value.date = r.parseAsString
+
+proc readValue*(r: var TomlReader, value: var HoldFloat) =
+  value.sign = r.parseFloat(value.data)
 
 proc main() =
   suite "features test suite":
@@ -113,6 +120,12 @@ proc main() =
       var z = Toml.decode(toml, Encoding, "encoding", TomlCaseInsensitive, {TomlInlineTableNewline})
       check z.name == "TOML"
 
+      var w = Toml.decode(toml, TomlValueRef, {TomlInlineTableNewline})
+      check w.tableVal["server"].kind == TomlKind.InlineTable
+
+      expect TomlError:
+        discard Toml.decode(toml, TomlValueRef)
+
     test "bignum":
       var z = Toml.decode("bignum = 1234567890_1234567890", Uint256, "bignum")
       check $z == "12345678901234567890"
@@ -129,5 +142,9 @@ proc main() =
 
       var w = Toml.decode("val = 1970-08-08 07:10:11", DateString, "val")
       check w.date == "1970-08-08 07:10:11"
+
+      var z = Toml.decode("val = -123.123", HoldFloat, "val")
+      check z.sign == Sign.Neg
+      check z.data == "-123.123"
 
 main()
