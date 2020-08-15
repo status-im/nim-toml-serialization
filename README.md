@@ -13,13 +13,13 @@ nim-toml-serialization is a member of [nim-serialization](https://github.com/sta
 family and provides several operation modes:
 
   - Decode into Nim data types without any intermediate steps using only a **subset** of TOML.
-  - Decode into Nim data types mixed with `TomlValue` to parse any valid TOML value.
-  - Decode into `TomlValue` from any valid TOML.
+  - Decode into Nim data types mixed with `TomlValueRef` to parse any valid TOML value.
+  - Decode into `TomlValueRef` from any valid TOML.
   - Encode Nim data types into a **subset** of TOML.
-  - Encode `TomlValue` into full spec TOML.
+  - Encode `TomlValueRef` into full spec TOML.
   - Both encoder and decoder support `keyed` mode.
 
-## Spec Compliance
+## Spec compliance
 nim-toml-serialization implements [1.0.0-rc1](https://github.com/toml-lang/toml/releases/tag/v1.0.0-rc.1)
 TOML spec and pass these test suites:
 
@@ -39,7 +39,7 @@ TOML inline table disallow newline inside the table.
 nim-toml-serialization provide a switch to enable newline in inline table(**TomlInlineTableNewline**).
 
 ## Keyed mode
-When decoding, only object, tuple or TomlValueRef allowed at top level.
+When decoding, only object, tuple or `TomlValueRef` allowed at top level.
 All others Nim basic datatypes such as floats, ints, array, boolean must
 be a value of a key.
 
@@ -90,6 +90,9 @@ Key must be valid Toml basic-key, quoted-key, or dotted-key.
 
   # decode any value into string
   var nim_string = Toml.decode(rawtoml, StringServer)
+
+  # decode any valid TOML
+  var toml_value = Toml.decode(rawtoml, TomlValueRef)
 ```
 
 ## Parse inline table with newline
@@ -108,7 +111,7 @@ server = {
   var x = Toml.decode(rawtoml, Server, flags = {TomlInlineTableNewline})
 ```
 
-## Load and Save
+## Load and save
 ```Nim
   var server = Toml.loadFile("filename.toml", Server)
   var ip = Toml.loadFile("filename.toml", string, "server.ip")
@@ -147,7 +150,7 @@ server = {
 
 ## Bignum
 TOML integer maxed at int64. But nim-toml-serialization can extend this to arbitrary precision bignum.
-Parsing bignum is achieved via helper functions `parseNumber`.
+Parsing bignum is achieved via helper function `parseNumber`.
 
 ```Nim
 # this is an example how to parse bignum with `parseNumber` and `stint`.
