@@ -18,10 +18,7 @@ type
     pushBack: char
     pushCol: int
     pushLine: int
-
-  StringType* {.pure.} = enum
-    Basic   # Enclosed within double quotation marks
-    Literal # Enclosed within single quotation marks
+    flags: TomlFlags
 
   TomlReaderError* = object of TomlError
     line*, col*: int
@@ -53,9 +50,6 @@ type
     errDoubleBracket      = "double bracket not allowed"
     errDuplicateTableKey  = "duplicate table key not allowed"
     errKeyNotFound        = "key not found: "
-
-  NumberBase* = enum
-    base10, base16, base8, base2
 
 const
   CR   = '\r'
@@ -139,10 +133,11 @@ template raiseNotArray(lex: TomlLexer, name: string) =
 template raiseKeyNotFound(lex: TomlLexer, key: string) =
   raise(newTomlError(lex, $errKeyNotFound & "\'" & key & "\'"))
 
-proc init*(T: type TomlLexer, stream: InputStream): T =
+proc init*(T: type TomlLexer, stream: InputStream, flags: TomlFlags = {}): T =
   T(stream: stream,
     line: 1,
-    col: 1
+    col: 1,
+    flags: flags
    )
 
 proc next(lex: var TomlLexer): char =
@@ -1461,7 +1456,10 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
 
       lex.push next
     of '\n':
-      raiseIllegalChar(lex, next)
+      if TomlInlineTableNewline in lex.flags:
+        continue
+      else:
+        raiseIllegalChar(lex, next)
     else:
       firstComma = false
       lex.push next

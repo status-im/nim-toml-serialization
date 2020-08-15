@@ -1,0 +1,9 @@
+# this is non standard feature
+
+server = {
+  ip = "127.0.0.1",
+  port = 8005,
+  name = "TOML Server"
+}
+
+encoding = { name = "TOML", charset = "UTF-8" }

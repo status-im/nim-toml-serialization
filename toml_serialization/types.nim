@@ -21,6 +21,13 @@ type
 
   Sign* {.pure.} = enum None, Pos, Neg
 
+  NumberBase* = enum
+    base10, base16, base8, base2
+
+  StringType* {.pure.} = enum
+    Basic   # Enclosed within double quotation marks
+    Literal # Enclosed within single quotation marks
+
   TomlVoid* = object
 
   TomlCase* = enum

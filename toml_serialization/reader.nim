@@ -41,7 +41,7 @@ proc init*(T: type TomlReader,
            flags: TomlFlags = {},
            allowUnknownFields = false): T =
   result.allowUnknownFields = allowUnknownFields
-  result.lex = TomlLexer.init(stream)
+  result.lex = TomlLexer.init(stream, flags)
   result.flags = flags
 
 proc moveToKey*(r: var TomlReader, key: string, tomlCase: TomlCase) =
@@ -146,7 +146,10 @@ proc nestedObject[T](r: var TomlReader, value: var T) =
 
         push(r.lex, next)
       of '\n':
-        raiseIllegalChar(r.lex, next)
+        if TomlInlineTableNewline in r.flags:
+          continue
+        else:
+          raiseIllegalChar(r.lex, next)
       else:
         firstComma = false
         push(r.lex, next)
@@ -309,10 +312,51 @@ proc readValue*[T](r: var TomlReader, value: var T)
 
   elif value is (object or tuple):
     if r.level <= 1:
-      r.topLevelObject(value)
+      var next = nonws(r.lex, skipLf)
+      if next == '{':
+        push(r.lex, next)
+        r.nestedObject(value)
+      else:
+        push(r.lex, next)
+        r.topLevelObject(value)
     else:
       r.nestedObject(value)
 
   else:
     const typeName = typetraits.name(T)
     {.error: "Failed to convert to TOML an unsupported type: " & typeName.}
+
+# these are builtin functions
+
+proc parseNumber*(r: var TomlReader, value: var string): (Sign, NumberBase) =
+  var next = nonws(r.lex, skipLf)
+  if next notin strutils.Digits + {'+', '-'}:
+    raiseIllegalChar(r.lex, next)
+
+  push(r.lex, next)
+  scanInt(r.lex, value)
+
+proc parseDateTime*(r: var TomlReader): TomlDateTime =
+  var next = nonws(r.lex, skipLf)
+  if next notin strutils.Digits:
+    raiseTomlErr(r.lex, errInvalidDateTime)
+  push(r.lex, next)
+
+  try:
+    scanDateTime(r.lex, result)
+  except ValueError:
+    raiseTomlErr(r.lex, errInvalidDateTime)
+
+proc parseString*(r: var TomlReader, value: var string): (bool, bool) =
+  var next = nonws(r.lex, skipLf)
+  if next == '\"':
+    let ml = scanString(r.lex, value, StringType.Basic)
+    return (ml, false)
+  elif next == '\'':
+    let ml = scanString(r.lex, value, StringType.Literal)
+    return (ml, true)
+  else:
+    raiseIllegalChar(r.lex, next)
+
+proc parseAsString*(r: var TomlReader): string =
+  parseValue(r.lex, result)
