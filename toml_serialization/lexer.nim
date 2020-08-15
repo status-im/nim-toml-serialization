@@ -18,6 +18,7 @@ type
     pushBack: char
     pushCol: int
     pushLine: int
+    flags: TomlFlags
 
   StringType* {.pure.} = enum
     Basic   # Enclosed within double quotation marks
@@ -139,10 +140,11 @@ template raiseNotArray(lex: TomlLexer, name: string) =
 template raiseKeyNotFound(lex: TomlLexer, key: string) =
   raise(newTomlError(lex, $errKeyNotFound & "\'" & key & "\'"))
 
-proc init*(T: type TomlLexer, stream: InputStream): T =
+proc init*(T: type TomlLexer, stream: InputStream, flags: TomlFlags = {}): T =
   T(stream: stream,
     line: 1,
-    col: 1
+    col: 1,
+    flags: flags
    )
 
 proc next(lex: var TomlLexer): char =
@@ -1461,7 +1463,10 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
 
       lex.push next
     of '\n':
-      raiseIllegalChar(lex, next)
+      if TomlInlineTableNewline in lex.flags:
+        continue
+      else:
+        raiseIllegalChar(lex, next)
     else:
       firstComma = false
       lex.push next

@@ -19,6 +19,15 @@ type
 
   FakeOwner = tuple[name: string, cap: float64]
 
+  Server = object
+    ip: string
+    port: int
+    name: string
+
+  Encoding = object
+    name: string
+    charset: string
+
 proc main() =
   suite "features test suite":
     let rawToml = readFile("tests" / "tomls" / "example.toml")
@@ -57,5 +66,17 @@ proc main() =
 
       var fakeOwner = Toml.decode(rawToml, FakeOwner, "owner", TomlCaseInsensitive, allowUnknownFields = true)
       check fakeOwner.name == "Tom Preston-Werner"
+
+    test "newline in inline table":
+      let toml = readFile("tests" / "tomls" / "inline-table-newline.toml")
+
+      expect TomlError:
+        discard Toml.decode(toml, Server, "server")
+
+      var server = Toml.decode(toml, Server, "server", TomlCaseInsensitive, {TomlInlineTableNewline})
+      check server.port == 8005
+
+      var z = Toml.decode(toml, Encoding, "encoding", TomlCaseInsensitive, {TomlInlineTableNewline})
+      check z.name == "TOML"
 
 main()
