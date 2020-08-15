@@ -104,8 +104,9 @@ proc topLevelObject[T](r: var TomlReader, value: var T) =
         dec r.level
         inc fieldsDone
       elif r.allowUnknownFields:
-        #r.skipSingleJsValue()
-        discard
+        # efficient skip, it doesn't produce any tokens
+        var skipValue: TomlVoid
+        parseValue(r.lex, skipValue)
       else:
         const typeName = typetraits.name(T)
         raiseUnexpectedField(r.lex, fieldName, typeName)
@@ -166,8 +167,9 @@ proc nestedObject[T](r: var TomlReader, value: var T) =
           reader(value, r)
           dec r.level
         elif r.allowUnknownFields:
-          #r.skipSingleJsValue()
-          discard
+          # efficient skip, it doesn't produce any tokens
+          var skipValue: TomlVoid
+          parseValue(r.lex, skipValue)
         else:
           const typeName = typetraits.name(T)
           raiseUnexpectedField(r.lex, fieldName, typeName)

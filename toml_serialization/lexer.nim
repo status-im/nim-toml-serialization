@@ -1709,12 +1709,12 @@ func compare(a, b: openArray[string], tomlCase: TomlCase): bool =
     result = true
 
 proc nimNormalize(x: string): string =
+  # TODO: avoid realloc
   result = normalize(x)
   if x.len > 0:
     result[0] = x[0]
 
 proc normalize(x: openArray[string]): seq[string] =
-  # TODO: avoid realloc
   for z in x:
     result.add nimNormalize(z)
 
@@ -1727,7 +1727,7 @@ proc parseKeyValue(lex: var TomlLexer,
   var keys: seq[string]
   scanKey(lex, keys)
   let curKey = if tomlCase == TomlCaseNim:
-                 normalize(names) & normalize(keys)
+                 @names & normalize(keys)
                else:
                  @names & keys
 
@@ -1771,6 +1771,12 @@ proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase) =
       let bracket = scanTableName(lex, names)
       if bracket == BracketType.double:
         raiseTomlErr(lex, errDoubleBracket)
+
+      names = normalize(names)
+      if compare(keyList, names, tomlCase):
+        found = true
+        break
+
     of '=':
       raiseTomlErr(lex, errKeyNameMissing)
     of '#', '.', ']':

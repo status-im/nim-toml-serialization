@@ -6,9 +6,18 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  unittest, os,
+  unittest, os, strutils,
   ../toml_serialization,
   ../toml_serialization/lexer
+
+type
+  Owner = object
+    name: string
+    dob: TomlDateTime
+    cap: float64
+    dobToml: string
+
+  FakeOwner = tuple[name: string, cap: float64]
 
 proc main() =
   suite "features test suite":
@@ -38,5 +47,15 @@ proc main() =
 
       let vehicle = Toml.decode(rawCase, string, "Vehicle.Name", TomlCaseNim)
       check vehicle == "hovercraft"
+
+    test "allowUnknownFields":
+      expect TomlError:
+        discard Toml.decode(rawToml, Owner, "owner")
+
+      var owner = Toml.decode(rawToml, Owner, "owner", TomlCaseInsensitive, allowUnknownFields = true)
+      check owner.name == "Tom Preston-Werner"
+
+      var fakeOwner = Toml.decode(rawToml, FakeOwner, "owner", TomlCaseInsensitive, allowUnknownFields = true)
+      check fakeOwner.name == "Tom Preston-Werner"
 
 main()
