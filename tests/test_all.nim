@@ -11,4 +11,5 @@ import
   test_spec,
   test_decoder,
   test_parser,
-  test_lexer
+  test_lexer,
+  test_features

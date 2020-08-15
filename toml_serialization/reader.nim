@@ -15,6 +15,7 @@ type
     lex*: TomlLexer
     allowUnknownFields: bool
     level: int
+    flags: TomlFlags
 
   GenericTomlReaderError* = object of TomlReaderError
     deserializedField*: string
@@ -37,9 +38,14 @@ proc handleReadException*(r: TomlReader,
 
 proc init*(T: type TomlReader,
            stream: InputStream,
+           flags: TomlFlags = {},
            allowUnknownFields = false): T =
   result.allowUnknownFields = allowUnknownFields
   result.lex = TomlLexer.init(stream)
+  result.flags = flags
+
+proc moveToKey*(r: var TomlReader, key: string, tomlCase: TomlCase) =
+  r.lex.parseToml(key, tomlCase)
 
 proc setParsed[T: enum](e: var T, s: string) =
   e = parseEnum[T](s)
