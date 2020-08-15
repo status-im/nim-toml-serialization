@@ -232,7 +232,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
       raiseIllegalChar(r.lex, next)
 
     push(r.lex, next)
-    scanFloat(r.lex, value)
+    discard scanFloat(r.lex, value)
 
   elif value is bool:
     value = scanBool(r.lex)
@@ -360,3 +360,12 @@ proc parseString*(r: var TomlReader, value: var string): (bool, bool) =
 
 proc parseAsString*(r: var TomlReader): string =
   parseValue(r.lex, result)
+
+proc parseFloat*(r: var TomlReader, value: var string): Sign =
+  var next = nonws(r.lex, skipLf)
+
+  if next notin strutils.Digits + {'+', '-'}:
+    raiseIllegalChar(r.lex, next)
+
+  push(r.lex, next)
+  scanFloat(r.lex, value)

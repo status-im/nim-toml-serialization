@@ -120,7 +120,7 @@ template testScanFloat(input: string, expectedOutput: untyped, special: static[b
   var stream = unsafeMemoryInput(input)
   var lex = init(TomlLexer, stream)
   var value: type expectedOutput
-  lex.scanFloat(value)
+  discard lex.scanFloat(value)
   when not special:
     check:
       when (type value) is string:

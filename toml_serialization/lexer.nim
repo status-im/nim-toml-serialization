@@ -814,14 +814,13 @@ proc addFrac*[T](lex: var TomlLexer, value: var T, sign: Sign) =
   else:
     {.fatal: "`addFrac` only accepts `float` or `string` or `TomlVoid`".}
 
-proc scanFloat*[T](lex: var TomlLexer, value: var T) =
+proc scanFloat*[T](lex: var TomlLexer, value: var T): Sign =
   when T isnot (SomeFloat or string):
     {.fatal: "`scanFloat` only accepts float or string".}
 
-  when T is SomeFloat:
-    var sign = Sign.None
-
-  var next: char
+  var
+    sign = Sign.None
+    next: char
 
   while true:
     next = lex.next
@@ -829,14 +828,12 @@ proc scanFloat*[T](lex: var TomlLexer, value: var T) =
     of '-':
       when T is string:
         value.add next
-      else:
-        sign = Sign.Neg
+      sign = Sign.Neg
       continue
     of '+':
       when T is string:
         value.add next
-      else:
-        sign = Sign.Pos
+      sign = Sign.Pos
       continue
     of 'i':
       lex.pushLineInfo
@@ -849,7 +846,7 @@ proc scanFloat*[T](lex: var TomlLexer, value: var T) =
         value = Inf
         if sign == Sign.Neg: value = -Inf
       lex.popLineInfo
-      return
+      return sign
     of 'n':
       lex.pushLineInfo
       if lex.next != 'a' or
@@ -861,7 +858,7 @@ proc scanFloat*[T](lex: var TomlLexer, value: var T) =
         value = Nan
         if sign == Sign.Neg: value = -Nan
       lex.popLineInfo()
-      return
+      return sign
     of strutils.Digits:
       lex.push next
       break
@@ -880,16 +877,15 @@ proc scanFloat*[T](lex: var TomlLexer, value: var T) =
   next = lex.next
   case next
   of '.':
-    when T is string:
-      lex.addFrac(value, Sign.None)
-    else:
-      lex.addFrac(value, sign)
+    lex.addFrac(value, sign)
   of 'e', 'E':
     when T is string:
       value.add next
     lex.scanExponent(value)
   else:
     lex.push next
+
+  result = sign
 
 proc scanStrictNum[T](lex: var TomlLexer, res: var T, minVal, maxVal, count: int, msg: string) =
   when T isnot (int or string or TomlVoid):
