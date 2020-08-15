@@ -6,7 +6,7 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  tables, strutils, typetraits, macros,
+  tables, strutils, typetraits, options,
   faststreams/inputs, serialization/[object_serialization, errors],
   types, lexer
 
@@ -177,11 +177,17 @@ proc nestedObject[T](r: var TomlReader, value: var T) =
           const typeName = typetraits.name(T)
           raiseUnexpectedField(r.lex, fieldName, typeName)
 
+template getUnderlyingType*[T](_: Option[T]): untyped = T
+
 proc readValue*[T](r: var TomlReader, value: var T)
                   {.raises: [SerializationError, IOError, Defect].} =
   mixin readValue
 
-  when value is TomlValueRef:
+  when value is Option:
+    var z: getUnderlyingType(value)
+    readValue(r, z)
+    value = some(z)
+  elif value is TomlValueRef:
     # top level differ from the level below
     try:
       if r.level == 0:

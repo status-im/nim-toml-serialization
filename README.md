@@ -146,7 +146,7 @@ server = {
   Dotted key is supported via `keyed` decoding or `TomlValueRef`.
 
 ## Option[T]
-  under development.
+  Option[T] works as usual.
 
 ## Bignum
 TOML integer maxed at int64. But nim-toml-serialization can extend this to arbitrary precision bignum.

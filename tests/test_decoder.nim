@@ -6,7 +6,7 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  unittest, os,
+  unittest, os, options,
   ../toml_serialization,
   ../toml_serialization/lexer
 
@@ -101,5 +101,33 @@ proc testDecoder() =
         x.child.child.name == "CHILD"
         x.child.child.age == 10
         x.son.name == "SON"
+
+    type
+      NoField = object
+        name: string
+        weight: int
+        age: int
+
+      OptionalField = object
+        name: string
+        age: Option[int]
+
+    test "nofield":
+      var x = Toml.decode("name=\"X\" \n age=10", NoField)
+      check x.age == 10
+      check x.name == "X"
+      check x.weight == 0
+
+      expect TomlError:
+        discard Toml.decode("name=\"X\" \n age=10 \n banana = 10", NoField)
+
+      var z = Toml.decode("name=\"X\" \n age=10", OptionalField)
+      check z.name == "X"
+      check z.age.isSome
+      check z.age.get() == 10
+
+      var w = Toml.decode("name=\"X\"", OptionalField)
+      check w.name == "X"
+      check w.age.isNone
 
 testDecoder()
