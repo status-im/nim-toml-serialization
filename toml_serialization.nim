@@ -40,7 +40,9 @@ template decode*(_: type Toml,
   # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
 
   const typeName = typetraits.name(type RecordType)
-  {.fatal: "Toml.decode: \'" & typeName & "\' not allowed at top level Toml".}
+  {.fatal: "Toml.decode: \'" & typeName &
+    "\' not allowed at top level Toml, called from" &
+    $instantiationInfo().}
 
 template decode*(_: type Toml,
                  input: openarray[byte],
@@ -51,7 +53,9 @@ template decode*(_: type Toml,
   # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
 
   const typeName = typetraits.name(type RecordType)
-  {.fatal: "Toml.decode: \'" & typeName & "\' not allowed at top level Toml".}
+  {.fatal: "Toml.decode: \'" & typeName &
+    "\' not allowed at top level Toml, called from" &
+    $instantiationInfo().}
 
 template loadFile*(_: type Toml,
                    fileName: string,
@@ -59,14 +63,18 @@ template loadFile*(_: type Toml,
                    params: varargs[untyped]): auto =
 
   const typeName = typetraits.name(type RecordType)
-  {.fatal: "Toml.loadFile: \'" & typeName & "\' not allowed at top level Toml".}
+  {.fatal: "Toml.loadFile: \'" & typeName &
+    "\' not allowed at top level Toml, called from" &
+    $instantiationInfo().}
 
 template encode*(_: type Toml,
                  value: TomlNotTopLevel,
                  params: varargs[untyped]): auto =
 
   const typeName = typetraits.name(type value)
-  {.fatal: "Toml.encode: \'" & typeName & "\' not allowed at top level Toml".}
+  {.fatal: "Toml.encode: \'" & typeName &
+    "\' not allowed at top level Toml, called from" &
+    $instantiationInfo().}
 
 template saveFile*(_: type Toml,
                    fileName: string,
@@ -74,8 +82,9 @@ template saveFile*(_: type Toml,
                    params: varargs[untyped]) =
 
   const typeName = typetraits.name(type value)
-  {.fatal: "Toml.saveFile: \'" & typeName & "\' not allowed at top level Toml".}
-
+  {.fatal: "Toml.saveFile: \'" & typeName &
+    "\' not allowed at top level Toml, called from" &
+    $instantiationInfo().}
 
 # override default behaviour when in keyed mode
 import
