@@ -154,10 +154,34 @@ proc main() =
       expect TomlError:
         discard Toml.decode("val = \"H\\x45X\"", string, "val")
 
-      var z = Toml.decode("val = \"H\\x45X\" \n name = \"skip hex\"", string, "name", TomlCaseSensitive, {TomlHexEscape})
+      var z = Toml.decode("val = \"H\\x45X\" \n name = \"skip hex\"",
+        string, "name", TomlCaseSensitive, {TomlHexEscape})
       check z == "skip hex"
 
       expect TomlError:
         discard Toml.decode("val = \"H\\x45X\" \n name = \"skip hex\"", string, "name")
+
+    test "api test":
+      var x = Toml.decode("val = \"H\\x45X\"", string, "val", {TomlHexEscape})
+      check x == "HEX"
+
+      var w = Toml.decode("Val = \"HEX\"", string, "Val", TomlCaseSensitive)
+      check w == "HEX"
+
+      var u = Toml.decode("val = 123456", int, "val")
+      check u == 123456
+
+      let file = "tests" / "tomls" / "example.toml"
+      var z = Toml.loadFile(file, bool, "database.enabled")
+      check z == true
+
+      let toml = "tests" / "tomls" / "case.toml"
+      var v = Toml.loadFile(toml, string, "animal.name", TomlCaseInsensitive)
+      check v == "Elephant"
+
+    test "unsupported keyed mode":
+      let table = "tests" / "tomls" / "inline-table-newline.toml"
+      expect TomlError:
+        discard Toml.loadFile(table, int, "server.port", {TomlInlineTableNewline})
 
 main()
