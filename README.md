@@ -70,6 +70,19 @@ where `caseSensitivity` is one of:
 
 Key must be valid Toml basic-key, quoted-key, or dotted-key.
 
+Gotcha:
+
+```toml
+server = { ip = "127.0.0.1", port = 8005, name = "TOML Server" }
+```
+
+It maybe tempting to use keyed mode for above example like this:
+```nim
+var x = Toml.decode(rawToml, string, "server.name")
+```
+But it won't work because the grammar of TOML make it very difficult
+to `exit` from inline-table-parser in a clean way.
+
 ## Decoder
 ```
   type
