@@ -50,6 +50,7 @@ type
     errDoubleBracket      = "double bracket not allowed"
     errDuplicateTableKey  = "duplicate table key not allowed"
     errKeyNotFound        = "key not found: "
+    errInvalidHex         = "invalid hex escape, "
 
 const
   CR   = '\r'
@@ -132,6 +133,9 @@ template raiseNotArray(lex: TomlLexer, name: string) =
 
 template raiseKeyNotFound(lex: TomlLexer, key: string) =
   raise(newTomlError(lex, $errKeyNotFound & "\'" & key & "\'"))
+
+template raiseInvalidHex*(lex: TomlLexer, s: string) =
+  raise(newTomlError(lex, $errInvalidHex & s))
 
 proc init*(T: type TomlLexer, stream: InputStream, flags: TomlFlags = {}): T =
   T(stream: stream,
@@ -336,6 +340,24 @@ proc scanUnicode[T](lex: var TomlLexer, res: var T) =
   when T is string:
     res.add unicode.toUTF8(Rune(code))
 
+proc scanHexEscape[T](lex: var TomlLexer, res: var T) =
+  when T isnot (string or TomlVoid):
+    {.fatal: "`scanUnicode` only accepts `string` or `TomlVoid`".}
+
+  if TomlHexEscape notin lex.flags:
+    raiseInvalidHex(lex, "not supported by standard, please use `TomlHexEscape`")
+
+  let line = lex.line
+  var code: int
+  let col = scanDigits(lex, code, base16)
+  if lex.line != line:
+    raiseInvalidHex(lex, "can't span lines")
+  if col != 2:
+    raiseInvalidHex(lex, "'\\x' must have 2 character value")
+
+  when T is string:
+    res.add char(code)
+
 proc scanEscapeChar[T](lex: var TomlLexer, esc: char, res: var T) =
   when T isnot (string or TomlVoid):
     {.fatal: "`scanEscapeChar` only accepts `string` or `TomlVoid`".}
@@ -350,6 +372,8 @@ proc scanEscapeChar[T](lex: var TomlLexer, esc: char, res: var T) =
     of '\'': res.add "\'"
     of '\"': res.add "\""
     of '\\': res.add "\\"
+    of 'x':
+      scanHexEscape(lex, res)
     of 'u', 'U':
       lex.push(esc)
       scanUnicode(lex, res)
@@ -359,6 +383,8 @@ proc scanEscapeChar[T](lex: var TomlLexer, esc: char, res: var T) =
     case esc
     of 'b', 't', 'n', 'f', 'r', '\'', '\"', '\\':
       discard
+    of 'x':
+      scanHexEscape(lex, res)
     of 'u', 'U':
       lex.push(esc)
       scanUnicode(lex, res)

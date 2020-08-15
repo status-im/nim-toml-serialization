@@ -147,4 +147,17 @@ proc main() =
       check z.sign == Sign.Neg
       check z.data == "-123.123"
 
+    test "hex escape sequence":
+      var x = Toml.decode("val = \"H\\x45X\"", string, "val", TomlCaseSensitive, {TomlHexEscape})
+      check x == "HEX"
+
+      expect TomlError:
+        discard Toml.decode("val = \"H\\x45X\"", string, "val")
+
+      var z = Toml.decode("val = \"H\\x45X\" \n name = \"skip hex\"", string, "name", TomlCaseSensitive, {TomlHexEscape})
+      check z == "skip hex"
+
+      expect TomlError:
+        discard Toml.decode("val = \"H\\x45X\" \n name = \"skip hex\"", string, "name")
+
 main()
