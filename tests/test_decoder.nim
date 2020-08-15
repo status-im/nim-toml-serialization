@@ -52,6 +52,7 @@ type
 
   NestedObject = object
     child: ChildObject
+    son: GrandChild
 
 proc testDecoder() =
   suite "test decoder":
@@ -99,5 +100,6 @@ proc testDecoder() =
         x.child.name == "TOML"
         x.child.child.name == "CHILD"
         x.child.child.age == 10
+        x.son.name == "SON"
 
 testDecoder()

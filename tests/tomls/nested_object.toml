@@ -2,3 +2,5 @@
 [child]
   name  = "TOML"
   child = { name = "CHILD", age = 10}
+  
+son = { name = "SON", age = 10}

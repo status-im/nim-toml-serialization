@@ -308,8 +308,16 @@ proc readValue*[T](r: var TomlReader, value: var T)
       raiseTomlErr(r.lex, errUnterminatedArray)
 
   elif value is (object or tuple):
-    if r.level <= 1:
+    if r.level == 0:
       r.topLevelObject(value)
+    elif r.level == 1:
+      var next = nonws(r.lex, skipLf)
+      if next == '{':
+        push(r.lex, next)
+        r.nestedObject(value)
+      else:
+        push(r.lex, next)
+        r.topLevelObject(value)
     else:
       r.nestedObject(value)
 
