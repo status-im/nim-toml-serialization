@@ -15,6 +15,7 @@ type
     lex*: TomlLexer
     allowUnknownFields: bool
     level: int
+    flags: TomlFlags
 
   GenericTomlReaderError* = object of TomlReaderError
     deserializedField*: string
@@ -37,9 +38,14 @@ proc handleReadException*(r: TomlReader,
 
 proc init*(T: type TomlReader,
            stream: InputStream,
+           flags: TomlFlags = {},
            allowUnknownFields = false): T =
   result.allowUnknownFields = allowUnknownFields
   result.lex = TomlLexer.init(stream)
+  result.flags = flags
+
+proc moveToKey*(r: var TomlReader, key: string, tomlCase: TomlCase) =
+  r.lex.parseToml(key, tomlCase)
 
 proc setParsed[T: enum](e: var T, s: string) =
   e = parseEnum[T](s)
@@ -98,8 +104,9 @@ proc topLevelObject[T](r: var TomlReader, value: var T) =
         dec r.level
         inc fieldsDone
       elif r.allowUnknownFields:
-        #r.skipSingleJsValue()
-        discard
+        # efficient skip, it doesn't produce any tokens
+        var skipValue: TomlVoid
+        parseValue(r.lex, skipValue)
       else:
         const typeName = typetraits.name(T)
         raiseUnexpectedField(r.lex, fieldName, typeName)
@@ -160,8 +167,9 @@ proc nestedObject[T](r: var TomlReader, value: var T) =
           reader(value, r)
           dec r.level
         elif r.allowUnknownFields:
-          #r.skipSingleJsValue()
-          discard
+          # efficient skip, it doesn't produce any tokens
+          var skipValue: TomlVoid
+          parseValue(r.lex, skipValue)
         else:
           const typeName = typetraits.name(T)
           raiseUnexpectedField(r.lex, fieldName, typeName)

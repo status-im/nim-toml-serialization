@@ -16,7 +16,6 @@ bare-key = "value"
 
 # A bare key must be non-empty, but an empty quoted key is allowed (though discouraged).
 "" = "blank"     # VALID but discouraged
-'' = 'blank'     # VALID but discouraged
 
 # Dotted keys are a sequence of bare or quoted keys joined with a dot.
 name = "Orange"
@@ -103,7 +102,7 @@ quot15 = '''Here are fifteen quotation marks: """""""""""""""'''
 apos15 = "Here are fifteen apostrophes: '''''''''''''''"
 
 # 'That's still pointless', she said.
-str = ''''That's still pointless', she said.'''
+str8 = ''''That's still pointless', she said.'''
 
 int1 = +99
 int2 = 42
@@ -214,11 +213,11 @@ type.name = "pug"
 
 [x] # defining a super-table afterwards is ok
 
-[fruit]
-apple.color = "red"
-apple.taste.sweet = true
+[tropical-fruit]
+banana.color = "yellow"
+banana.taste.sweet = true
 
-[fruit.apple.texture]  # you can add sub-tables
+[tropical-fruit.banana.texture]  # you can add sub-tables
 smooth = true
 
 person_name = { first = "Tom", last = "Preston-Werner" }

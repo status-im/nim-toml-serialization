@@ -91,6 +91,7 @@ proc testDecoder() =
 
     test "spec example":
       discard Toml.loadFile("tests" / "tomls" / "example.toml", TomlValueRef)
+      discard Toml.loadFile("tests" / "tomls" / "spec.toml", TomlValueRef)
 
     test "nested object":
       var x = Toml.loadFile("tests" / "tomls" / "nested_object.toml", NestedObject)

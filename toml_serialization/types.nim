@@ -21,6 +21,18 @@ type
 
   Sign* {.pure.} = enum None, Pos, Neg
 
+  TomlVoid* = object
+
+  TomlCase* = enum
+    TomlCaseSensitive
+    TomlCaseInsensitive
+    TomlCaseNim
+
+  TomlFlag* = enum
+    TomlInlineTableNewline
+
+  TomlFlags* = set[TomlFlag]
+
   TomlKind* {.pure.} = enum
     None
     Int,
