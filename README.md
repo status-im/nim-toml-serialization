@@ -9,78 +9,193 @@
 Flexible TOML serialization [not] relying on run-time type information.
 
 ## Overview
-  nim-serialization
-  general purpose toml parser
-  compile time but not not compile time
-  run time
+nim-toml-serialization is a member of [nim-serialization](https://github.com/status-im/nim-serialization)
+family and provides several operation modes:
+
+  - Decode into Nim data types without any intermediate steps using only a **subset** of TOML.
+  - Decode into Nim data types mixed with `TomlValue` to parse any valid TOML value.
+  - Decode into `TomlValue` from any valid TOML.
+  - Encode Nim data types into a **subset** of TOML.
+  - Encode `TomlValue` into full spec TOML.
+  - Both encoder and decoder support `keyed` mode.
 
 ## Spec Compliance
-  1.0.0-rc1
-  iarna test suite
-  burnsushi test suite
+nim-toml-serialization implements [1.0.0-rc1](https://github.com/toml-lang/toml/releases/tag/v1.0.0-rc.1)
+TOML spec and pass these test suites:
 
-## Encoder
-  subset, full
-    example
+  - [iarna toml test suite](https://github.com/iarna/toml-spec-tests)
+  - [burntsushi toml test suite](https://github.com/BurntSushi/toml-test)
 
-  newline in inline table
-    example
+## Non standard features
+TOML key comparison according to the spec is case sensitive and this is the default mode
+for both encoder/decoder. But nim-toml-serialization also support:
 
-  Toml.encode(T obj, "name", niit, subset/full)
-    example
+  - Case insensitive key comparison.
+  - Nim ident sensitivity key comparison mode (only the first char is case sensitive).
 
-  Toml.encode(T obj, "name" + index?, niit, subset/full)
-    example
+TOML key supports Unicode chars but the comparison mentioned above only applied to ASCII chars.
+
+TOML inline table disallow newline inside the table.
+nim-toml-serialization provide a switch to enable newline in inline table(**TomlInlineTableNewline**).
+
+## Keyed mode
+When decoding, only object, tuple or TomlValueRef allowed at top level.
+All others Nim basic datatypes such as floats, ints, array, boolean must
+be a value of a key.
+
+nim-toml-serialization offers `keyed` mode decoding to overcome this limitation.
+
+```toml
+[server]
+  name = "TOML Server"
+  port = 8005
+```
+
+```Nim
+var x = Toml.decode(rawToml, string, "server.name")
+assert x == "TOML Server"
+
+or
+
+var y = Toml.decode(rawToml, string, "server.name", caseSensitivity)
+```
+
+where `caseSensitivity` is one of:
+  - TomlCaseSensitive
+  - TomlCaseInsensitive
+  - TomlCaseNim
+
+Key must be valid Toml basic-key, quoted-key, or dotted-key.
 
 ## Decoder
-  always pretty: depends on niit
-    example
+```
+  type
+    NimServer = object
+      name: string
+      port: int
 
-  subset, full
-    example
+    MixedServer = object
+      name: TomlValueRef
+      port: int
 
-  newline in inline table
-    example
+    StringServer = object
+      name: string
+      port: string
 
-  Toml.decode(seq/string, T type, "name", niit, subset/full)
-    example
+  # decode into native Nim
+  var nim_native = Toml.decode(rawtoml, NimServer)
 
-  Toml.decode(seq/string, T type, "name" + index?, niit, subset/full)
-    example
+  # decode into mixed Nim + TomlValueRef
+  var nim_mixed = Toml.decode(rawtoml, MixedServer)
 
-  Toml.decode(seq/string, T TomlTable, "name", niit)
-    example
+  # decode any value into string
+  var nim_string = Toml.decode(rawtoml, StringServer)
+```
 
-  Toml.decode(seq/string, T TomlTableArray, niit)
-    example
+## Parse inline table with newline
+```toml
+# this is a non standard toml
+
+server = {
+  ip = "127.0.0.1",
+  port = 8005,
+  name = "TOML Server"
+}
+```
+
+```Nim
+  # turn on newline in inline table mode
+  var x = Toml.decode(rawtoml, Server, flags = {TomlInlineTableNewline})
+```
 
 ## Load and Save
-  load example
-  save example
+```Nim
+  var server = Toml.loadFile("filename.toml", Server)
+  var ip = Toml.loadFile("filename.toml", string, "server.ip")
+
+  Toml.saveFile("filename.toml", server)
+  Toml.saveFile("filename.toml", ip, "server.ip")
+  Toml.saveFile("filename.toml", server, flags = {TomlInlineTableNewline})
+```
 
 ## TOML we can['t] do
-  numerics
+- Date Time.
+  TOML date time format is described in [RFC 3339](https://tools.ietf.org/html/rfc3339).
+  When parsing TOML date time, use `string`, `TomlDateTime`, or `TomlValueRef`.
 
-## Nim but [not] TOML
-  Top level only tables
-  and arrays of tables
+- Heterogenous array.
+  When parsing heterogenous array, use `string` or `TomlValueRef`.
+
+- Floats.
+  Floats should be implemented as IEEE 754 binary64 values.
+  Standard TOML float are float64.
+  When parsing floats, use `string` or `TomlValueRef` or `SomeFloat`.
+
+- Integers.
+  TOML integer is an 64 bit (signed long) range expected (−9,223,372,036,854,775,808 to 9,223,372,036,854,775,807).
+  When parsing floats, use `string` or `SomeInteger`, or `TomlValueRef`.
+
+- Array of tables.
+  Currently array of tables only can be parsed via `TomlValueRef`.
+
+- Dotted key.
+  When parse into nim object, key must not a dotted key.
+  Dotted key is supported via `keyed` decoding or `TomlValueRef`.
 
 ## Option[T]
-  manual override
+  under development.
 
 ## Bignum
-  example uint256
-  example uint1024
+TOML integer maxed at int64. But nim-toml-serialization can extend this to arbitrary precision bignum.
+Parsing bignum is achieved via helper functions `parseNumber`.
 
-## TomlTableArray
-  anything
+```Nim
+# this is an example how to parse bignum with `parseNumber` and `stint`.
 
-## TomlTable
-  single dict
-  get one of array
+import stint, toml_serialization
 
-## Builtins
-  function  output
+proc readValue*(r: var TomlReader, value: var Uint256) =
+  var z: string
+  let (sign, base) = r.parseNumber(z)
+
+  if sign == Sign.Neg:
+    raiseTomlErr(r.lex, errNegateUint)
+
+  case base
+  of base10: value = parse(z, Uint256, 10)
+  of base16: value = parse(z, Uint256, 16)
+  of base8:  value = parse(z, Uint256, 8)
+  of base2:  value = parse(z, Uint256, 2)
+
+var z = Toml.decode("bignum = 1234567890_1234567890", Uint256, "bignum")
+assert $z == "12345678901234567890"
+```
+
+## Helper functions
+  - `parseNumber(r: var TomlReader, value: var string): (Sign, NumberBase)`
+  - `parseDateTime(r: var TomlReader): TomlDateTime`
+  - `parseString(r: var TomlReader, value: var string): (bool, bool)`
+  - `parseAsString(r: var TomlReader): string`
+  - `parseFloat(r: var TomlReader, value: var string): Sign`
+
+`parseAsString` can parse any valid TOML value into Nim string including mixed array or inline table.
+`parseString` return a tuple:
+  - field 0:
+    - false: is a single line string.
+    - true: is a multi line string.
+  - field 1:
+    - false: is a basic string.
+    - true: is a literal string.
+
+`Sign` can be one of:
+  - `Sign.None`
+  - `Sign.Pos`
+  - `Sign.Neg`
+
+## Implementation specifics
+TOMLTime contains subsecond field. The spec says the precision is implementation specific.
+In nim-toml-serialization the default is 6 digits precision.
+You can override this using compiler switch `-d:subsecondPrecision=numDigits`.
 
 ## Installation
 
@@ -91,7 +206,7 @@ nimble install https://github.com/status-im/nim-toml-serialization@#master
 
 or install latest release version
 ```
-nimble install toml-serialization
+nimble install toml_serialization
 ```
 
 ## License
@@ -105,3 +220,7 @@ or
 * Apache License, Version 2.0, ([LICENSE-APACHEv2](LICENSE-APACHEv2) or http://www.apache.org/licenses/LICENSE-2.0)
 
 at your option. This file may not be copied, modified, or distributed except according to those terms.
+
+## Credits
+
+ A portion of toml decoder was taken from PMunch's [`parsetoml`](https://github.com/NimParsers/parsetoml)
