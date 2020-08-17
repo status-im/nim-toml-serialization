@@ -273,7 +273,7 @@ proc scanUint[T](lex: var TomlLexer, value: var T, base: NumberBase,
 
     firstPos = false
 
-proc scanDigits[T](lex: var TomlLexer, value: var T, base: NumberBase): int =
+proc scanDigits*[T](lex: var TomlLexer, value: var T, base: NumberBase): int =
   ## scanUint only accepts `string` or `int`
 
   var next: char
@@ -299,6 +299,8 @@ proc scanDigits[T](lex: var TomlLexer, value: var T, base: NumberBase): int =
       value.add next
     elif T is int:
       value = value * baseNum + charTo(T, next)
+    elif T is TomlVoid:
+      discard
     else:
       {.fatal: "`scanDigits` only accepts `string` or `int`".}
 
@@ -931,9 +933,10 @@ proc scanStrictNum[T](lex: var TomlLexer, res: var T, minVal, maxVal, count: int
   elif T is int:
     res = val
 
-proc scanTime[T](lex: var TomlLexer, value: var T) =
+proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
+  ## `scanTime` assume the two digits of hour already parsed
   when T isnot (TomlTime or string or TomlVoid):
-    {.fatal: "`scanTime` only accepts `TomlTime' or `string` or `TomlVoid`".}
+    {.fatal: "`scanMinuteSecond` only accepts `TomlTime' or `string` or `TomlVoid`".}
 
   var
     next = lex.next
@@ -1002,9 +1005,28 @@ proc scanTime[T](lex: var TomlLexer, value: var T) =
   else:
     lex.push next
 
-proc scanDate[T](lex: var TomlLexer, year: int, value: var T) =
-  when T isnot (TomlDateTime or string or TomlVoid):
-    {.fatal: "`scanDate` only accepts `TomlDateTime' or string or `TomlVoid`".}
+proc scanTime*[T](lex: var TomlLexer, value: var T) =
+  var line = lex.line
+  when T is (string or TomlVoid):
+    template num: untyped = value
+  else:
+    var num : int
+
+  scanStrictNum(lex, num, minVal = 0, maxVal = 23, count = 2,
+                "number out of range for `hours`")
+
+  if lex.line != line:
+    raiseTomlErr(lex, errDateTimeML)
+
+  when T is TomlTime:
+    value.hour = num
+
+  scanMinuteSecond(lex, value)
+
+proc scanMonthDay*[T](lex: var TomlLexer, value: var T) =
+  ## `scanMonthDay` assume the four digits of year already parsed
+  when T isnot (TomlDate or string or TomlVoid):
+    {.fatal: "`scanMonthDay` only accepts `TomlDate' or string or `TomlVoid`".}
 
   var
     next = lex.next
@@ -1019,10 +1041,7 @@ proc scanDate[T](lex: var TomlLexer, year: int, value: var T) =
   elif T is TomlVoid:
     template num: untyped = value
   else:
-    var
-      date: TomlDate
-      zone: TomlTimeZone
-      num : int
+    var num : int
 
   scanStrictNum(lex, num, minVal = 1, maxVal = 12, count = 2,
                 "number out of range for `month`")
@@ -1036,57 +1055,62 @@ proc scanDate[T](lex: var TomlLexer, year: int, value: var T) =
 
   when T is string:
     value.add next
-  elif T is TomlDateTime:
-    date.year  = year
-    date.month = num
+  elif T is TomlDate:
+    value.month = num
 
   scanStrictNum(lex, num, minVal = 1, maxVal = 31, count = 2,
                 "number out of range for `day`")
 
-  when T is TomlDateTime:
-    date.day = num
-    value.date = some(date)
+  when T is TomlDate:
+    value.day = num
 
-  if lex.line != line:
-    # only date part without time
-    return
+proc scanDate*[T](lex: var TomlLexer, value: var T) =
+  var line = lex.line
+  when T is (string or TomlVoid):
+    template num: untyped = value
+  else:
+    var num : int
 
-  let delim = lex.next
-  if delim notin {'t', 'T', ' '}:
-    lex.push delim
-    return
-
-  when T is string:
-    value.add delim
-
-  scanStrictNum(lex, num, minVal = 0, maxVal = 23, count = 2,
-                "number out of range for `hours`")
+  scanStrictNum(lex, num, minVal = 0, maxVal = 9999, count = 4,
+                "number out of range for `year`")
 
   if lex.line != line:
     raiseTomlErr(lex, errDateTimeML)
 
   when T is (string or TomlVoid):
-    scanTime(lex, value)
+    scanMonthDay(lex, value)
   else:
-    var time = TomlTime(hour: num)
-    scanTime(lex, time)
-    value.time = some(time)
+    value.year = num
+    scanMonthDay(lex, value)
 
-  next = lex.next
+proc scanTimeZone*[T](lex: var TomlLexer, value: var T): bool =
+  ## `scanTimeZone` assume the four digits of year already parsed
+  when T isnot (TomlTimeZone or string or TomlVoid):
+    {.fatal: "`scanTimeZone` only accepts `TomlTimeZone' or string or `TomlVoid`".}
+
+  var
+    line = lex.line
+    next = lex.next
+
+  when T is (string or TomlVoid):
+    template num: untyped = value
+  else:
+    var num : int
+
   case next
   of 'z', 'Z':
     when T is string:
       value.add next
-    elif T is TomlDateTime:
-      zone.positiveShift = true
-      zone.hourShift = 0
-      zone.minuteShift = 0
-      value.zone = some(zone)
+    elif T is TomlTimeZone:
+      value.positiveShift = true
+      value.hourShift = 0
+      value.minuteShift = 0
+    result = true
   of '-', '+':
     when T is string:
       value.add next
-    elif T is TomlDateTime:
-      zone.positiveShift = next == '+'
+    elif T is TomlTimeZone:
+      value.positiveShift = next == '+'
 
     scanStrictNum(lex, num, minVal = 0, maxVal = 23, count = 2,
                 "number out of range for `zone hours`")
@@ -1100,20 +1124,56 @@ proc scanDate[T](lex: var TomlLexer, year: int, value: var T) =
 
     when T is string:
       value.add next
-    elif T is TomlDateTime:
-      zone.hourShift = num
+    elif T is TomlTimezone:
+      value.hourShift = num
 
     scanStrictNum(lex, num, minVal = 0, maxVal = 59, count = 2,
                 "number out of range for `zone minutes`")
 
-    when T is TomlDateTime:
-      zone.minuteShift = num
-      value.zone = some(zone)
+    when T is TomlTimeZone:
+      value.minuteShift = num
 
+    result = true
   of EOF:
     discard
   else:
     lex.push next
+
+proc scanLongDate*[T](lex: var TomlLexer, year: int, value: var T) =
+  var line = lex.line
+
+  when T is (string or TomlVoid):
+    scanMonthDay(lex, value)
+  else:
+    var date = TomlDate(year: year)
+    scanMonthDay(lex, date)
+    value.date = some(date)
+
+  if lex.line != line:
+    # only date part without time
+    return
+
+  let delim = lex.next
+  if delim notin {'t', 'T', ' '}:
+    lex.push delim
+    return
+
+  when T is string:
+    value.add delim
+    scanTime(lex, value)
+  elif T is TomlVoid:
+    scanTime(lex, value)
+  else:
+    var time: TomlTime
+    scanTime(lex, time)
+    value.time = some(time)
+
+  when T is (string or TomlVoid):
+    discard scanTimeZone(lex, value)
+  else:
+    var zone: TomlTimeZone
+    if scanTimeZone(lex, zone):
+      value.zone = some(zone)
 
 proc scanDateTime*[T](lex: var TomlLexer, value: var T, zeroLead = false) =
   when T isnot (TomlDateTime or string or TomlVoid):
@@ -1121,7 +1181,7 @@ proc scanDateTime*[T](lex: var TomlLexer, value: var T, zeroLead = false) =
 
   var line = lex.line
 
-  when T is (string or TomlValue):
+  when T is (string or TomlVoid):
     let numDigit = scanDigits(lex, value, base10)
   else:
     var num: int
@@ -1134,9 +1194,10 @@ proc scanDateTime*[T](lex: var TomlLexer, value: var T, zeroLead = false) =
       raiseTomlErr(lex, errDateTimeML)
 
     when T is (string or TomlVoid):
-      scanDate(lex, 0, value)
+      scanLongDate(lex, 0, value)
     else:
-      scanDate(lex, num, value)
+      scanLongDate(lex, num, value)
+
   elif numDigit == 2 - Z:
     if lex.line != line:
       raiseTomlErr(lex, errDateTimeML)
@@ -1144,14 +1205,15 @@ proc scanDateTime*[T](lex: var TomlLexer, value: var T, zeroLead = false) =
     when T is string:
       let num = (value[^2].int - '0'.int) * 10 + (value[^1].int - '0'.int)
 
-    if num > 23:
-      lex.raiseBadValue("number out of range for `hours`", num)
+    when T isnot TomlVoid:
+      if num > 23:
+        lex.raiseBadValue("number out of range for `hours`", num)
 
     when T is (string or TomlVoid):
-      scanTime(lex, value)
+      scanMinuteSecond(lex, value)
     else:
       var time = TomlTime(hour: num)
-      scanTime(lex, time)
+      scanMinuteSecond(lex, time)
       value.time = some(time)
   else:
     raiseTomlErr(lex, errInvalidDateTime)
@@ -1295,11 +1357,11 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             raiseTomlErr(lex, errInvalidDateTime)
           lex.push next
           when T is (string or TomlVoid):
-            scanTime(lex, value)
+            scanMinuteSecond(lex, value)
           else:
             value = TomlValueRef(kind: TomlKind.DateTime)
             var time = TomlTime(hour: curSum)
-            scanTime(lex, time)
+            scanMinuteSecond(lex, time)
             value.dateTime.time = some(time)
           return
         of '-':
@@ -1307,10 +1369,10 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             raiseTomlErr(lex, errInvalidDateTime)
           lex.push next
           when T is (string or TomlVoid):
-            scanDate(lex, 0, value)
+            scanLongDate(lex, 0, value)
           else:
             value = TomlValueRef(kind: TomlKind.DateTime)
-            scanDate(lex, curSum, value.dateTime)
+            scanLongDate(lex, curSum, value.dateTime)
           return
         of '.':
           when T is (string or TomlVoid):

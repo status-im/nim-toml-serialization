@@ -184,4 +184,15 @@ proc main() =
       expect TomlError:
         discard Toml.loadFile(table, int, "server.port", {TomlInlineTableNewline})
 
+    test "date time reader":
+      var x = Toml.decode("x = 12:13:14", TomlTime, "x")
+      check x.hour == 12
+      check x.minute == 13
+      check x.second == 14
+
+      var y = Toml.decode("x = 2020-08-16", TomlDate, "x")
+      check y.year == 2020
+      check y.month == 8
+      check y.day == 16
+
 main()
