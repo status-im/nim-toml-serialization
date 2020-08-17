@@ -956,16 +956,22 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
   scanStrictNum(lex, num, minVal = 0, maxVal = 59, count = 2,
                 "number out of range for `minutes`")
 
+  when T is TomlTime:
+    value.minute = num
+
   if lex.line != line:
     raiseTomlErr(lex, errDateTimeML)
 
   next = lex.next
   if next != ':':
-    lex.raiseExpectChar(':')
+    if TomlHourMinute in lex.flags:
+      lex.push next
+      return
+    else:
+      lex.raiseExpectChar(':')
+
   when T is string:
     value.add next
-  elif T is TomlTime:
-    value.minute = num
 
   # Parse the second. Note that seconds=60 *can* happen (leap second)
   scanStrictNum(lex, num, minVal = 0, maxVal = 60, count = 2,

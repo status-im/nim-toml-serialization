@@ -195,4 +195,13 @@ proc main() =
       check y.month == 8
       check y.day == 16
 
+    test "TomlHourMinute flags":
+      expect TomlError:
+        discard Toml.decode("x = 12:13", TomlTime, "x")
+
+      var x = Toml.decode("x = 12:13", TomlTime, "x", {TomlHourMinute})
+      check x.hour == 12
+      check x.minute == 13
+      check x.second == 0
+
 main()

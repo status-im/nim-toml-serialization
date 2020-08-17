@@ -41,6 +41,8 @@ TOML spec and pass these test suites:
 - TOML standard does not support xHH escape sequence, only uHHHH or UHHHHHHHH.
   Use `TomlHexEscape` to enable this feature, otherwise it will raise exception.
 
+- TOML standard requires time in HH:MM:SS format, `TomlHourMinute` flags will allow HH:MM format.
+
 ## Keyed mode
 When decoding, only object, tuple or `TomlValueRef` allowed at top level.
 All others Nim basic datatypes such as floats, ints, array, boolean must
