@@ -388,7 +388,6 @@ proc parseAsString*(r: var TomlReader): string =
 
 proc parseFloat*(r: var TomlReader, value: var string): Sign =
   var next = nonws(r.lex, skipLf)
-
   if next notin strutils.Digits + {'+', '-'}:
     raiseIllegalChar(r.lex, next)
 

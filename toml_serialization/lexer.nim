@@ -323,15 +323,10 @@ proc scanUnicode[T](lex: var TomlLexer, res: var T) =
   when T isnot (string or TomlVoid):
     {.fatal: "`scanUnicode` only accepts `string` or `TomlVoid`".}
 
-  let
-    line = lex.line
-    kind = lex.next
-
+  let kind = lex.next
   var code: int
   let col = scanDigits(lex, code, base16)
 
-  if lex.line != line:
-    raiseInvalidUnicode(lex, "can't span lines")
   if kind == 'u' and col != 4:
     raiseInvalidUnicode(lex, "'u' must have 4 character value")
   if kind == 'U' and col != 8:
@@ -344,16 +339,13 @@ proc scanUnicode[T](lex: var TomlLexer, res: var T) =
 
 proc scanHexEscape[T](lex: var TomlLexer, res: var T) =
   when T isnot (string or TomlVoid):
-    {.fatal: "`scanUnicode` only accepts `string` or `TomlVoid`".}
+    {.fatal: "`scanHexEscape` only accepts `string` or `TomlVoid`".}
 
   if TomlHexEscape notin lex.flags:
     raiseInvalidHex(lex, "not supported by standard, please use `TomlHexEscape`")
 
-  let line = lex.line
   var code: int
   let col = scanDigits(lex, code, base16)
-  if lex.line != line:
-    raiseInvalidHex(lex, "can't span lines")
   if col != 2:
     raiseInvalidHex(lex, "'\\x' must have 2 character value")
 
