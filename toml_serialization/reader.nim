@@ -202,6 +202,25 @@ proc readValue*[T](r: var TomlReader, value: var T)
     # every value can be deserialized as string
     parseValue(r.lex, value)
 
+  elif value is TomlTime:
+    var next = nonws(r.lex, skipLf)
+    if next notin strutils.Digits:
+      raiseTomlErr(r.lex, errInvalidDateTime)
+
+    push(r.lex, next)
+    try:
+      scanTime(r.lex, value)
+    except ValueError:
+      raiseTomlErr(r.lex, errInvalidDateTime)
+
+  elif value is TomlDate:
+    var next = nonws(r.lex, skipLf)
+    if next notin strutils.Digits:
+      raiseTomlErr(r.lex, errInvalidDateTime)
+
+    push(r.lex, next)
+    scanDate(r.lex, value)
+
   elif value is TomlDateTime:
     var next = nonws(r.lex, skipLf)
     if next notin strutils.Digits:
@@ -375,3 +394,22 @@ proc parseFloat*(r: var TomlReader, value: var string): Sign =
 
   push(r.lex, next)
   scanFloat(r.lex, value)
+
+proc parseTime*(r: var TomlReader): TomlTime =
+  var next = nonws(r.lex, skipLf)
+  if next notin strutils.Digits:
+    raiseTomlErr(r.lex, errInvalidDateTime)
+
+  push(r.lex, next)
+  try:
+    scanTime(r.lex, result)
+  except ValueError:
+    raiseTomlErr(r.lex, errInvalidDateTime)
+
+proc parseDate*(r: var TomlReader): TomlDate =
+  var next = nonws(r.lex, skipLf)
+  if next notin strutils.Digits:
+    raiseTomlErr(r.lex, errInvalidDateTime)
+
+  push(r.lex, next)
+  scanDate(r.lex, result)

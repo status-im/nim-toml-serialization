@@ -29,62 +29,47 @@ type
   # only objects | tuple | TomlValueRef allowed at top level
   TomlNotTopLevel* = SomeInteger or
     seq or SomeFloat or string or
-    array or enum or bool or TomlDateTime
+    array or enum or bool or TomlDateTime or
+    TomlDate or TomlTime
+
+template tomlFatalImpl(fn,  R: untyped) =
+  const typeName = typetraits.name(type R)
+  {.fatal: "Toml." & astToStr(fn) & ": \'" & typeName &
+    "\' not allowed at top level Toml, called from" &
+    $instantiationInfo().}
 
 template decode*(_: type Toml,
                  input: string,
                  RecordType: type TomlNotTopLevel,
                  params: varargs[untyped]): auto =
-
   # TODO, this is duplicated only due to a Nim bug:
   # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
-
-  const typeName = typetraits.name(type RecordType)
-  {.fatal: "Toml.decode: \'" & typeName &
-    "\' not allowed at top level Toml, called from" &
-    $instantiationInfo().}
+  tomlFatalImpl(decode, RecordType)
 
 template decode*(_: type Toml,
                  input: openarray[byte],
                  RecordType: type TomlNotTopLevel,
                  params: varargs[untyped]): auto =
-
   # TODO, this is duplicated only due to a Nim bug:
   # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
-
-  const typeName = typetraits.name(type RecordType)
-  {.fatal: "Toml.decode: \'" & typeName &
-    "\' not allowed at top level Toml, called from" &
-    $instantiationInfo().}
+  tomlFatalImpl(decode, RecordType)
 
 template loadFile*(_: type Toml,
                    fileName: string,
                    RecordType: type TomlNotTopLevel,
                    params: varargs[untyped]): auto =
-
-  const typeName = typetraits.name(type RecordType)
-  {.fatal: "Toml.loadFile: \'" & typeName &
-    "\' not allowed at top level Toml, called from" &
-    $instantiationInfo().}
+  tomlFatalImpl(loadFile, RecordType)
 
 template encode*(_: type Toml,
                  value: TomlNotTopLevel,
                  params: varargs[untyped]): auto =
-
-  const typeName = typetraits.name(type value)
-  {.fatal: "Toml.encode: \'" & typeName &
-    "\' not allowed at top level Toml, called from" &
-    $instantiationInfo().}
+  tomlFatalImpl(encode, RecordType)
 
 template saveFile*(_: type Toml,
                    fileName: string,
                    value: TomlNotTopLevel,
                    params: varargs[untyped]) =
-
-  const typeName = typetraits.name(type value)
-  {.fatal: "Toml.saveFile: \'" & typeName &
-    "\' not allowed at top level Toml, called from" &
-    $instantiationInfo().}
+  tomlFatalImpl(saveFile, RecordType)
 
 # override default behaviour when in keyed mode
 import

@@ -785,12 +785,12 @@ proc testDateTime1() =
       # truncate additional subsecond precision
       testDateTime("07:32:01.9999999", "07:32:01.999999")
 
-      testDateTime("1979-05-27T07:32:00-08:00", "1979-05-27T07:32:00-08:00")
-      testDateTime("1979-05-27T07:32:00+08:00", "1979-05-27T07:32:00+08:00")
-      testDateTime("1979-05-27t07:32:00+08:00", "1979-05-27t07:32:00+08:00")
-      testDateTime("1979-05-27 07:32:00+08:00", "1979-05-27 07:32:00+08:00")
-      testDateTime("1979-05-27 07:32:00.666+08:00", "1979-05-27 07:32:00.666+08:00")
-      testDateTime("1979-05-27 07:32:00.3333333+08:00", "1979-05-27 07:32:00.333333+08:00")
+      testDateTime("1979-05-27T07:32:00-08:01", "1979-05-27T07:32:00-08:01")
+      testDateTime("1979-05-27T07:32:00+08:01", "1979-05-27T07:32:00+08:01")
+      testDateTime("1979-05-27t07:32:00+08:01", "1979-05-27t07:32:00+08:01")
+      testDateTime("1979-05-27 07:32:00+08:01", "1979-05-27 07:32:00+08:01")
+      testDateTime("1979-05-27 07:32:00.666+08:01", "1979-05-27 07:32:00.666+08:01")
+      testDateTime("1979-05-27 07:32:00.3333333+08:01", "1979-05-27 07:32:00.333333+08:01")
       testDateTime("1979-05-27T07:32:00z", "1979-05-27T07:32:00z")
       testDateTime("1979-05-27T07:32:00Z", "1979-05-27T07:32:00Z")
 
@@ -849,25 +849,25 @@ proc testDateTime2() =
       x.zone = some(TomlTimeZone(
         positiveShift: false,
         hourShift: 8,
-        minuteShift: 0
+        minuteShift: 1
         ))
-      testDateTime("1979-05-27T07:32:00-08:00", x)
+      testDateTime("1979-05-27T07:32:00-08:01", x)
 
       x.zone = some(TomlTimeZone(
         positiveShift: true,
         hourShift: 8,
-        minuteShift: 0
+        minuteShift: 1
         ))
-      testDateTime("1979-05-27T07:32:00+08:00", x)
+      testDateTime("1979-05-27T07:32:00+08:01", x)
 
-      testDateTime("1979-05-27t07:32:00+08:00", x)
-      testDateTime("1979-05-27 07:32:00+08:00", x)
+      testDateTime("1979-05-27t07:32:00+08:01", x)
+      testDateTime("1979-05-27 07:32:00+08:01", x)
 
       x.time = some(TomlTime(hour: 7, minute: 32, second: 0, subsecond: 666))
-      testDateTime("1979-05-27 07:32:00.666+08:00", x)
+      testDateTime("1979-05-27 07:32:00.666+08:01", x)
 
       x.time = some(TomlTime(hour: 7, minute: 32, second: 0, subsecond: 333333))
-      testDateTime("1979-05-27 07:32:00.3333333+08:00", x)
+      testDateTime("1979-05-27 07:32:00.3333333+08:01", x)
 
       x.zone = some(TomlTimeZone(
         positiveShift: true,
