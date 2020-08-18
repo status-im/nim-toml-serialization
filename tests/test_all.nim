@@ -12,4 +12,5 @@ import
   test_decoder,
   test_parser,
   test_lexer,
-  test_features
+  test_features,
+  test_encoder

@@ -48,7 +48,7 @@ type
     errUnterminatedTable  = "unterminatedTable"
     errRequireKey         = "require key"
     errDoubleBracket      = "double bracket not allowed"
-    errDuplicateTableKey  = "duplicate table key not allowed"
+    errDuplicateTableKey  = "duplicate table key not allowed: \'"
     errKeyNotFound        = "key not found: "
     errInvalidHex         = "invalid hex escape, "
 
@@ -137,6 +137,9 @@ template raiseKeyNotFound(lex: TomlLexer, key: string) =
 template raiseInvalidHex*(lex: TomlLexer, s: string) =
   raise(newTomlError(lex, $errInvalidHex & s))
 
+template raiseDuplicateTableKey*(lex: TomlLexer, s: string) =
+  raise(newTomlError(lex, $errDuplicateTableKey & s & "\'"))
+  
 proc init*(T: type TomlLexer, stream: InputStream, flags: TomlFlags = {}): T =
   T(stream: stream,
     line: 1,
@@ -1281,10 +1284,8 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             elif T is TomlVoid:
               scanExponent(lex, value)
             else:
-              value = TomlValueRef(kind: TomlKind.Float, floatVal: 0'f64)
-              scanExponent(lex, value.floatVal)
-              if sign == Sign.Neg:
-                value.floatVal = -value.floatVal
+              value = TomlValueRef(kind: TomlKind.Float, floatVal: 0'f64)              
+              scanExponent(lex, value.floatVal)              
             return
           else:
             # else is a sole 0
@@ -1304,6 +1305,8 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             addFrac(lex, value, sign)
           else:
             value = TomlValueRef(kind: TomlKind.Float)
+            if sign == Sign.Neg:
+              value.floatVal = -value.floatVal
             addFrac(lex, value.floatVal, sign)
           return
         of strutils.Whitespace:
@@ -1320,11 +1323,11 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             scanExponent(lex, value)
           elif T is TomlVoid:
             scanExponent(lex, value)
-          else:
+          else:            
             value = TomlValueRef(kind: TomlKind.Float, floatVal: 0'f64)
-            scanExponent(lex, value.floatVal)
             if sign == Sign.Neg:
               value.floatVal = -value.floatVal
+            scanExponent(lex, value.floatVal)
           return
         else:
           # else is a sole 0
@@ -1377,6 +1380,8 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             addFrac(lex, value, sign)
           else:
             value = TomlValueRef(kind: TomlKind.Float, floatVal: float64(curSum))
+            if sign == Sign.Neg:
+              value.floatVal = -value.floatVal
             addFrac(lex, value.floatVal, sign)
           return
         of 'e', 'E':
@@ -1444,7 +1449,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       when T is string:
         value.add "inf"
       elif T is TomlValueRef:
-        value = TomlValueRef(kind: TomlKind.Float, floatVal: Inf, sign: sign)
+        value = TomlValueRef(kind: TomlKind.Float, floatVal: Inf)
       lex.popLineInfo
       return
     of 'n':
@@ -1455,7 +1460,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       when T is string:
         value.add "nan"
       elif T is TomlValueRef:
-        value = TomlValueRef(kind: TomlKind.Float, floatVal: Nan, sign: sign)
+        value = TomlValueRef(kind: TomlKind.Float, floatVal: Nan)
       lex.popLineInfo
       return
     else:
@@ -1704,11 +1709,11 @@ proc createTable(lex: var TomlLexer,
     curTable[].withValue(name, val) do:
       if i == names.high and val[].kind == TomlKind.Table:
         if val[].tableVal.len == 0:
-          raiseTomlErr(lex, errDuplicateTableKey)
+          raiseDuplicateTableKey(lex, name)
         elif not dotted:
           for value in val[].tableVal.values:
             if value.kind != TomlKind.Table:
-              raiseTomlErr(lex, errDuplicateTableKey)
+              raiseDuplicateTableKey(lex, name)
       advanceToNextNestLevel(lex, curTable, name)
     do:
       # Add the newly created object to the current table
@@ -1728,7 +1733,7 @@ proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
 
   createTable(lex, curTable, keys, dotted = true)
   if curTable.hasKey(key):
-    raiseTomlErr(lex, errDuplicateTableKey)
+    raiseDuplicateTableKey(lex, key)
 
   var next = lex.next
   if next != '=':
