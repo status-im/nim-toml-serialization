@@ -144,6 +144,12 @@ server = {
   TOML date time format is described in [RFC 3339](https://tools.ietf.org/html/rfc3339).
   When parsing TOML date time, use `string`, `TomlDateTime`, or `TomlValueRef`.
 
+- Date.
+  You can parse TOML date using `string` or `TomlDate`.
+
+- Time.
+  You can parse TOML time using `string` or `TomlTime`.
+
 - Heterogenous array.
   When parsing heterogenous array, use `string` or `TomlValueRef`.
 
