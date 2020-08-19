@@ -1597,7 +1597,7 @@ proc parseValue[T](lex: var TomlLexer, value: var T) =
     lex.push next
     when T is string:
       let val = lex.scanBool
-      value.add $val
+      value.add if val: "true" else: "false"
     elif T is TomlVoid:
       discard lex.scanBool
     else:
