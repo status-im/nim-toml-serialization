@@ -78,8 +78,11 @@ proc main() =
       let server = Toml.decode(rawToml, string, "database.server")
       check server == "192.168.1.1"
 
-      var owner = Toml.decode(rawToml, string, "owner.name")
+      let owner = Toml.decode(rawToml, string, "owner.name")
       check owner == "Tom Preston-Werner"
+
+      let serverName = Toml.decode(rawCase, string, "SeRveR.nAmE")
+      check serverName == "Toml"
 
       expect TomlError:
         discard Toml.decode(rawToml, string, "Fruit")
@@ -97,6 +100,9 @@ proc main() =
 
       let vehicle = Toml.decode(rawCase, string, "Vehicle.Name", TomlCaseNim)
       check vehicle == "hovercraft"
+
+      let server = Toml.decode(rawCase, string, "Server.name", TomlCaseNim)
+      check server == "Toml"
 
     test "allowUnknownFields":
       expect TomlError:

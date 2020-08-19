@@ -1800,6 +1800,7 @@ proc nimNormalize(x: string): string =
     result[0] = x[0]
 
 proc normalize(x: openArray[string]): seq[string] =
+  # TODO: avoid realloc
   for z in x:
     result.add nimNormalize(z)
 
@@ -1837,6 +1838,7 @@ proc parseKey(key: string, tomlCase: TomlCase): seq[string] =
   var stream = unsafeMemoryInput(key)
   var lex = init(TomlLexer, stream)
   lex.scanKey(result)
+  # TODO: avoid realloc
   if tomlCase == TomlCaseNim:
     result = normalize(result)
 
@@ -1857,7 +1859,10 @@ proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase) =
       if bracket == BracketType.double:
         raiseTomlErr(lex, errDoubleBracket)
 
-      names = normalize(names)
+      # TODO: avoid realloc
+      if tomlCase == TomlCaseNim:
+        names = normalize(names)
+
       if compare(keyList, names, tomlCase):
         found = true
         break
