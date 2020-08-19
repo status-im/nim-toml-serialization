@@ -154,7 +154,7 @@ server = {
 
 - Integers.
   TOML integer is an 64 bit (signed long) range expected (−9,223,372,036,854,775,808 to 9,223,372,036,854,775,807).
-  When parsing floats, use `string` or `SomeInteger`, or `TomlValueRef`.
+  When parsing integers, use `string` or `SomeInteger`, or `TomlValueRef`.
 
 - Array of tables.
   Currently array of tables only can be parsed via `TomlValueRef`.
@@ -202,6 +202,7 @@ assert $z == "12345678901234567890"
   - `parseDate(r: var TomlReader): TomlDate`
 
 `parseAsString` can parse any valid TOML value into Nim string including mixed array or inline table.
+
 `parseString` return a tuple:
   - field 0:
     - false: is a single line string.
@@ -216,7 +217,7 @@ assert $z == "12345678901234567890"
   - `Sign.Neg`
 
 ## Implementation specifics
-TOMLTime contains subsecond field. The spec says the precision is implementation specific.
+TomlTime contains subsecond field. The spec says the precision is implementation specific.
 In nim-toml-serialization the default is 6 digits precision.
 You can override this using compiler switch `-d:subsecondPrecision=numDigits`.
 
