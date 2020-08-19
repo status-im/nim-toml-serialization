@@ -139,7 +139,7 @@ template raiseInvalidHex*(lex: TomlLexer, s: string) =
 
 template raiseDuplicateTableKey*(lex: TomlLexer, s: string) =
   raise(newTomlError(lex, $errDuplicateTableKey & s & "\'"))
-  
+
 proc init*(T: type TomlLexer, stream: InputStream, flags: TomlFlags = {}): T =
   T(stream: stream,
     line: 1,
@@ -1284,8 +1284,8 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             elif T is TomlVoid:
               scanExponent(lex, value)
             else:
-              value = TomlValueRef(kind: TomlKind.Float, floatVal: 0'f64)              
-              scanExponent(lex, value.floatVal)              
+              value = TomlValueRef(kind: TomlKind.Float, floatVal: 0'f64)
+              scanExponent(lex, value.floatVal)
             return
           else:
             # else is a sole 0
@@ -1323,7 +1323,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             scanExponent(lex, value)
           elif T is TomlVoid:
             scanExponent(lex, value)
-          else:            
+          else:
             value = TomlValueRef(kind: TomlKind.Float, floatVal: 0'f64)
             if sign == Sign.Neg:
               value.floatVal = -value.floatVal
@@ -1345,7 +1345,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       when T is string:
         value.add next
       elif T is TomlValueRef:
-        var curSum = int(next) - int('0')
+        var curSum = int64(next) - int64('0')
 
       while true:
         next = lex.next
@@ -1361,7 +1361,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             scanMinuteSecond(lex, value)
           else:
             value = TomlValueRef(kind: TomlKind.DateTime)
-            var time = TomlTime(hour: curSum)
+            var time = TomlTime(hour: curSum.int)
             scanMinuteSecond(lex, time)
             value.dateTime.time = some(time)
           return
@@ -1373,7 +1373,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             scanLongDate(lex, 0, value)
           else:
             value = TomlValueRef(kind: TomlKind.DateTime)
-            scanLongDate(lex, curSum, value.dateTime)
+            scanLongDate(lex, curSum.int, value.dateTime)
           return
         of '.':
           when T is (string or TomlVoid):
@@ -1404,7 +1404,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             inc digits
           else:
             try:
-              curSum = curSum * 10 + int(next) - int('0')
+              curSum = curSum * 10'i64 + int64(next) - int64('0')
               inc digits
             except OverflowError:
               raiseTomlErr(lex, errIntegerOverflow)

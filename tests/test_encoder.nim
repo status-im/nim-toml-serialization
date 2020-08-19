@@ -40,7 +40,6 @@ type
 template runTest(x: untyped) =
   type T = type x
   var toml = Toml.encode(x)
-  debugEcho toml
   var z =  Toml.decode(toml, T)
   check x == z
 
@@ -67,8 +66,8 @@ proc main() =
   )
 
   suite "encoder test suite":
-    #test "basic data types":
-      #runTest(x)
+    test "basic data types":
+      runTest(x)
 
     test "nested object":
       var y = NestedObject(child: ChildObject(name: "Toml"))
