@@ -37,10 +37,20 @@ type
   NestedObject = object
     child: ChildObject
 
-template runTest(x: untyped) =
+  BelowObject = object
+    name: string
+    color: int
+
+  SubObject = object
+    below: BelowObject
+
+  TopObject = object
+    sub: SubObject
+
+template runTest(x: untyped, flags: TomlFlags = {}) =
   type T = type x
-  var toml = Toml.encode(x)
-  var z =  Toml.decode(toml, T)
+  var toml = Toml.encode(x, flags)
+  var z =  Toml.decode(toml, T, flags)
   check x == z
 
 proc main() =
@@ -72,5 +82,37 @@ proc main() =
     test "nested object":
       var y = NestedObject(child: ChildObject(name: "Toml"))
       runTest(y)
+
+    test "inline table":
+      let x = TopObject(
+        sub: SubObject(
+          below: BelowObject( name: "below", color: 11)
+        )
+      )
+      runTest(x)
+
+      runTest(x, flags = {TomlInlineTableNewline})
+
+    test "TomlTime":
+      type
+        TopTime = object
+          time: TomlTime
+
+      var z = TopTime(time: TomlTime(hour: 11, minute: 12, second: 0, subsecond: 11))
+      runTest(z)
+      runTest(z, flags = {TomlHourMinute})
+
+      var w = TopTime(time: TomlTime(hour: 11, minute: 12, second: 0, subsecond: 0))
+      runTest(w)
+      runTest(w, flags = {TomlHourMinute})
+
+    test "TomlHexEscape":
+      type
+        StringObject = object
+          text: string
+
+      var x = StringObject(text: "\x01\x02")
+      runTest(x)
+      runTest(x, flags = {TomlHexEscape})
 
 main()

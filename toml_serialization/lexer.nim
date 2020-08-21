@@ -954,9 +954,6 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
   when T is TomlTime:
     value.minute = num
 
-  if lex.line != line:
-    raiseTomlErr(lex, errDateTimeML)
-
   next = lex.next
   if next != ':':
     if TomlHourMinute in lex.flags:
@@ -964,6 +961,9 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
       return
     else:
       lex.raiseExpectChar(':')
+
+  if lex.line != line:
+    raiseTomlErr(lex, errDateTimeML)
 
   when T is string:
     value.add next

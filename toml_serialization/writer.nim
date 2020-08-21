@@ -68,6 +68,10 @@ proc writeValue*(w: var TomlWriter, time: TomlTime) =
   append intToStr(time.hour, 2)
   append ':'
   append intToStr(time.minute, 2)
+
+  if TomlHourMinute in w.flags and time.second == 0 and time.subsecond == 0:
+    return
+
   append ':'
   append intToStr(time.second, 2)
   if time.subsecond > 0:
@@ -118,11 +122,15 @@ proc writeValue*(w: var TomlWriter, s: string) =
 
   append '\"'
   for c in runes(s):
-    if c.int < 255:
+    if c.int <= 255:
       case c.char
       of lowEscape, highEscape:
-        append "\\u"
-        append toHex(c.int, 4)
+        if TomlHexEscape in w.flags:
+          append "\\x"
+          append toHex(c.int, 2)
+        else:
+          append "\\u"
+          append toHex(c.int, 4)
       of '\b': append "\\b"
       of '\t': append "\\t"
       of '\n': append "\\n"
@@ -339,9 +347,12 @@ proc writeValue*(w: var TomlWriter, value: auto) =
 
   elif value is (object or tuple):
     let prevState = w.state
+    var firstField = true
     type RecordType = type value
     if w.state == ExpectValue:
-      append '}'
+      append '{'
+      if TomlInlineTableNewline in w.flags:
+        append '\n'
     value.enumInstanceSerializedFields(fieldName, field):
       type FieldType = type field
       case w.state
@@ -356,24 +367,48 @@ proc writeValue*(w: var TomlWriter, value: auto) =
           w.writeFieldName(fieldName)
           w.state = ExpectValue
 
+        inc w.level
         w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
+        dec w.level
         w.state = prevState
 
         when FieldType isnot (object or tuple) or FieldType is (TomlSpecial):
           append '\n'
 
       of ExpectValue:
+        if not firstField:
+          append ','
+          if TomlInlineTableNewline in w.flags:
+            append'\n'
+          else:
+            append ' '
+
+        if TomlInlineTableNewline in w.flags:
+          indent()
+          indent()
+
         w.writeFieldName(fieldName)
+        inc w.level
         w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
+        dec w.level
+        firstField = false
 
       of InsideRecord:
+        indent()
+        indent()
+        w.state = ExpectValue
         w.writeFieldName(fieldName)
+        inc w.level
         w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
+        dec w.level
+        w.state = prevState
         append '\n'
 
     if w.state == ExpectValue:
+      if TomlInlineTableNewline in w.flags:
+        append'\n'
+        indent()
       append '}'
-      append '\n'
     elif w.state == InsideRecord:
       append '\n'
 

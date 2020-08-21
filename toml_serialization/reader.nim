@@ -138,7 +138,6 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
       expectedFieldPos = 0
       fieldName = newStringOfCap(defaultStringCapacity)
       firstComma = true
-      line = r.lex.line
 
     var next = nonws(r.lex, skipNoLf)
     if next != '{':
