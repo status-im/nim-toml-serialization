@@ -114,6 +114,14 @@ proc main() =
       var fakeOwner = Toml.decode(rawToml, FakeOwner, "owner", TomlCaseInsensitive, allowUnknownFields = true)
       check fakeOwner.name == "Tom Preston-Werner"
 
+      type
+        NoName = object
+          age: int
+
+      let toml = readFile("tests" / "tomls" / "nested_object.toml")
+      let y = Toml.decode(toml, NoName, "someone.noname", allowUnknownFields = true)
+      check y.age == 30
+
     test "newline in inline table":
       let toml = readFile("tests" / "tomls" / "inline-table-newline.toml")
 

@@ -8,7 +8,7 @@
 import
   strutils, unicode, options, tables, math,
   faststreams/inputs,
-  types
+  types, private/utils
 
 type
   TomlLexer* = object
@@ -18,7 +18,7 @@ type
     pushBack: char
     pushCol: int
     pushLine: int
-    flags: TomlFlags
+    flags*: TomlFlags
 
   TomlReaderError* = object of TomlError
     line*, col*: int
@@ -1842,7 +1842,7 @@ proc parseKey(key: string, tomlCase: TomlCase): seq[string] =
   if tomlCase == TomlCaseNim:
     result = normalize(result)
 
-proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase) =
+proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase): CodecState =
   ## move cursor to key position
   var
     next: char
@@ -1865,6 +1865,7 @@ proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase) =
 
       if compare(keyList, names, tomlCase):
         found = true
+        result = InsideRecord
         break
 
     of '=':
@@ -1878,6 +1879,7 @@ proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase) =
       lex.push next
       if parseKeyValue(lex, names, keyList, tomlCase):
         found = true
+        result = ExpectValue
         break
 
   if not found:

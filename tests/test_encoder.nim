@@ -39,7 +39,7 @@ type
 
 template runTest(x: untyped) =
   type T = type x
-  var toml = Toml.encode(x)
+  var toml = Toml.encode(x)  
   var z =  Toml.decode(toml, T)
   check x == z
 
