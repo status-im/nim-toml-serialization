@@ -43,7 +43,6 @@ type
   TomlFlags* = set[TomlFlag]
 
   TomlKind* {.pure.} = enum
-    None
     Int,
     Float,
     Bool,
@@ -86,12 +85,10 @@ type
   TomlValueRef* = ref TomlValue
   TomlValue* = object
     case kind*: TomlKind
-    of TomlKind.None: nil
     of TomlKind.Int:
       intVal*: int64
     of TomlKind.Float:
       floatVal*: float64
-      sign*: Sign
     of TomlKind.Bool:
       boolVal*: bool
     of TomlKind.DateTime:
@@ -113,7 +110,8 @@ proc `==`*(a, b: TomlValueRef): bool
 
 proc `==`*(a, b: TomlTableRef): bool =
   result = true
-  if a.len != b.len: return false
+  if a.len != b.len:
+    return false
   for key, val in a:
     b[].withValue(key, node) do:
       result = node[] == val
@@ -121,16 +119,18 @@ proc `==`*(a, b: TomlTableRef): bool =
       result = false
 
 proc `==`(a, b: TomlValueRef): bool =
+  const
+    tableKind = {TomlKind.Table, TomlKind.InlineTable}
+
   if a.isNil:
     if b.isNil: return true
     return false
 
   if b.isNil or a.kind != b.kind:
-    return false
+    if not(a.kind in tableKind and b.kind in tableKind):
+      return false
 
   case a.kind:
-  of TomlKind.None:
-    result = true
   of TomlKind.Int:
     result = a.intVal == b.intVal
   of TomlKind.Float:
@@ -138,8 +138,7 @@ proc `==`(a, b: TomlValueRef): bool =
     if fc != fcNormal:
       result = classify(b.floatVal) == fc
     else:
-      result = (abs(a.floatVal - b.floatVal) < 1E-7) and
-               a.sign == b.sign
+      result = (abs(a.floatVal - b.floatVal) < 1E-7)
   of TomlKind.Bool:
     result = a.boolVal == b.boolVal
   of TomlKind.DateTime:
@@ -152,7 +151,8 @@ proc `==`(a, b: TomlValueRef): bool =
     if a.tablesVal.len != b.tablesVal.len:
       return false
     for i, val in a.tablesVal:
-      if b.tablesVal[i] != val: return false
+      if b.tablesVal[i] != val:
+        return false
     return true
   of TomlKind.Table, TomlKind.InlineTable:
     result = a.tableVal == b.tableVal

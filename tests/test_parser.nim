@@ -107,17 +107,17 @@ proc testNumDateToml() =
       x = TomlValueRef(kind: TomlKind.Float, floatVal: -0.123'f64)
       testNumOrDate("-0.123", x)
 
-      x = TomlValueRef(kind: TomlKind.Float, floatVal: Nan, sign: Sign.Neg)
+      x = TomlValueRef(kind: TomlKind.Float, floatVal: Nan)
       testNumOrDate("-nan", x)
-      x = TomlValueRef(kind: TomlKind.Float, floatVal: Inf, sign: Sign.Neg)
+      x = TomlValueRef(kind: TomlKind.Float, floatVal: Inf)
       testNumOrDate("-inf", x)
-      x = TomlValueRef(kind: TomlKind.Float, floatVal: Nan, sign: Sign.Pos)
+      x = TomlValueRef(kind: TomlKind.Float, floatVal: Nan)
       testNumOrDate("+nan", x)
-      x = TomlValueRef(kind: TomlKind.Float, floatVal: Inf, sign: Sign.Pos)
+      x = TomlValueRef(kind: TomlKind.Float, floatVal: Inf)
       testNumOrDate("+inf", x)
-      x = TomlValueRef(kind: TomlKind.Float, floatVal: Nan, sign: Sign.None)
+      x = TomlValueRef(kind: TomlKind.Float, floatVal: Nan)
       testNumOrDate("nan", x)
-      x = TomlValueRef(kind: TomlKind.Float, floatVal: Inf, sign: Sign.None)
+      x = TomlValueRef(kind: TomlKind.Float, floatVal: Inf)
       testNumOrDate("inf", x)
 
       t = some(TomlTime(hour:12, minute:10, second:11))
@@ -177,7 +177,7 @@ proc testValue() =
       testParseValue("123", x)
       x = TomlValueRef(kind: TomlKind.Bool, boolVal: true)
       testParseValue("true", x)
-      x = TomlValueRef(kind: TomlKind.Float, floatVal: Nan, sign: Sign.None)
+      x = TomlValueRef(kind: TomlKind.Float, floatVal: Nan)
       testParseValue("nan", x)
 
       x = TomlValueRef(kind: TomlKind.String, stringVal: "basic string")
@@ -223,16 +223,25 @@ proc testArrayAndTable() =
 
 proc testMisc() =
   suite "test misc parser":
-    test "bugfix":
+    test "bugfix 1":
       testNumOrDate("0e0", "0e0")
+
+    test "bugfix 2":
       testNumOrDate("-0e0", "-0e0")
+
+    test "bugfix 3":
       testNumOrDate("+0e0", "+0e0")
 
-      var x = TomlValueRef(kind: TomlKind.Float, floatVal: 0.0, sign: Sign.None)
+    test "bugfix 4":
+      var x = TomlValueRef(kind: TomlKind.Float, floatVal: 0.0)
       testNumOrDate("0e0", x)
-      x = TomlValueRef(kind: TomlKind.Float, floatVal: -0.0, sign: Sign.Neg)
+
+    test "bugfix 5":
+      var x = TomlValueRef(kind: TomlKind.Float, floatVal: -0.0)
       testNumOrDate("-0e0", x)
-      x = TomlValueRef(kind: TomlKind.Float, floatVal: 0.0, sign: Sign.Pos)
+
+    test "bugfix 6":
+      var x = TomlValueRef(kind: TomlKind.Float, floatVal: 0.0)
       testNumOrDate("+0e0", x)
 
 # combine it into a long

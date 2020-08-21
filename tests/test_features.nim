@@ -78,8 +78,11 @@ proc main() =
       let server = Toml.decode(rawToml, string, "database.server")
       check server == "192.168.1.1"
 
-      var owner = Toml.decode(rawToml, string, "owner.name")
+      let owner = Toml.decode(rawToml, string, "owner.name")
       check owner == "Tom Preston-Werner"
+
+      let serverName = Toml.decode(rawCase, string, "SeRveR.nAmE")
+      check serverName == "Toml"
 
       expect TomlError:
         discard Toml.decode(rawToml, string, "Fruit")
@@ -98,6 +101,9 @@ proc main() =
       let vehicle = Toml.decode(rawCase, string, "Vehicle.Name", TomlCaseNim)
       check vehicle == "hovercraft"
 
+      let server = Toml.decode(rawCase, string, "Server.name", TomlCaseNim)
+      check server == "Toml"
+
     test "allowUnknownFields":
       expect TomlError:
         discard Toml.decode(rawToml, Owner, "owner")
@@ -107,6 +113,14 @@ proc main() =
 
       var fakeOwner = Toml.decode(rawToml, FakeOwner, "owner", TomlCaseInsensitive, allowUnknownFields = true)
       check fakeOwner.name == "Tom Preston-Werner"
+
+      type
+        NoName = object
+          age: int
+
+      let toml = readFile("tests" / "tomls" / "nested_object.toml")
+      let y = Toml.decode(toml, NoName, "someone.noname", allowUnknownFields = true)
+      check y.age == 30
 
     test "newline in inline table":
       let toml = readFile("tests" / "tomls" / "inline-table-newline.toml")

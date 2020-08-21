@@ -8,14 +8,13 @@
 import
   tables, strutils, typetraits, options,
   faststreams/inputs, serialization/[object_serialization, errors],
-  types, lexer
+  types, lexer, private/utils
 
 type
   TomlReader* = object
     lex*: TomlLexer
     allowUnknownFields: bool
-    level: int
-    flags: TomlFlags
+    state: CodecState
 
   GenericTomlReaderError* = object of TomlReaderError
     deserializedField*: string
@@ -42,10 +41,10 @@ proc init*(T: type TomlReader,
            allowUnknownFields = false): T =
   result.allowUnknownFields = allowUnknownFields
   result.lex = TomlLexer.init(stream, flags)
-  result.flags = flags
+  result.state = TopLevel
 
 proc moveToKey*(r: var TomlReader, key: string, tomlCase: TomlCase) =
-  r.lex.parseToml(key, tomlCase)
+  r.state = r.lex.parseToml(key, tomlCase)
 
 proc setParsed[T: enum](e: var T, s: string) =
   e = parseEnum[T](s)
@@ -57,7 +56,7 @@ proc stringEnum[T: enum](r: var TomlReader, value: var T, s: string) =
     const typeName = typetraits.name(T)
     raiseUnexpectedValue(r.lex, typeName)
 
-proc topLevelObject[T](r: var TomlReader, value: var T) =
+proc decodeRecord[T](r: var TomlReader, value: var T) =
   mixin readValue
 
   const totalFields = T.totalSerializedFields
@@ -68,16 +67,26 @@ proc topLevelObject[T](r: var TomlReader, value: var T) =
       fieldsDone = 0
       fieldName = newStringOfCap(defaultStringCapacity)
       next: char
+      prevState = r.state
+      line = r.lex.line
 
     while true:
       fieldName.setLen(0)
       next = nonws(r.lex, skipLf)
       case next
       of '[':
+        case r.state
+        of TopLevel:
+          r.state = InsideRecord
+        of InsideRecord:
+          r.state = prevState
+          break
+        else:
+          raiseIllegalChar(r.lex, next)
         let bracket = scanTableName(r.lex, fieldName)
         if bracket == BracketType.double:
           raiseTomlErr(r.lex, errDoubleBracket)
-        if r.level > 0: break
+
       of '=': raiseTomlErr(r.lex, errKeyNameMissing)
       of '#', '.', ']':
         raiseIllegalChar(r.lex, next)
@@ -85,6 +94,9 @@ proc topLevelObject[T](r: var TomlReader, value: var T) =
         break
       else:
         # Everything else marks the presence of a key
+        if r.state notin {TopLevel, InsideRecord}:
+          raiseIllegalChar(r.lex, next)
+        r.state = ExpectValue
         push(r.lex, next)
         scanKey(r.lex, fieldName)
 
@@ -99,14 +111,16 @@ proc topLevelObject[T](r: var TomlReader, value: var T) =
         var reader = findFieldReader(fields[], fieldName, expectedFieldPos)
 
       if reader != nil:
-        inc r.level
         reader(value, r)
-        dec r.level
+        checkEol(r.lex, line)
+        r.state = prevState
         inc fieldsDone
       elif r.allowUnknownFields:
         # efficient skip, it doesn't produce any tokens
         var skipValue: TomlVoid
         parseValue(r.lex, skipValue)
+        checkEol(r.lex, line)
+        r.state = prevState
       else:
         const typeName = typetraits.name(T)
         raiseUnexpectedField(r.lex, fieldName, typeName)
@@ -114,7 +128,7 @@ proc topLevelObject[T](r: var TomlReader, value: var T) =
       if fieldsDone >= totalFields:
         break
 
-proc nestedObject[T](r: var TomlReader, value: var T) =
+proc decodeInlineTable[T](r: var TomlReader, value: var T) =
   mixin readValue
 
   const totalFields = T.totalSerializedFields
@@ -146,7 +160,7 @@ proc nestedObject[T](r: var TomlReader, value: var T) =
 
         push(r.lex, next)
       of '\n':
-        if TomlInlineTableNewline in r.flags:
+        if TomlInlineTableNewline in r.lex.flags:
           continue
         else:
           raiseIllegalChar(r.lex, next)
@@ -166,9 +180,7 @@ proc nestedObject[T](r: var TomlReader, value: var T) =
           var reader = findFieldReader(fields[], fieldName, expectedFieldPos)
 
         if reader != nil:
-          inc r.level
           reader(value, r)
-          dec r.level
         elif r.allowUnknownFields:
           # efficient skip, it doesn't produce any tokens
           var skipValue: TomlVoid
@@ -188,9 +200,8 @@ proc readValue*[T](r: var TomlReader, value: var T)
     readValue(r, z)
     value = some(z)
   elif value is TomlValueRef:
-    # top level differ from the level below
     try:
-      if r.level == 0:
+      if r.state == TopLevel:
         value = parseToml(r.lex)
       else:
         parseValue(r.lex, value)
@@ -336,16 +347,10 @@ proc readValue*[T](r: var TomlReader, value: var T)
       raiseTomlErr(r.lex, errUnterminatedArray)
 
   elif value is (object or tuple):
-    if r.level <= 1:
-      var next = nonws(r.lex, skipLf)
-      if next == '{':
-        push(r.lex, next)
-        r.nestedObject(value)
-      else:
-        push(r.lex, next)
-        r.topLevelObject(value)
+    if r.state == ExpectValue:
+      r.decodeInlineTable(value)
     else:
-      r.nestedObject(value)
+      r.decodeRecord(value)
 
   else:
     const typeName = typetraits.name(T)
@@ -388,7 +393,6 @@ proc parseAsString*(r: var TomlReader): string =
 
 proc parseFloat*(r: var TomlReader, value: var string): Sign =
   var next = nonws(r.lex, skipLf)
-
   if next notin strutils.Digits + {'+', '-'}:
     raiseIllegalChar(r.lex, next)
 

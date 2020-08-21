@@ -130,4 +130,15 @@ proc testDecoder() =
       check w.name == "X"
       check w.age.isNone
 
+    test "bad toml":
+      type
+        SubObject = object
+          name: string
+
+        TopObject = object
+          child: SubObject
+
+      expect TomlError:
+        discard Toml.decode("child = name = \"Toml\"",  TopObject)
+
 testDecoder()

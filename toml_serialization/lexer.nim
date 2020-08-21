@@ -8,7 +8,7 @@
 import
   strutils, unicode, options, tables, math,
   faststreams/inputs,
-  types
+  types, private/utils
 
 type
   TomlLexer* = object
@@ -18,7 +18,7 @@ type
     pushBack: char
     pushCol: int
     pushLine: int
-    flags: TomlFlags
+    flags*: TomlFlags
 
   TomlReaderError* = object of TomlError
     line*, col*: int
@@ -48,7 +48,7 @@ type
     errUnterminatedTable  = "unterminatedTable"
     errRequireKey         = "require key"
     errDoubleBracket      = "double bracket not allowed"
-    errDuplicateTableKey  = "duplicate table key not allowed"
+    errDuplicateTableKey  = "duplicate table key not allowed: \'"
     errKeyNotFound        = "key not found: "
     errInvalidHex         = "invalid hex escape, "
 
@@ -136,6 +136,9 @@ template raiseKeyNotFound(lex: TomlLexer, key: string) =
 
 template raiseInvalidHex*(lex: TomlLexer, s: string) =
   raise(newTomlError(lex, $errInvalidHex & s))
+
+template raiseDuplicateTableKey*(lex: TomlLexer, s: string) =
+  raise(newTomlError(lex, $errDuplicateTableKey & s & "\'"))
 
 proc init*(T: type TomlLexer, stream: InputStream, flags: TomlFlags = {}): T =
   T(stream: stream,
@@ -323,15 +326,10 @@ proc scanUnicode[T](lex: var TomlLexer, res: var T) =
   when T isnot (string or TomlVoid):
     {.fatal: "`scanUnicode` only accepts `string` or `TomlVoid`".}
 
-  let
-    line = lex.line
-    kind = lex.next
-
+  let kind = lex.next
   var code: int
   let col = scanDigits(lex, code, base16)
 
-  if lex.line != line:
-    raiseInvalidUnicode(lex, "can't span lines")
   if kind == 'u' and col != 4:
     raiseInvalidUnicode(lex, "'u' must have 4 character value")
   if kind == 'U' and col != 8:
@@ -344,16 +342,13 @@ proc scanUnicode[T](lex: var TomlLexer, res: var T) =
 
 proc scanHexEscape[T](lex: var TomlLexer, res: var T) =
   when T isnot (string or TomlVoid):
-    {.fatal: "`scanUnicode` only accepts `string` or `TomlVoid`".}
+    {.fatal: "`scanHexEscape` only accepts `string` or `TomlVoid`".}
 
   if TomlHexEscape notin lex.flags:
     raiseInvalidHex(lex, "not supported by standard, please use `TomlHexEscape`")
 
-  let line = lex.line
   var code: int
   let col = scanDigits(lex, code, base16)
-  if lex.line != line:
-    raiseInvalidHex(lex, "can't span lines")
   if col != 2:
     raiseInvalidHex(lex, "'\\x' must have 2 character value")
 
@@ -959,9 +954,6 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
   when T is TomlTime:
     value.minute = num
 
-  if lex.line != line:
-    raiseTomlErr(lex, errDateTimeML)
-
   next = lex.next
   if next != ':':
     if TomlHourMinute in lex.flags:
@@ -969,6 +961,9 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
       return
     else:
       lex.raiseExpectChar(':')
+
+  if lex.line != line:
+    raiseTomlErr(lex, errDateTimeML)
 
   when T is string:
     value.add next
@@ -1291,8 +1286,6 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             else:
               value = TomlValueRef(kind: TomlKind.Float, floatVal: 0'f64)
               scanExponent(lex, value.floatVal)
-              if sign == Sign.Neg:
-                value.floatVal = -value.floatVal
             return
           else:
             # else is a sole 0
@@ -1312,6 +1305,8 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             addFrac(lex, value, sign)
           else:
             value = TomlValueRef(kind: TomlKind.Float)
+            if sign == Sign.Neg:
+              value.floatVal = -value.floatVal
             addFrac(lex, value.floatVal, sign)
           return
         of strutils.Whitespace:
@@ -1330,9 +1325,9 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             scanExponent(lex, value)
           else:
             value = TomlValueRef(kind: TomlKind.Float, floatVal: 0'f64)
-            scanExponent(lex, value.floatVal)
             if sign == Sign.Neg:
               value.floatVal = -value.floatVal
+            scanExponent(lex, value.floatVal)
           return
         else:
           # else is a sole 0
@@ -1350,7 +1345,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       when T is string:
         value.add next
       elif T is TomlValueRef:
-        var curSum = int(next) - int('0')
+        var curSum = int64(next) - int64('0')
 
       while true:
         next = lex.next
@@ -1366,7 +1361,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             scanMinuteSecond(lex, value)
           else:
             value = TomlValueRef(kind: TomlKind.DateTime)
-            var time = TomlTime(hour: curSum)
+            var time = TomlTime(hour: curSum.int)
             scanMinuteSecond(lex, time)
             value.dateTime.time = some(time)
           return
@@ -1378,13 +1373,15 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             scanLongDate(lex, 0, value)
           else:
             value = TomlValueRef(kind: TomlKind.DateTime)
-            scanLongDate(lex, curSum, value.dateTime)
+            scanLongDate(lex, curSum.int, value.dateTime)
           return
         of '.':
           when T is (string or TomlVoid):
             addFrac(lex, value, sign)
           else:
             value = TomlValueRef(kind: TomlKind.Float, floatVal: float64(curSum))
+            if sign == Sign.Neg:
+              value.floatVal = -value.floatVal
             addFrac(lex, value.floatVal, sign)
           return
         of 'e', 'E':
@@ -1407,7 +1404,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             inc digits
           else:
             try:
-              curSum = curSum * 10 + int(next) - int('0')
+              curSum = curSum * 10'i64 + int64(next) - int64('0')
               inc digits
             except OverflowError:
               raiseTomlErr(lex, errIntegerOverflow)
@@ -1452,7 +1449,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       when T is string:
         value.add "inf"
       elif T is TomlValueRef:
-        value = TomlValueRef(kind: TomlKind.Float, floatVal: Inf, sign: sign)
+        value = TomlValueRef(kind: TomlKind.Float, floatVal: Inf)
       lex.popLineInfo
       return
     of 'n':
@@ -1463,7 +1460,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       when T is string:
         value.add "nan"
       elif T is TomlValueRef:
-        value = TomlValueRef(kind: TomlKind.Float, floatVal: Nan, sign: sign)
+        value = TomlValueRef(kind: TomlKind.Float, floatVal: Nan)
       lex.popLineInfo
       return
     else:
@@ -1600,7 +1597,7 @@ proc parseValue[T](lex: var TomlLexer, value: var T) =
     lex.push next
     when T is string:
       let val = lex.scanBool
-      value.add $val
+      value.add if val: "true" else: "false"
     elif T is TomlVoid:
       discard lex.scanBool
     else:
@@ -1712,11 +1709,11 @@ proc createTable(lex: var TomlLexer,
     curTable[].withValue(name, val) do:
       if i == names.high and val[].kind == TomlKind.Table:
         if val[].tableVal.len == 0:
-          raiseTomlErr(lex, errDuplicateTableKey)
+          raiseDuplicateTableKey(lex, name)
         elif not dotted:
           for value in val[].tableVal.values:
             if value.kind != TomlKind.Table:
-              raiseTomlErr(lex, errDuplicateTableKey)
+              raiseDuplicateTableKey(lex, name)
       advanceToNextNestLevel(lex, curTable, name)
     do:
       # Add the newly created object to the current table
@@ -1725,6 +1722,14 @@ proc createTable(lex: var TomlLexer,
 
       # Update the pointer to the current table
       curTable = newVal.tableVal
+
+proc checkEol*(lex: var TomlLexer, line: int) =
+  # new key val should start at next line
+  let next = lex.nonws(skipLf)
+  if next != EOF:
+    if lex.line == line:
+      raiseIllegalChar(lex, next)
+  lex.push next
 
 proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
   var pushTable = curTable
@@ -1736,7 +1741,7 @@ proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
 
   createTable(lex, curTable, keys, dotted = true)
   if curTable.hasKey(key):
-    raiseTomlErr(lex, errDuplicateTableKey)
+    raiseDuplicateTableKey(lex, key)
 
   var next = lex.next
   if next != '=':
@@ -1747,12 +1752,7 @@ proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
   curTable[key] = newValue
   curTable = pushTable
 
-  # new key val should start at next line
-  next = lex.nonws(skipLf)
-  if next != EOF:
-    if lex.line == line:
-      raiseIllegalChar(lex, next)
-  lex.push next
+  checkEol(lex, line)
 
 proc parseToml*(lex: var TomlLexer): TomlValueRef =
   result = emptyTable()
@@ -1803,6 +1803,7 @@ proc nimNormalize(x: string): string =
     result[0] = x[0]
 
 proc normalize(x: openArray[string]): seq[string] =
+  # TODO: avoid realloc
   for z in x:
     result.add nimNormalize(z)
 
@@ -1829,21 +1830,17 @@ proc parseKeyValue(lex: var TomlLexer,
   var skipValue: TomlVoid
   parseValue(lex, skipValue)
 
-  # new key val should start at next line
-  next = lex.nonws(skipLf)
-  if next != EOF:
-    if lex.line == line:
-      raiseIllegalChar(lex, next)
-  lex.push next
+  checkEol(lex, line)
 
 proc parseKey(key: string, tomlCase: TomlCase): seq[string] =
   var stream = unsafeMemoryInput(key)
   var lex = init(TomlLexer, stream)
   lex.scanKey(result)
+  # TODO: avoid realloc
   if tomlCase == TomlCaseNim:
     result = normalize(result)
 
-proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase) =
+proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase): CodecState =
   ## move cursor to key position
   var
     next: char
@@ -1860,9 +1857,13 @@ proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase) =
       if bracket == BracketType.double:
         raiseTomlErr(lex, errDoubleBracket)
 
-      names = normalize(names)
+      # TODO: avoid realloc
+      if tomlCase == TomlCaseNim:
+        names = normalize(names)
+
       if compare(keyList, names, tomlCase):
         found = true
+        result = InsideRecord
         break
 
     of '=':
@@ -1876,6 +1877,7 @@ proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase) =
       lex.push next
       if parseKeyValue(lex, names, keyList, tomlCase):
         found = true
+        result = ExpectValue
         break
 
   if not found:
