@@ -27,10 +27,10 @@ import
 
 type
   # only objects | tuple | TomlValueRef allowed at top level
+  TomlSpecial* = TomlDateTime or TomlDate or TomlTime
   TomlNotTopLevel* = SomeInteger or
     seq or SomeFloat or string or
-    array or enum or bool or TomlDateTime or
-    TomlDate or TomlTime
+    array or enum or bool or TomlSpecial
 
 template tomlFatalImpl(fn,  R: untyped) =
   const typeName = typetraits.name(type R)

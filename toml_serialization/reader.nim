@@ -68,6 +68,7 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
       fieldName = newStringOfCap(defaultStringCapacity)
       next: char
       prevState = r.state
+      line = r.lex.line
 
     while true:
       fieldName.setLen(0)
@@ -111,12 +112,14 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
 
       if reader != nil:
         reader(value, r)
+        checkEol(r.lex, line)
         r.state = prevState
         inc fieldsDone
       elif r.allowUnknownFields:
         # efficient skip, it doesn't produce any tokens
         var skipValue: TomlVoid
         parseValue(r.lex, skipValue)
+        checkEol(r.lex, line)
         r.state = prevState
       else:
         const typeName = typetraits.name(T)
@@ -135,6 +138,7 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
       expectedFieldPos = 0
       fieldName = newStringOfCap(defaultStringCapacity)
       firstComma = true
+      line = r.lex.line
 
     var next = nonws(r.lex, skipNoLf)
     if next != '{':

@@ -8,7 +8,7 @@
 import
   typetraits, options, strutils, tables, unicode,
   faststreams/[outputs, textio], serialization,
-  types
+  types, private/utils
 
 type
   TomlWriter* = object
@@ -16,12 +16,14 @@ type
     level: int
     flags: TomlFlags
     hasPrettyOutput*: bool
+    state: CodecState
 
 proc init*(T: type TomlWriter,
            stream: OutputStream,
            flags: TomlFlags = {}): T =
   result.stream = stream
   result.flags = flags
+  result.state = TopLevel
 
 template append(x: untyped) =
   write w.stream, x
@@ -336,13 +338,45 @@ proc writeValue*(w: var TomlWriter, value: auto) =
     w.writeArray(value)
 
   elif value is (object or tuple):
+    let prevState = w.state
     type RecordType = type value
+    if w.state == ExpectValue:
+      append '}'
     value.enumInstanceSerializedFields(fieldName, field):
       type FieldType = type field
-      w.writeFieldName(fieldName)
-      w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
+      case w.state
+      of TopLevel:
+        when FieldType is (object or tuple) and FieldType isnot (TomlSpecial):
+          append '['
+          append fieldName
+          append ']'
+          append '\n'
+          w.state = InsideRecord
+        else:
+          w.writeFieldName(fieldName)
+          w.state = ExpectValue
+
+        w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
+        w.state = prevState
+
+        when FieldType isnot (object or tuple) or FieldType is (TomlSpecial):
+          append '\n'
+
+      of ExpectValue:
+        w.writeFieldName(fieldName)
+        w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
+
+      of InsideRecord:
+        w.writeFieldName(fieldName)
+        w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
+        append '\n'
+
+    if w.state == ExpectValue:
+      append '}'
       append '\n'
+    elif w.state == InsideRecord:
       append '\n'
+
   else:
     const typeName = typetraits.name(value.type)
     {.fatal: "Failed to convert to TOML an unsupported type: " & typeName.}

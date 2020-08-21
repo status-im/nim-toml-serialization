@@ -1723,6 +1723,14 @@ proc createTable(lex: var TomlLexer,
       # Update the pointer to the current table
       curTable = newVal.tableVal
 
+proc checkEol*(lex: var TomlLexer, line: int) =
+  # new key val should start at next line
+  let next = lex.nonws(skipLf)
+  if next != EOF:
+    if lex.line == line:
+      raiseIllegalChar(lex, next)
+  lex.push next
+
 proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
   var pushTable = curTable
   var keys: seq[string]
@@ -1744,12 +1752,7 @@ proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
   curTable[key] = newValue
   curTable = pushTable
 
-  # new key val should start at next line
-  next = lex.nonws(skipLf)
-  if next != EOF:
-    if lex.line == line:
-      raiseIllegalChar(lex, next)
-  lex.push next
+  checkEol(lex, line)
 
 proc parseToml*(lex: var TomlLexer): TomlValueRef =
   result = emptyTable()
@@ -1827,12 +1830,7 @@ proc parseKeyValue(lex: var TomlLexer,
   var skipValue: TomlVoid
   parseValue(lex, skipValue)
 
-  # new key val should start at next line
-  next = lex.nonws(skipLf)
-  if next != EOF:
-    if lex.line == line:
-      raiseIllegalChar(lex, next)
-  lex.push next
+  checkEol(lex, line)
 
 proc parseKey(key: string, tomlCase: TomlCase): seq[string] =
   var stream = unsafeMemoryInput(key)
