@@ -14,6 +14,7 @@ type
   TomlReader* = object
     lex*: TomlLexer
     state: CodecState
+    tomlCase: TomlCase
 
   GenericTomlReaderError* = object of TomlReaderError
     deserializedField*: string
@@ -36,9 +37,16 @@ proc handleReadException*(r: TomlReader,
 
 proc init*(T: type TomlReader,
            stream: InputStream,
+           tomlCase: TomlCase,
            flags: TomlFlags = {}): T =
   result.lex = TomlLexer.init(stream, flags)
   result.state = TopLevel
+  result.tomlCase = tomlCase
+
+proc init*(T: type TomlReader,
+           stream: InputStream,
+           flags: TomlFlags = {}): T =
+  TomlReader.init(stream, TomlCaseSensitive, flags)
 
 proc moveToKey*(r: var TomlReader, key: string, tomlCase: TomlCase) =
   r.state = r.lex.parseToml(key, tomlCase)
@@ -105,7 +113,8 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
         var reader = fields[][expectedFieldPos].reader
         expectedFieldPos += 1
       else:
-        var reader = findFieldReader(fields[], fieldName, expectedFieldPos)
+        var reader = findFieldReader(fields[],
+                      fieldName, expectedFieldPos, r.tomlCase)
 
       if reader != nil:
         reader(value, r)
@@ -174,7 +183,8 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
           var reader = fields[][expectedFieldPos].reader
           expectedFieldPos += 1
         else:
-          var reader = findFieldReader(fields[], fieldName, expectedFieldPos)
+          var reader = findFieldReader(fields[],
+                        fieldName, expectedFieldPos, r.tomlCase)
 
         if reader != nil:
           reader(value, r)

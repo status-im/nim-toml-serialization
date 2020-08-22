@@ -7,8 +7,8 @@
 
 import
   strutils,
-  ../types
-
+  ../types,
+  serialization/object_serialization
 
 type
   CodecState* = enum
@@ -60,3 +60,23 @@ func compare*(a, b: openArray[string], tomlCase: TomlCase): bool =
       if not cmpNimIdent(x, b[i]):
         return false
     result = true
+
+func compare*(a, b: string, tomlCase: TomlCase): bool =
+  case tomlCase
+  of TomlCaseSensitive:   a == b
+  of TomlCaseInsensitive: cmpIgnoreCase(a, b) == 0
+  of TomlCaseNim:         cmpNimIdent(a, b)
+
+proc findFieldReader*(fieldsTable: FieldReadersTable,
+                      fieldName: string,
+                      expectedFieldPos: var int, tomlCase: TomlCase): auto =
+  for i in expectedFieldPos ..< fieldsTable.len:
+    if compare(fieldsTable[i].fieldName, fieldName, tomlCase):
+      expectedFieldPos = i + 1
+      return fieldsTable[i].reader
+
+  for i in 0 ..< expectedFieldPos:
+    if compare(fieldsTable[i].fieldName, fieldName, tomlCase):
+      return fieldsTable[i].reader
+
+  return nil
