@@ -108,10 +108,10 @@ proc main() =
       expect TomlError:
         discard Toml.decode(rawToml, Owner, "owner")
 
-      var owner = Toml.decode(rawToml, Owner, "owner", TomlCaseInsensitive, allowUnknownFields = true)
+      var owner = Toml.decode(rawToml, Owner, "owner", TomlCaseInsensitive, {TomlUnknownFields})
       check owner.name == "Tom Preston-Werner"
 
-      var fakeOwner = Toml.decode(rawToml, FakeOwner, "owner", TomlCaseInsensitive, allowUnknownFields = true)
+      var fakeOwner = Toml.decode(rawToml, FakeOwner, "owner", TomlCaseInsensitive, {TomlUnknownFields})
       check fakeOwner.name == "Tom Preston-Werner"
 
       type
@@ -119,7 +119,7 @@ proc main() =
           age: int
 
       let toml = readFile("tests" / "tomls" / "nested_object.toml")
-      let y = Toml.decode(toml, NoName, "someone.noname", allowUnknownFields = true)
+      let y = Toml.decode(toml, NoName, "someone.noname", {TomlUnknownFields})
       check y.age == 30
 
     test "newline in inline table":

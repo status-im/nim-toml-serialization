@@ -645,12 +645,10 @@ proc scanKey*[T](lex: var TomlLexer, res: var T) =
 
     next = lex.nonws(skipNoLf)
     if next == '.':
-      when T is string:
-        let dot = next
       next = lex.nonws(skipNoLf)
       if next in {'\'', '\"', '-', '_', 'a'..'z', 'A'..'Z', '0'..'9'}:
         when T is string:
-          res.add dot
+          res.add '.'
       else:
         raiseIllegalChar(lex, next)
       lex.push next

@@ -37,8 +37,9 @@ type
 
   TomlFlag* = enum
     TomlInlineTableNewline
-    TomlHexEscape
-    TomlHourMinute
+    TomlHexEscape     # allow \xHH escape sequence
+    TomlHourMinute    # allow HH:MM format
+    TomlUnknownFields # allow unknow fields
 
   TomlFlags* = set[TomlFlag]
 

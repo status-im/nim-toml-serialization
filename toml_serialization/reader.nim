@@ -13,7 +13,6 @@ import
 type
   TomlReader* = object
     lex*: TomlLexer
-    allowUnknownFields: bool
     state: CodecState
 
   GenericTomlReaderError* = object of TomlReaderError
@@ -37,9 +36,7 @@ proc handleReadException*(r: TomlReader,
 
 proc init*(T: type TomlReader,
            stream: InputStream,
-           flags: TomlFlags = {},
-           allowUnknownFields = false): T =
-  result.allowUnknownFields = allowUnknownFields
+           flags: TomlFlags = {}): T =
   result.lex = TomlLexer.init(stream, flags)
   result.state = TopLevel
 
@@ -115,7 +112,7 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
         checkEol(r.lex, line)
         r.state = prevState
         inc fieldsDone
-      elif r.allowUnknownFields:
+      elif TomlUnknownFields in r.lex.flags:
         # efficient skip, it doesn't produce any tokens
         var skipValue: TomlVoid
         parseValue(r.lex, skipValue)
@@ -181,7 +178,7 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
 
         if reader != nil:
           reader(value, r)
-        elif r.allowUnknownFields:
+        elif TomlUnknownFields in r.lex.flags:
           # efficient skip, it doesn't produce any tokens
           var skipValue: TomlVoid
           parseValue(r.lex, skipValue)
