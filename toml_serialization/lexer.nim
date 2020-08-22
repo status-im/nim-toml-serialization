@@ -1783,28 +1783,6 @@ proc parseToml*(lex: var TomlLexer): TomlValueRef =
       lex.push next
       parseKeyValue(lex, curTable)
 
-func compare(a, b: openArray[string], tomlCase: TomlCase): bool =
-  case tomlCase
-  of TomlCaseSensitive, TomlCaseNim:
-    result = a == b
-  of TomlCaseInsensitive:
-    if a.len != b.len: return false
-    for i, x in a:
-      if cmpIgnoreCase(x, b[i]) != 0:
-        return false
-    result = true
-
-proc nimNormalize(x: string): string =
-  # TODO: avoid realloc
-  result = normalize(x)
-  if x.len > 0:
-    result[0] = x[0]
-
-proc normalize(x: openArray[string]): seq[string] =
-  # TODO: avoid realloc
-  for z in x:
-    result.add nimNormalize(z)
-
 proc parseKeyValue(lex: var TomlLexer,
                    names, key: openArray[string],
                    tomlCase: TomlCase): bool =
@@ -1813,10 +1791,7 @@ proc parseKeyValue(lex: var TomlLexer,
 
   var keys: seq[string]
   scanKey(lex, keys)
-  let curKey = if tomlCase == TomlCaseNim:
-                 @names & normalize(keys)
-               else:
-                 @names & keys
+  let curKey = @names & keys
 
   var next = lex.next
   if next != '=':
@@ -1834,9 +1809,6 @@ proc parseKey(key: string, tomlCase: TomlCase): seq[string] =
   var stream = unsafeMemoryInput(key)
   var lex = init(TomlLexer, stream)
   lex.scanKey(result)
-  # TODO: avoid realloc
-  if tomlCase == TomlCaseNim:
-    result = normalize(result)
 
 proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase): CodecState =
   ## move cursor to key position
@@ -1854,10 +1826,6 @@ proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase): CodecState
       let bracket = scanTableName(lex, names)
       if bracket == BracketType.double:
         raiseTomlErr(lex, errDoubleBracket)
-
-      # TODO: avoid realloc
-      if tomlCase == TomlCaseNim:
-        names = normalize(names)
 
       if compare(keyList, names, tomlCase):
         found = true
