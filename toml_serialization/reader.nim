@@ -13,8 +13,8 @@ import
 type
   TomlReader* = object
     lex*: TomlLexer
-    allowUnknownFields: bool
     state: CodecState
+    tomlCase: TomlCase
 
   GenericTomlReaderError* = object of TomlReaderError
     deserializedField*: string
@@ -37,11 +37,16 @@ proc handleReadException*(r: TomlReader,
 
 proc init*(T: type TomlReader,
            stream: InputStream,
-           flags: TomlFlags = {},
-           allowUnknownFields = false): T =
-  result.allowUnknownFields = allowUnknownFields
+           tomlCase: TomlCase,
+           flags: TomlFlags = {}): T =
   result.lex = TomlLexer.init(stream, flags)
   result.state = TopLevel
+  result.tomlCase = tomlCase
+
+proc init*(T: type TomlReader,
+           stream: InputStream,
+           flags: TomlFlags = {}): T =
+  TomlReader.init(stream, TomlCaseSensitive, flags)
 
 proc moveToKey*(r: var TomlReader, key: string, tomlCase: TomlCase) =
   r.state = r.lex.parseToml(key, tomlCase)
@@ -108,14 +113,15 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
         var reader = fields[][expectedFieldPos].reader
         expectedFieldPos += 1
       else:
-        var reader = findFieldReader(fields[], fieldName, expectedFieldPos)
+        var reader = findFieldReader(fields[],
+                      fieldName, expectedFieldPos, r.tomlCase)
 
       if reader != nil:
         reader(value, r)
         checkEol(r.lex, line)
         r.state = prevState
         inc fieldsDone
-      elif r.allowUnknownFields:
+      elif TomlUnknownFields in r.lex.flags:
         # efficient skip, it doesn't produce any tokens
         var skipValue: TomlVoid
         parseValue(r.lex, skipValue)
@@ -177,11 +183,12 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
           var reader = fields[][expectedFieldPos].reader
           expectedFieldPos += 1
         else:
-          var reader = findFieldReader(fields[], fieldName, expectedFieldPos)
+          var reader = findFieldReader(fields[],
+                        fieldName, expectedFieldPos, r.tomlCase)
 
         if reader != nil:
           reader(value, r)
-        elif r.allowUnknownFields:
+        elif TomlUnknownFields in r.lex.flags:
           # efficient skip, it doesn't produce any tokens
           var skipValue: TomlVoid
           parseValue(r.lex, skipValue)

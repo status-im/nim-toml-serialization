@@ -89,7 +89,7 @@ template tomlDecodeImpl*(input: untyped,
     # faststreams may be reading from a file or a network device.
     try:
       var stream = unsafeMemoryInput(input)
-      var reader = unpackArgs(init, [TomlReader, stream, params])
+      var reader = unpackArgs(init, [TomlReader, stream, tomlCase, params])
       reader.moveToKey(key, tomlCase)
       reader.readValue(RecordType)
     except IOError:
