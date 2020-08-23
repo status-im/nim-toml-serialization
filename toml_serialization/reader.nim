@@ -206,6 +206,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
     var z: getUnderlyingType(value)
     readValue(r, z)
     value = some(z)
+
   elif value is TomlValueRef:
     try:
       if r.state == TopLevel:
@@ -226,10 +227,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
       raiseTomlErr(r.lex, errInvalidDateTime)
 
     push(r.lex, next)
-    try:
-      scanTime(r.lex, value)
-    except ValueError:
-      raiseTomlErr(r.lex, errInvalidDateTime)
+    scanTime(r.lex, value)
 
   elif value is TomlDate:
     var next = nonws(r.lex, skipLf)
@@ -243,11 +241,9 @@ proc readValue*[T](r: var TomlReader, value: var T)
     var next = nonws(r.lex, skipLf)
     if next notin strutils.Digits:
       raiseTomlErr(r.lex, errInvalidDateTime)
+
     push(r.lex, next)
-    try:
-      scanDateTime(r.lex, value)
-    except ValueError:
-      raiseTomlErr(r.lex, errInvalidDateTime)
+    scanDateTime(r.lex, value)
 
   elif value is SomeInteger:
     var next = nonws(r.lex, skipLf)
@@ -270,7 +266,6 @@ proc readValue*[T](r: var TomlReader, value: var T)
 
   elif value is SomeFloat:
     var next = nonws(r.lex, skipLf)
-
     if next notin strutils.Digits + {'+', '-'}:
       raiseIllegalChar(r.lex, next)
 

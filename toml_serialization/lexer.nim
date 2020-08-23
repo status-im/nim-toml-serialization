@@ -276,8 +276,9 @@ proc scanUint[T](lex: var TomlLexer, value: var T, base: NumberBase,
 
     firstPos = false
 
-proc scanDigits*[T](lex: var TomlLexer, value: var T, base: NumberBase): int =
-  ## scanUint only accepts `string` or `int`
+proc scanDigits*[T](lex: var TomlLexer, value: var T,
+                    base: NumberBase, maxDigits = high(int)): int =
+  ## scanUint only accepts `string` or `int` or `TomlVoid`
 
   var next: char
 
@@ -295,9 +296,10 @@ proc scanDigits*[T](lex: var TomlLexer, value: var T, base: NumberBase): int =
 
     if next notin digits:
       lex.push next
-      break
+      return
 
     inc result
+
     when T is string:
       value.add next
     elif T is int:
@@ -305,7 +307,16 @@ proc scanDigits*[T](lex: var TomlLexer, value: var T, base: NumberBase): int =
     elif T is TomlVoid:
       discard
     else:
-      {.fatal: "`scanDigits` only accepts `string` or `int`".}
+      {.fatal: "`scanDigits` only accepts `string` or `int` or `TomlVoid`".}
+
+    if result == maxDigits:
+      # consume the rest of digits
+      while true:
+        next = lex.next
+        if next notin digits:
+          lex.push next
+          break
+      return
 
 proc scanEncoding[T](lex: var TomlLexer, value: var T): NumberBase =
   let next = lex.next
@@ -989,18 +1000,10 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
 
     # Toml spec says additional subsecond precision
     # should be truncated and not rounded
-    var subsecond: string
-    when T isnot TomlVoid:
-      let len = scanDigits(lex, subsecond, base10)
-      if len > subsecondPrecision:
-        subsecond.setLen(subsecondPrecision)
-    else:
-      discard scanDigits(lex, subsecond, base10)
-
-    when T is string:
-      value.add subsecond
+    when T is (string or TomlVoid):
+      discard scanDigits(lex, value, base10, subsecondPrecision)
     elif T is TomlTime:
-      value.subsecond = parseInt(subsecond)
+      discard scanDigits(lex, value.subsecond, base10, subsecondPrecision)
   else:
     lex.push next
 
