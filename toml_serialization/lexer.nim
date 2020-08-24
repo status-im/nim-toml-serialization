@@ -147,7 +147,7 @@ proc init*(T: type TomlLexer, stream: InputStream, flags: TomlFlags = {}): T =
     flags: flags
    )
 
-proc next(lex: var TomlLexer): char =
+proc next*(lex: var TomlLexer): char =
   ## Return the next available char from the stream associate with
   ## the parser lex, or EOF if there are no characters left.
   if not lex.stream.readable():
@@ -531,8 +531,7 @@ proc scanString*[T](lex: var TomlLexer, res: var T, kind: static[StringType]): b
     {.fatal: "`scanString` only accepts `string` or `TomlVoid`".}
 
   ## This function assumes that "lex" has already consumed the
-  ## first character (either \" or \', which is passed in the
-  ## "openChar" parameter).
+  ## first character (either \" or \' depends on `kind` param)
   ## returns true if multi line string
 
   const delimiter = stringDelimiter(kind)
@@ -1236,13 +1235,12 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
     var uintVal: uint64
 
   while true:
-    next = lex.next
+    next = peek
     case next:
     of '0':
-      next = lex.next
+      next = advancePeek
       if sign == Sign.None:
         if next in {'b', 'x', 'o'}:
-          lex.push next
           when T is (string or TomlVoid):
             discard scanEncoding(lex, value)
           else:
@@ -1253,6 +1251,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
           # This must now be a float or a date/time, or a sole 0
           case next:
           of '.':
+            advance
             when T is string:
               value.add '0'
               addFrac(lex, value, sign)
@@ -1263,14 +1262,12 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
               addFrac(lex, value.floatVal, sign)
             return
           of strutils.Whitespace:
-            lex.push next
             when T is string:
               value.add '0'
             elif T is TomlValueRef:
               value = TomlValueRef(kind: TomlKind.Int, intVal: 0)
             return
           of strutils.Digits:
-            lex.push next
             # This must now be a date/time
             when T is string:
               value.add '0'
@@ -1282,6 +1279,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
               scanDateTime(lex, value.dateTime, zeroLead = true)
             return
           of 'e', 'E':
+            advance
             when T is string:
               value.add '0'
               value.add next
@@ -1303,6 +1301,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
         # This must now be a float, or a sole 0
         case next:
         of '.':
+          advance
           when T is string:
             value.add '0'
             addFrac(lex, value, sign)
@@ -1315,13 +1314,13 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             addFrac(lex, value.floatVal, sign)
           return
         of strutils.Whitespace:
-          lex.push next
           when T is string:
             value.add '0'
           elif T is TomlValueRef:
             value = TomlValueRef(kind: TomlKind.Int, intVal: 0)
           return
         of 'e', 'E':
+          advance
           when T is string:
             value.add '0'
             value.add next
@@ -1342,6 +1341,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             value = TomlValueRef(kind: TomlKind.Int, intVal: 0)
           return
     of strutils.Digits - {'0'}:
+      advance
       # This might be a date/time, or an int or a float
       var
         digits = 1
@@ -1353,7 +1353,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
         var curSum = int64(next) - int64('0')
 
       while true:
-        next = lex.next
+        next = peek
         if wasUnderscore and next notin strutils.Digits:
           raiseTomlErr(lex, errUnderscoreDigit)
 
@@ -1361,7 +1361,6 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
         of ':':
           if digits != 2:
             raiseTomlErr(lex, errInvalidDateTime)
-          lex.push next
           when T is (string or TomlVoid):
             scanMinuteSecond(lex, value)
           else:
@@ -1373,7 +1372,6 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
         of '-':
           if digits != 4:
             raiseTomlErr(lex, errInvalidDateTime)
-          lex.push next
           when T is (string or TomlVoid):
             scanLongDate(lex, 0, value)
           else:
@@ -1381,6 +1379,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             scanLongDate(lex, curSum.int, value.dateTime)
           return
         of '.':
+          advance
           when T is (string or TomlVoid):
             addFrac(lex, value, sign)
           else:
@@ -1390,6 +1389,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             addFrac(lex, value.floatVal, sign)
           return
         of 'e', 'E':
+          advance
           when T is string:
             value.add next
             scanExponent(lex, value)
@@ -1402,6 +1402,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
               value.floatVal = -value.floatVal
           return
         of strutils.Digits:
+          advance
           when T is string:
             value.add next
             inc digits
@@ -1416,10 +1417,10 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
           wasUnderscore = false
           continue
         of '_':
+          advance
           wasUnderscore = true
           continue
         of strutils.Whitespace:
-          lex.push next
           when T is TomlValueRef:
             value = TomlValueRef(
               kind: TomlKind.Int,
@@ -1427,7 +1428,6 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             )
           return
         else:
-          lex.push next
           when T is TomlValueRef:
             value = TomlValueRef(
               kind: TomlKind.Int,
@@ -1437,16 +1437,19 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
         break
 
     of '+':
+      advance
       sign = Sign.Pos
       when T is string:
         value.add '+'
       continue
     of '-':
+      advance
       sign = Sign.Neg
       when T is string:
         value.add '-'
       continue
     of 'i':
+      advance
       lex.pushLineInfo
       if lex.next != 'n' or
          lex.next != 'f':
@@ -1458,6 +1461,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       lex.popLineInfo
       return
     of 'n':
+      advance
       lex.pushLineInfo
       if lex.next != 'a' or
          lex.next != 'n':
@@ -1486,12 +1490,14 @@ proc parseArray[T](lex: var TomlLexer, value: var T) =
     var next = lex.nonws(skipLf)
     case next
     of ']':
+      advance
       when T is string:
         value.add next
       return
     of EOF:
       raiseTomlErr(lex, errUnterminatedArray)
     of ',':
+      advance
       if numElem == 0:
         # This happens with "[, 1, 2]", for instance
         raiseTomlErr(lex, errMissingFirstElement)
@@ -1500,16 +1506,14 @@ proc parseArray[T](lex: var TomlLexer, value: var T) =
       #  "[b,]")
       next = lex.nonws(skipLf)
       if next == ']':
+        advance
         when T is string:
           value.add next
         return
       else:
         when T is string:
           value.add ','
-
-      lex.push next
     else:
-      lex.push next
       when T is (string or TomlVoid):
         parseValue(lex, value)
       else:
@@ -1530,12 +1534,14 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
     var next = lex.nonws(skipNoLf)
     case next
     of '}':
+      advance
       when T is string:
         value.add next
       return
     of EOF:
       raiseTomlErr(lex, errUnterminatedTable)
     of ',':
+      advance
       if firstComma:
         raiseTomlErr(lex, errMissingFirstElement)
 
@@ -1545,17 +1551,14 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
       next = lex.nonws(skipNoLf)
       if next == '}':
         raiseIllegalChar(lex, '}')
-
-      lex.push next
     of '\n':
       if TomlInlineTableNewline in lex.flags:
+        advance
         continue
       else:
         raiseIllegalChar(lex, next)
     else:
       firstComma = false
-      lex.push next
-
       when T is (string or TomlVoid):
         scanKey(lex, value)
       else:
@@ -1568,6 +1571,7 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
       if next != '=':
         raiseExpectChar(lex, '=')
 
+      advance
       when T is string:
         value.add next
         parseValue(lex, value)
@@ -1596,10 +1600,8 @@ proc parseValue[T](lex: var TomlLexer, value: var T) =
   var next = lex.nonws(skipNoLf)
   case next
   of strutils.Digits, '+', '-', 'i', 'n':
-    lex.push next
     parseNumOrDate(lex, value)
   of 't', 'f':
-    lex.push next
     when T is string:
       let val = lex.scanBool
       value.add if val: "true" else: "false"
@@ -1609,18 +1611,21 @@ proc parseValue[T](lex: var TomlLexer, value: var T) =
       let val = lex.scanBool
       value = TomlValueRef(kind: TomlKind.Bool, boolVal: val)
   of '\"':
+    advance
     when T is (string or TomlVoid):
       discard scanString(lex, value, StringType.Basic)
     else:
       value = TomlValueRef(kind: TomlKind.String)
       discard scanString(lex, value.stringVal, StringType.Basic)
   of '\'':
+    advance
     when T is (string or TomlVoid):
       discard scanString(lex, value, StringType.Literal)
     else:
       value = TomlValueRef(kind: TomlKind.String)
       discard scanString(lex, value.stringVal, StringType.Literal)
   of '[':
+    advance
     # An array
     when T is string:
       value.add next
@@ -1631,6 +1636,7 @@ proc parseValue[T](lex: var TomlLexer, value: var T) =
       value = TomlValueRef(kind: TomlKind.Array)
       parseArray(lex, value.arrayVal)
   of '{':
+    advance
     # An inline table
     when T is string:
       value.add next
@@ -1734,7 +1740,6 @@ proc checkEol*(lex: var TomlLexer, line: int) =
   if next != EOF:
     if lex.line == line:
       raiseIllegalChar(lex, next)
-  lex.push next
 
 proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
   var pushTable = curTable
@@ -1751,6 +1756,7 @@ proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
   var next = lex.next
   if next != '=':
     raiseExpectChar(lex, '=')
+  advance
 
   var newValue: TomlValueRef
   parseValue(lex, newValue)
@@ -1770,6 +1776,7 @@ proc parseToml*(lex: var TomlLexer): TomlValueRef =
     next = lex.nonws(skipLf)
     case next
     of '[':
+      advance
       var names: seq[string]
       let bracket = scanTableName(lex, names)
 
@@ -1783,11 +1790,10 @@ proc parseToml*(lex: var TomlLexer): TomlValueRef =
       raiseTomlErr(lex, errKeyNameMissing)
     of '#', '.', ']':
       raiseIllegalChar(lex, next)
-    of '\0': # EOF
+    of EOF:
       break
     else:
       # Everything else marks the presence of a "key = value" pattern
-      lex.push next
       parseKeyValue(lex, curTable)
 
 proc parseKeyValue(lex: var TomlLexer,
@@ -1803,6 +1809,7 @@ proc parseKeyValue(lex: var TomlLexer,
   var next = lex.next
   if next != '=':
     raiseExpectChar(lex, '=')
+  advance
 
   if compare(curKey, key, tomlCase):
     return true
@@ -1829,6 +1836,7 @@ proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase): CodecState
     next = lex.nonws(skipLf)
     case next
     of '[':
+      advance
       names.setLen(0)
       let bracket = scanTableName(lex, names)
       if bracket == BracketType.double:
@@ -1843,11 +1851,10 @@ proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase): CodecState
       raiseTomlErr(lex, errKeyNameMissing)
     of '#', '.', ']':
       raiseIllegalChar(lex, next)
-    of '\0': # EOF
+    of EOF:
       break
     else:
       # Everything else marks the presence of a "key = value" pattern
-      lex.push next
       if parseKeyValue(lex, names, keyList, tomlCase):
         found = true
         result = ExpectValue
