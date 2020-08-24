@@ -200,11 +200,12 @@ proc nonws*(lex: var TomlLexer, skip: static[LfSkipMode]): char =
             break
         elif next in invalidCommentChar:
           raiseIllegalChar(lex, next)
-        elif not lex.stream.readable:
-          # rase case
-          next = lex.next
-          break
+
         next = advancePeek
+
+        if not lex.stream.readable:
+          # rase case
+          break
 
     if next notin whitespaces: break
     advance
@@ -1756,7 +1757,6 @@ proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
   var next = lex.next
   if next != '=':
     raiseExpectChar(lex, '=')
-  advance
 
   var newValue: TomlValueRef
   parseValue(lex, newValue)
@@ -1809,7 +1809,6 @@ proc parseKeyValue(lex: var TomlLexer,
   var next = lex.next
   if next != '=':
     raiseExpectChar(lex, '=')
-  advance
 
   if compare(curKey, key, tomlCase):
     return true
