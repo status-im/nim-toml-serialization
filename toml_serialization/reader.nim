@@ -61,6 +61,40 @@ proc stringEnum[T: enum](r: var TomlReader, value: var T, s: string) =
     const typeName = typetraits.name(T)
     raiseUnexpectedValue(r.lex, typeName)
 
+const
+  signedDigits = strutils.Digits + {'+', '-'}
+
+template eatChar() =
+  discard next(r.lex)
+
+template expectChar(c: char, skip = skipLf) =
+  if nonws(r.lex, skip) != c:
+    raiseExpectChar(r.lex, c)
+  eatChar
+
+template expectChars(c: set[char], err: untyped, skip = skipLf) =
+  if nonws(r.lex, skipLf) notin c:
+    raiseTomlErr(r.lex, err)
+
+template expectChars(c: set[char], skip = skipLf) =
+  let next = nonws(r.lex, skipLf)
+  if next notin c:
+    raiseIllegalChar(r.lex, next)
+
+proc scanInt[T](r: var TomlReader, value: var T) =
+  var x: uint64
+  let (sign, _) = scanInt(r.lex, x)
+  if sign == Neg:
+    when value is SomeUnsignedInt:
+      raiseTomlErr(r.lex, errNegateUint)
+    else:
+      try:
+        value = T(-x.int)
+      except OverflowError:
+        raiseTomlErr(r.lex, errIntegerOverflow)
+  else:
+    value = T(x)
+
 proc decodeRecord[T](r: var TomlReader, value: var T) =
   mixin readValue
 
@@ -88,6 +122,7 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
           break
         else:
           raiseIllegalChar(r.lex, next)
+        eatChar
         let bracket = scanTableName(r.lex, fieldName)
         if bracket == BracketType.double:
           raiseTomlErr(r.lex, errDoubleBracket)
@@ -102,12 +137,8 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
         if r.state notin {TopLevel, InsideRecord}:
           raiseIllegalChar(r.lex, next)
         r.state = ExpectValue
-        push(r.lex, next)
         scanKey(r.lex, fieldName)
-
-        next = nonws(r.lex, skipLf)
-        if next != '=':
-          raiseExpectChar(r.lex, '=')
+        expectChar('=')
 
       when value is tuple:
         var reader = fields[][expectedFieldPos].reader
@@ -144,40 +175,37 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
       expectedFieldPos = 0
       fieldName = newStringOfCap(defaultStringCapacity)
       firstComma = true
+      next: char
 
-    var next = nonws(r.lex, skipNoLf)
-    if next != '{':
-      raiseExpectChar(r.lex, '{')
+    expectChar('{', skipNoLf)
 
     while true:
       fieldName.setLen(0)
       next = nonws(r.lex, skipNoLf)
       case next
-      of '}': break
+      of '}':
+        eatChar
+        break
       of EOF:
         raiseTomlErr(r.lex, errUnterminatedTable)
       of ',':
+        eatChar
         if firstComma:
           raiseTomlErr(r.lex, errMissingFirstElement)
 
         next = nonws(r.lex, skipNoLf)
         if next == '}':
           raiseIllegalChar(r.lex, '}')
-
-        push(r.lex, next)
       of '\n':
         if TomlInlineTableNewline in r.lex.flags:
+          eatChar
           continue
         else:
           raiseIllegalChar(r.lex, next)
       else:
         firstComma = false
-        push(r.lex, next)
         scanKey(r.lex, fieldName)
-
-        next = nonws(r.lex, skipNoLf)
-        if next != '=':
-          raiseExpectChar(r.lex, '=')
+        expectChar('=', skipNoLf)
 
         when value is tuple:
           var reader = fields[][expectedFieldPos].reader
@@ -206,6 +234,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
     var z: getUnderlyingType(value)
     readValue(r, z)
     value = some(z)
+
   elif value is TomlValueRef:
     try:
       if r.state == TopLevel:
@@ -221,60 +250,23 @@ proc readValue*[T](r: var TomlReader, value: var T)
     parseValue(r.lex, value)
 
   elif value is TomlTime:
-    var next = nonws(r.lex, skipLf)
-    if next notin strutils.Digits:
-      raiseTomlErr(r.lex, errInvalidDateTime)
-
-    push(r.lex, next)
-    try:
-      scanTime(r.lex, value)
-    except ValueError:
-      raiseTomlErr(r.lex, errInvalidDateTime)
+    expectChars(strutils.Digits, errInvalidDateTime)
+    scanTime(r.lex, value)
 
   elif value is TomlDate:
-    var next = nonws(r.lex, skipLf)
-    if next notin strutils.Digits:
-      raiseTomlErr(r.lex, errInvalidDateTime)
-
-    push(r.lex, next)
+    expectChars(strutils.Digits, errInvalidDateTime)
     scanDate(r.lex, value)
 
   elif value is TomlDateTime:
-    var next = nonws(r.lex, skipLf)
-    if next notin strutils.Digits:
-      raiseTomlErr(r.lex, errInvalidDateTime)
-    push(r.lex, next)
-    try:
-      scanDateTime(r.lex, value)
-    except ValueError:
-      raiseTomlErr(r.lex, errInvalidDateTime)
+    expectChars(strutils.Digits, errInvalidDateTime)
+    scanDateTime(r.lex, value)
 
   elif value is SomeInteger:
-    var next = nonws(r.lex, skipLf)
-    if next notin strutils.Digits + {'+', '-'}:
-      raiseIllegalChar(r.lex, next)
-
-    push(r.lex, next)
-    var xValue: uint64
-    let (sign, _) = scanInt(r.lex, xValue)
-    if sign == Neg:
-      when value is SomeUnsignedInt:
-        raiseTomlErr(r.lex, errNegateUint)
-      else:
-        try:
-          value = -T(xValue)
-        except OverflowError:
-          raiseTomlErr(r.lex, errIntegerOverflow)
-    else:
-      value = T(xValue)
+    expectChars(signedDigits)
+    r.scanInt(value)
 
   elif value is SomeFloat:
-    var next = nonws(r.lex, skipLf)
-
-    if next notin strutils.Digits + {'+', '-'}:
-      raiseIllegalChar(r.lex, next)
-
-    push(r.lex, next)
+    expectChars(signedDigits)
     discard scanFloat(r.lex, value)
 
   elif value is bool:
@@ -284,40 +276,33 @@ proc readValue*[T](r: var TomlReader, value: var T)
     var next = nonws(r.lex, skipLf)
     case next
     of '\"':
+      eatChar
       var enumStr: string
       if scanString(r.lex, enumStr, StringType.Basic):
         raiseTomlErr(r.lex, errMLStringName)
       r.stringEnum(value, enumStr)
     of '\'':
+      eatChar
       var enumStr: string
       if scanString(r.lex, enumStr, StringType.Literal):
         raiseTomlErr(r.lex, errMLStringName)
       r.stringEnum(value, enumStr)
-    of strutils.Digits + {'+', '-'}:
-      var enumInt: uint64
-      push(r.lex, next)
-      let (sign, _) = scanInt(r.lex, enumInt)
-      try:
-        if sign == Neg:
-          value = T(-(enumInt.int))
-        else:
-          value = T(enumInt)
-      except OverflowError:
-        raiseTomlErr(r.lex, errIntegerOverflow)
+    of signedDigits:
+      r.scanInt(value)
     else: raiseIllegalChar(r.lex, next)
 
   elif value is seq:
-    var next = nonws(r.lex, skipLf)
-    if next != '[':
-      raiseIllegalChar(r.lex, next)
-
+    expectChar('[')
     while true:
-      next = nonws(r.lex, skipLf)
+      var next = nonws(r.lex, skipLf)
       case next
-      of ']': break
+      of ']':
+        eatChar
+        break
       of EOF:
         raiseTomlErr(r.lex, errUnterminatedArray)
       of ',':
+        eatChar
         if value.len == 0:
           # This happens with "[, 1, 2]", for instance
           raiseTomlErr(r.lex, errMissingFirstElement)
@@ -327,31 +312,20 @@ proc readValue*[T](r: var TomlReader, value: var T)
         next = nonws(r.lex, skipLf)
         if next == ']':
           break
-
-        push(r.lex, next)
       else:
-        push(r.lex, next)
         let lastPos = value.len
         value.setLen(lastPos + 1)
         readValue(r, value[lastPos])
 
   elif value is array:
-    var next = nonws(r.lex, skipLf)
-    if next != '[':
-      raiseIllegalChar(r.lex, next)
+    expectChar('[')
 
     for i in low(value) ..< high(value):
-      # TODO: don't ask. this makes the code compile
-      if false: value[i] = value[i]
       readValue(r, value[i])
-      next = nonws(r.lex, skipLf)
-      if next != ',':
-        raiseIllegalChar(r.lex, next)
+      expectChar(',')
 
     readValue(r, value[high(value)])
-    next = nonws(r.lex, skipLf)
-    if next != ']':
-      raiseTomlErr(r.lex, errUnterminatedArray)
+    expectChar(']')
 
   elif value is (object or tuple):
     if r.state == ExpectValue:
@@ -363,33 +337,32 @@ proc readValue*[T](r: var TomlReader, value: var T)
     const typeName = typetraits.name(T)
     {.error: "Failed to convert to TOML an unsupported type: " & typeName.}
 
-# these are builtin functions
+# these are helpers functions
 
 proc parseNumber*(r: var TomlReader, value: var string): (Sign, NumberBase) =
-  var next = nonws(r.lex, skipLf)
-  if next notin strutils.Digits + {'+', '-'}:
-    raiseIllegalChar(r.lex, next)
-
-  push(r.lex, next)
+  expectChars(signedDigits)
   scanInt(r.lex, value)
 
 proc parseDateTime*(r: var TomlReader): TomlDateTime =
-  var next = nonws(r.lex, skipLf)
-  if next notin strutils.Digits:
-    raiseTomlErr(r.lex, errInvalidDateTime)
-  push(r.lex, next)
+  expectChars(strutils.Digits, errInvalidDateTime)
+  scanDateTime(r.lex, result)
 
-  try:
-    scanDateTime(r.lex, result)
-  except ValueError:
-    raiseTomlErr(r.lex, errInvalidDateTime)
+proc parseTime*(r: var TomlReader): TomlTime =
+  expectChars(strutils.Digits, errInvalidDateTime)
+  scanTime(r.lex, result)
+
+proc parseDate*(r: var TomlReader): TomlDate =
+  expectChars(strutils.Digits, errInvalidDateTime)
+  scanDate(r.lex, result)
 
 proc parseString*(r: var TomlReader, value: var string): (bool, bool) =
   var next = nonws(r.lex, skipLf)
   if next == '\"':
+    eatChar
     let ml = scanString(r.lex, value, StringType.Basic)
     return (ml, false)
   elif next == '\'':
+    eatChar
     let ml = scanString(r.lex, value, StringType.Literal)
     return (ml, true)
   else:
@@ -399,28 +372,5 @@ proc parseAsString*(r: var TomlReader): string =
   parseValue(r.lex, result)
 
 proc parseFloat*(r: var TomlReader, value: var string): Sign =
-  var next = nonws(r.lex, skipLf)
-  if next notin strutils.Digits + {'+', '-'}:
-    raiseIllegalChar(r.lex, next)
-
-  push(r.lex, next)
+  expectChars(signedDigits)
   scanFloat(r.lex, value)
-
-proc parseTime*(r: var TomlReader): TomlTime =
-  var next = nonws(r.lex, skipLf)
-  if next notin strutils.Digits:
-    raiseTomlErr(r.lex, errInvalidDateTime)
-
-  push(r.lex, next)
-  try:
-    scanTime(r.lex, result)
-  except ValueError:
-    raiseTomlErr(r.lex, errInvalidDateTime)
-
-proc parseDate*(r: var TomlReader): TomlDate =
-  var next = nonws(r.lex, skipLf)
-  if next notin strutils.Digits:
-    raiseTomlErr(r.lex, errInvalidDateTime)
-
-  push(r.lex, next)
-  scanDate(r.lex, result)

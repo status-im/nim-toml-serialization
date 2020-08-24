@@ -34,7 +34,7 @@ template testScanUnicode(input: string, expectedOutput: string) =
   var stream = unsafeMemoryInput(input)
   var lex = init(TomlLexer, stream)
   var value: string
-  lex.scanUnicode(value)
+  lex.scanUnicode(lex.next, value)
   check:
     value == expectedOutput
 
@@ -270,7 +270,7 @@ proc testString() =
       testBasicString("\"", "")
       testBasicString("hello\"", "hello")
       testBasicString("\"\"hello\"\"\"", "hello")
-      testBasicString("\"\"hel\nlo\"\"\"", "hel\nlo")
+      testBasicString("\"\"hel\\nlo\"\"\"", "hel\nlo")
 
       expect TomlError:
         testBasicString("he\nllo\"", "hello")
