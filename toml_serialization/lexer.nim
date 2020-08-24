@@ -15,7 +15,6 @@ type
     stream*: InputStream
     line*: int
     col*: int
-    pushBack: char
     pushCol: int
     pushLine: int
     flags*: TomlFlags
@@ -62,9 +61,6 @@ const
 
 template readChar(s: InputStream): char =
   char inputs.read(s)
-
-template push*(lex: var TomlLexer, c: char) =
-  lex.pushBack = c
 
 template pushLineInfo*(lex: var TomlLexer) =
   lex.pushLine = lex.line
