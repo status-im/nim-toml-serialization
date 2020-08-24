@@ -15,8 +15,6 @@ type
     stream*: InputStream
     line*: int
     col*: int
-    pushCol: int
-    pushLine: int
     flags*: TomlFlags
 
   TomlReaderError* = object of TomlError
@@ -62,79 +60,66 @@ const
 template readChar(s: InputStream): char =
   char inputs.read(s)
 
-template pushLineInfo*(lex: var TomlLexer) =
-  lex.pushLine = lex.line
-  lex.pushCol  = lex.col
+proc lineInfo(lex: TomlLexer): (int, int) {.inline.} =
+  (lex.line, lex.col)
 
-template popLineInfo*(lex: var TomlLexer) =
-  lex.pushLine = 0
-  lex.pushCol  = 0
-
-proc lineInfo(lex: var TomlLexer): (int, int) =
-  if lex.pushLine != 0:
-    result[0] = lex.pushLine
-    lex.pushLine = 0
-  else:
-    result[0] = lex.line
-
-  if lex.pushCol != 0:
-    result[1] = lex.pushCol
-    lex.pushCol = 0
-  else:
-    result[1] = lex.col
-
-proc newTomlError*(lex: var TomlLexer, msg: string): ref TomlError =
-  let (line, col) = lex.lineInfo
+proc newTomlError*(line, col: int, msg: string): ref TomlError =
   result = newException(TomlError, "[" & $line &
                         ":" & $col & "]" & " " & msg)
 
+template raiseTomlErr*(li: (int, int), kind: TomlErrorKind) =
+  raise newTomlError(li[0], li[1], $kind)
+
 template raiseTomlErr*(lex: TomlLexer, kind: TomlErrorKind) =
-  raise(newTomlError(lex, $kind))
+  raise newTomlError(lex.line, lex.col, $kind)
+
+template raiseTomlErr*(lex: TomlLexer, msg: string) =
+  raise newTomlError(lex.line, lex.col, msg)
 
 template raiseInvalidChar*(lex: TomlLexer, c: char) =
-  raise(newTomlError(lex, $errInvalidChar & $ord(c)))
+  raiseTomlErr(lex, $errInvalidChar & $ord(c))
 
 template raiseIllegalChar*(lex: TomlLexer, c: char) =
-  raise(newTomlError(lex, $errIllegalChar & escape($c)))
+  raiseTomlErr(lex, $errIllegalChar & escape($c))
 
 template raiseUnknownEscape*(lex: TomlLexer, c: char) =
-  raise(newTomlError(lex, "unknown escape sequence \"\\" & c & "\""))
+  raiseTomlErr(lex, "unknown escape sequence \"\\" & c & "\"")
 
 template raiseUnexpectedValue*(lex: TomlLexer, s: string) =
-  raise(newTomlError(lex, "Expected valid '" & s & "' value"))
+  raiseTomlErr(lex, "Expected valid '" & s & "' value")
 
 template raiseUnexpectedField*(lex: TomlLexer, fieldName, typeName: string) =
-  raise(newTomlError(lex, "Unexpected field '" &
+  raiseTomlErr(lex, "Unexpected field '" &
                      fieldName & "' while deserializing '" &
-                     typeName & "'"))
+                     typeName & "'")
 
 template raiseInvalidUnicode*(lex: TomlLexer, s: string) =
-  raise(newTomlError(lex, $errInvalidUnicode & s))
+  raiseTomlErr(lex, $errInvalidUnicode & s)
 
 template raiseDigitCount*(lex: TomlLexer, expected, actual: int) =
-  raise(newTomlError(lex, "Expected digits count '" &
-                     $expected & "' but got '" & $actual & "'"))
+  raiseTomlErr(lex, "Expected digits count '" &
+                     $expected & "' but got '" & $actual & "'")
 
 template raiseBadValue*(lex: TomlLexer, msg: string, value: SomeInteger) =
-  raise(newTomlError(lex, msg & "(" & $value & ")"))
+  raiseTomlErr(lex, msg & "(" & $value & ")")
 
 template raiseExpectChar*(lex: TomlLexer, c: char) =
-  raise(newTomlError(lex, "expected \'" & escape($c) & "\'"))
+  raiseTomlErr(lex, "expected \'" & escape($c) & "\'")
 
 template raiseNotTable(lex: TomlLexer, name: string) =
-  raise(newTomlError(lex, "\"" & name & "\" is not a table"))
+  raiseTomlErr(lex, "\"" & name & "\" is not a table")
 
 template raiseNotArray(lex: TomlLexer, name: string) =
-  raise(newTomlError(lex, "\"" & name & "\" is not an array"))
+  raiseTomlErr(lex, "\"" & name & "\" is not an array")
 
 template raiseKeyNotFound(lex: TomlLexer, key: string) =
-  raise(newTomlError(lex, $errKeyNotFound & "\'" & key & "\'"))
+  raiseTomlErr(lex, $errKeyNotFound & "\'" & key & "\'")
 
 template raiseInvalidHex*(lex: TomlLexer, s: string) =
-  raise(newTomlError(lex, $errInvalidHex & s))
+  raiseTomlErr(lex, $errInvalidHex & s)
 
 template raiseDuplicateTableKey*(lex: TomlLexer, s: string) =
-  raise(newTomlError(lex, $errDuplicateTableKey & s & "\'"))
+  raiseTomlErr(lex, $errDuplicateTableKey & s & "\'")
 
 proc init*(T: type TomlLexer, stream: InputStream, flags: TomlFlags = {}): T =
   T(stream: stream,
@@ -702,7 +687,7 @@ proc scanTableName*[T](lex: var TomlLexer, res: var T): BracketType =
 
 proc scanBool*(lex: var TomlLexer): bool =
   var next = nonws(lex, skipLf)
-  lex.pushLineInfo # used for error messages
+  let li = lex.lineInfo # used for error messages
 
   case next
   of 't':
@@ -711,7 +696,7 @@ proc scanBool*(lex: var TomlLexer): bool =
     if lex.next != 'r' or
        lex.next != 'u' or
        lex.next != 'e':
-       raiseTomlErr(lex, errInvalidBool)
+       raiseTomlErr(li, errInvalidBool)
     result = true
 
   of 'f':
@@ -721,13 +706,11 @@ proc scanBool*(lex: var TomlLexer): bool =
        lex.next != 'l' or
        lex.next != 's' or
        lex.next != 'e':
-       raiseTomlErr(lex, errInvalidBool)
+       raiseTomlErr(li, errInvalidBool)
     result = false
 
   else:
-    raiseTomlErr(lex, errInvalidBool)
-
-  lex.popLineInfo
+    raiseTomlErr(li, errInvalidBool)
 
 proc scanDecimalPart[T](lex: var TomlLexer, value: var T, sign: Sign) =
   ## `T` should be `Somefloat`, or `string`, or `TomlVoid`
@@ -869,30 +852,28 @@ proc scanFloat*[T](lex: var TomlLexer, value: var T): Sign =
       sign = Sign.Pos
       continue
     of 'i':
-      lex.pushLineInfo
+      let li = lex.lineInfo
       advance
       if lex.next != 'n' or
          lex.next != 'f':
-         raiseTomlErr(lex, errUnknownIdent)
+         raiseTomlErr(li, errUnknownIdent)
       when T is string:
         value.add "inf"
       else:
         value = Inf
         if sign == Sign.Neg: value = -Inf
-      lex.popLineInfo
       return sign
     of 'n':
-      lex.pushLineInfo
+      let li = lex.lineInfo
       advance
       if lex.next != 'a' or
          lex.next != 'n':
-         raiseTomlErr(lex, errUnknownIdent)
+         raiseTomlErr(li, errUnknownIdent)
       when T is string:
         value.add "nan"
       else:
         value = Nan
         if sign == Sign.Neg: value = -Nan
-      lex.popLineInfo()
       return sign
     of strutils.Digits:
       break
@@ -1447,27 +1428,25 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       continue
     of 'i':
       advance
-      lex.pushLineInfo
+      let li = lex.lineInfo
       if lex.next != 'n' or
          lex.next != 'f':
-         raiseTomlErr(lex, errUnknownIdent)
+         raiseTomlErr(li, errUnknownIdent)
       when T is string:
         value.add "inf"
       elif T is TomlValueRef:
         value = TomlValueRef(kind: TomlKind.Float, floatVal: Inf)
-      lex.popLineInfo
       return
     of 'n':
       advance
-      lex.pushLineInfo
+      let li = lex.lineInfo
       if lex.next != 'a' or
          lex.next != 'n':
-         raiseTomlErr(lex, errUnknownIdent)
+         raiseTomlErr(li, errUnknownIdent)
       when T is string:
         value.add "nan"
       elif T is TomlValueRef:
         value = TomlValueRef(kind: TomlKind.Float, floatVal: Nan)
-      lex.popLineInfo
       return
     else:
       raiseIllegalChar(lex, next)
