@@ -28,6 +28,9 @@ proc init*(T: type TomlWriter,
 template append(x: untyped) =
   write w.stream, x
 
+template append(x: BiggestInt, len: Positive) =
+  writeInt w.stream, x, len
+
 template indent =
   for i in 0 ..< w.level:
     append ' '
@@ -64,30 +67,27 @@ proc writeArray*[T](w: var TomlWriter, elements: openarray[T]) =
   writeIterable(w, elements)
 
 proc writeValue*(w: var TomlWriter, time: TomlTime) =
-  # TODO avoid alloc/using intToStr
-  append intToStr(time.hour, 2)
+  append(time.hour, 2)
   append ':'
-  append intToStr(time.minute, 2)
+  append(time.minute, 2)
 
   if TomlHourMinute in w.flags and time.second == 0 and time.subsecond == 0:
     return
 
   append ':'
-  append intToStr(time.second, 2)
+  append(time.second, 2)
   if time.subsecond > 0:
     append '.'
-    append $time.subsecond
+    w.stream.writeText time.subsecond
 
 proc writeValue*(w: var TomlWriter, date: TomlDate) =
-  # TODO avoid alloc/using intToStr
-  append intToStr(date.year, 4)
+  append(date.year, 4)
   append '-'
-  append intToStr(date.month, 2)
+  append(date.month, 2)
   append '-'
-  append intToStr(date.day, 2)
+  append(date.day, 2)
 
 proc writeValue*(w: var TomlWriter, x: TomlDateTime) =
-  # TODO avoid alloc/using intToStr
   if x.date.isSome:
     let date = x.date.get()
     writeValue(w, date)
@@ -110,12 +110,11 @@ proc writeValue*(w: var TomlWriter, x: TomlDateTime) =
       append '+'
     else:
       append '-'
-    append intToStr(zone.hourShift, 2)
+    append(zone.hourShift, 2)
     append ':'
-    append intToStr(zone.minuteShift, 2)
+    append(zone.minuteShift, 2)
 
 proc writeValue*(w: var TomlWriter, s: string) =
-  # TODO avoid alloc/using toHex
   const
     lowEscape = {'\0'..'\31'} - {'\b', '\n', '\t', '\f', '\r'}
     highEscape = {'\127'..'\255'}
@@ -127,10 +126,10 @@ proc writeValue*(w: var TomlWriter, s: string) =
       of lowEscape, highEscape:
         if TomlHexEscape in w.flags:
           append "\\x"
-          append toHex(c.int, 2)
+          w.stream.toHex(c.int, 2)
         else:
           append "\\u"
-          append toHex(c.int, 4)
+          w.stream.toHex(c.int, 4)
       of '\b': append "\\b"
       of '\t': append "\\t"
       of '\n': append "\\n"
@@ -143,10 +142,10 @@ proc writeValue*(w: var TomlWriter, s: string) =
     else:
       if c.int < 0xFFFF:
         append "\\u"
-        append toHex(c.int, 4)
+        w.stream.toHex(c.int, 4)
       else:
         append "\\U"
-        append toHex(c.int, 8)
+        w.stream.toHex(c.int, 8)
   append '\"'
 
 proc writeKey(w: var TomlWriter, s: string) =
@@ -228,7 +227,7 @@ proc writeToml(w: var TomlWriter, value:
       w.stream.writeText value.intVal
   of TomlKind.Float:
     writeKeyValue:
-      append $value.floatVal
+      w.stream.writeText value.floatVal
   of TomlKind.Bool:
     writeKeyValue:
       append if value.boolVal: "true" else: "false"
@@ -338,9 +337,7 @@ proc writeValue*(w: var TomlWriter, value: auto) =
     w.stream.writeText value
 
   elif value is SomeFloat:
-    # TODO Implement writeText for floats
-    #      to avoid the allocation here:
-    append $value
+    w.stream.writeText value
 
   elif value is (seq or array or openArray):
     w.writeArray(value)
