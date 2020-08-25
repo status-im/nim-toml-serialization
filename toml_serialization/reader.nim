@@ -95,6 +95,35 @@ proc scanInt[T](r: var TomlReader, value: var T) =
   else:
     value = T(x)
 
+proc parseEnum*(r: var TomlReader, T: type enum): T =
+  var next = nonws(r.lex, skipLf)
+  case next
+  of '\"':
+    eatChar
+    var enumStr: string
+    if scanString(r.lex, enumStr, StringType.Basic):
+      raiseTomlErr(r.lex, errMLStringName)
+    r.stringEnum(result, enumStr)
+  of '\'':
+    eatChar
+    var enumStr: string
+    if scanString(r.lex, enumStr, StringType.Literal):
+      raiseTomlErr(r.lex, errMLStringName)
+    r.stringEnum(result, enumStr)
+  of signedDigits:
+    r.scanInt(result)
+  else: raiseIllegalChar(r.lex, next)
+
+proc parseValue*(r: var TomlReader): TomlValueRef =
+  try:
+    if r.state == TopLevel:
+      result = parseToml(r.lex)
+    else:
+      parseValue(r.lex, result)
+  except ValueError:
+    const typeName = typetraits.name(type result)
+    raiseUnexpectedValue(r.lex, typeName)
+
 proc decodeRecord[T](r: var TomlReader, value: var T) =
   mixin readValue
 
@@ -236,14 +265,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
     value = some(z)
 
   elif value is TomlValueRef:
-    try:
-      if r.state == TopLevel:
-        value = parseToml(r.lex)
-      else:
-        parseValue(r.lex, value)
-    except ValueError:
-      const typeName = typetraits.name(T)
-      raiseUnexpectedValue(r.lex, typeName)
+    value = r.parseValue
 
   elif value is string:
     # every value can be deserialized as string
@@ -273,23 +295,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
     value = scanBool(r.lex)
 
   elif value is enum:
-    var next = nonws(r.lex, skipLf)
-    case next
-    of '\"':
-      eatChar
-      var enumStr: string
-      if scanString(r.lex, enumStr, StringType.Basic):
-        raiseTomlErr(r.lex, errMLStringName)
-      r.stringEnum(value, enumStr)
-    of '\'':
-      eatChar
-      var enumStr: string
-      if scanString(r.lex, enumStr, StringType.Literal):
-        raiseTomlErr(r.lex, errMLStringName)
-      r.stringEnum(value, enumStr)
-    of signedDigits:
-      r.scanInt(value)
-    else: raiseIllegalChar(r.lex, next)
+    value = r.parseEnum(T)
 
   elif value is seq:
     expectChar('[')
@@ -342,6 +348,10 @@ proc readValue*[T](r: var TomlReader, value: var T)
 proc parseNumber*(r: var TomlReader, value: var string): (Sign, NumberBase) =
   expectChars(signedDigits)
   scanInt(r.lex, value)
+
+proc parseInt*(r: var TomlReader, T: type SomeInteger): T =
+  expectChars(signedDigits)
+  r.scanInt(result)
 
 proc parseDateTime*(r: var TomlReader): TomlDateTime =
   expectChars(strutils.Digits, errInvalidDateTime)

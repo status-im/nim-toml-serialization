@@ -44,6 +44,21 @@ type
     data: string
     sign: Sign
 
+  HoldInt = object
+    data: int
+
+  Features = enum
+    ParseInt
+    ParseEnum
+    ParseFloat
+    ParseString
+
+  HoldEnum = object
+    data: Features
+
+  HoldValue = object
+    data: TomlValueRef
+
 proc readValue*(r: var TomlReader, value: var Uint256) =
   var z: string
   let (sign, base) = r.parseNumber(z)
@@ -68,6 +83,15 @@ proc readValue*(r: var TomlReader, value: var DateString) =
 
 proc readValue*(r: var TomlReader, value: var HoldFloat) =
   value.sign = r.parseFloat(value.data)
+
+proc readValue*(r: var TomlReader, value: var HoldInt) =
+  value.data = r.parseInt(type value.data)
+
+proc readValue*(r: var TomlReader, value: var HoldEnum) =
+  value.data = r.parseEnum(type value.data)
+
+proc readValue*(r: var TomlReader, value: var HoldValue) =
+  value.data = r.parseValue()
 
 proc main() =
   suite "features test suite":
@@ -144,7 +168,7 @@ proc main() =
       var z = Toml.decode("bignum = 1234567890_1234567890", Uint256, "bignum")
       check $z == "12345678901234567890"
 
-    test "builtins":
+    test "helper functions":
       var u = Toml.decode("val = 1970-08-08 07:10:11", HoldDateTime, "val")
       check u.dt.date.isSome
 
@@ -160,6 +184,15 @@ proc main() =
       var z = Toml.decode("val = -123.123", HoldFloat, "val")
       check z.sign == Sign.Neg
       check z.data == "-123.123"
+
+      var x = Toml.decode("val = 768", HoldInt, "val")
+      check x.data == 768
+
+      var y = Toml.decode("val = 1", HoldEnum, "val")
+      check y.data == ParseEnum
+
+      var p = Toml.decode("val = 1", HoldValue, "val")
+      check p.data == TomlValueRef(kind: TomlKind.Int, intVal: 1)
 
     test "hex escape sequence":
       var x = Toml.decode("val = \"H\\x45X\"", string, "val", TomlCaseSensitive, {TomlHexEscape})

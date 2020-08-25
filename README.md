@@ -207,6 +207,9 @@ assert $z == "12345678901234567890"
   - `parseFloat(r: var TomlReader, value: var string): Sign`
   - `parseTime(r: var TomlReader): TomlTime`
   - `parseDate(r: var TomlReader): TomlDate`
+  - `parseValue(r: var TomlReader): TomlValueRef`
+  - `parseEnum(r: var TomlReader, T: type enum): T`
+  - `parseInt(r: var TomlReader, T: type SomeInteger): T`
 
 `parseAsString` can parse any valid TOML value into Nim string including mixed array or inline table.
 
