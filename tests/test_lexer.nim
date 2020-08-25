@@ -140,6 +140,13 @@ template testDateTime(input: string, expectedOutput: untyped, zeroLead = false) 
   check:
     value == expectedOutput
 
+template testComment(input: string, expectedOutput: untyped) =
+  var stream = unsafeMemoryInput(input)
+  var lex = init(TomlLexer, stream)
+  let output = lex.nonws(skipLf)
+  check:
+    output == expectedOutput
+
 proc testNumber() =
   suite "numbers test suite":
     test "scanUint string":
@@ -927,6 +934,25 @@ proc testDateTime3() =
       x.date = some(TomlDate(year: 979, month: 5, day:27))
       testDateTime("979-05-27 07:32:00", x, zeroLead = true)
 
+proc testV1_0_0_rc_2() =
+  suite "test toml v1.0.0-rc.2":
+    test "zero leading exponent":
+      testScanFloat("123E01", 123E1)
+      testScanFloat("-123.123E+01", -123.123E+1'f64)
+      testScanFloat("-123.123E-01", -123.123E-1)
+
+    test "raw tab in string":
+      testLiteralString("\t\'", "\t")
+      testLiteralString("\'\'\t\'\'\'", "\t")
+      testBasicString("\t\"", "\t")
+      testBasicString("\"\"\t\"\"\"", "\t")
+
+    test "control char not allowed in comments":
+      testComment("# TOML doc\n[miaw]", '[')
+
+      expect TomlError:
+        testComment("# TOML \x01 doc\n[miaw]", '[')
+
 # combine it into a long
 # proc will trigger mysterious crash
 testFloat1()
@@ -940,3 +966,4 @@ testName()
 testDateTime1()
 testDateTime2()
 testDateTime3()
+testV1_0_0_rc_2()

@@ -5,7 +5,7 @@ version       = "0.1.0"
 author        = "Status Research & Development GmbH"
 description   = "Flexible TOML serialization [not] relying on run-time type information"
 license       = "Apache License 2.0"
-skipDirs      = @["tests"]
+skipDirs      = @["tests", "assets"]
 
 requires "nim >= 1.1.2",
          "serialization",

@@ -4,6 +4,7 @@
 [![Windows build status (Appveyor)](https://img.shields.io/appveyor/ci/nimbus/nim-toml-serialization/master.svg?label=Windows "Windows build status (Appveyor)")](https://ci.appveyor.com/project/nimbus/nim-toml-serialization)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![License: Apache](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![TOML](assets/badge-TOML.svg)](https://github.com/toml-lang/toml/releases/tag/1.0.0-rc.2)
 ![Stability: experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
 
 Flexible TOML serialization [not] relying on run-time type information.
@@ -20,7 +21,7 @@ family and provides several operation modes:
   - Both encoder and decoder support `keyed` mode.
 
 ## Spec compliance
-nim-toml-serialization implements [1.0.0-rc1](https://github.com/toml-lang/toml/releases/tag/v1.0.0-rc.1)
+nim-toml-serialization implements [v1.0.0-rc.2](https://github.com/toml-lang/toml/releases/tag/1.0.0-rc.2)
 TOML spec and pass these test suites:
 
   - [iarna toml test suite](https://github.com/iarna/toml-spec-tests)
