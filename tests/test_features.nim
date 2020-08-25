@@ -59,6 +59,9 @@ type
   HoldValue = object
     data: TomlValueRef
 
+  HoldTable = object
+    data: Table[string, int]
+
 proc readValue*(r: var TomlReader, value: var Uint256) =
   var z: string
   let (sign, base) = r.parseNumber(z)
@@ -92,6 +95,10 @@ proc readValue*(r: var TomlReader, value: var HoldEnum) =
 
 proc readValue*(r: var TomlReader, value: var HoldValue) =
   value.data = r.parseValue()
+
+proc readValue*(r: var TomlReader, value: var Table) =
+  parseTable(r, value):
+    r.parseInt(int)
 
 proc main() =
   suite "features test suite":
@@ -193,6 +200,24 @@ proc main() =
 
       var p = Toml.decode("val = 1", HoldValue, "val")
       check p.data == TomlValueRef(kind: TomlKind.Int, intVal: 1)
+
+      var q = Toml.decode("p = 1\nq = 2\nr = 3", Table[string, int])
+      check:
+        q["p"] == 1
+        q["q"] == 2
+        q["r"] == 3
+
+      var r = Toml.decode("[data]\np = 1\nq = 2\nr = 3", HoldTable)
+      check:
+        r.data["p"] == 1
+        r.data["q"] == 2
+        r.data["r"] == 3
+
+      var s = Toml.decode("data = {p = 1, q = 2, r = 3}", HoldTable)
+      check:
+        s.data["p"] == 1
+        s.data["q"] == 2
+        s.data["r"] == 3
 
     test "hex escape sequence":
       var x = Toml.decode("val = \"H\\x45X\"", string, "val", TomlCaseSensitive, {TomlHexEscape})

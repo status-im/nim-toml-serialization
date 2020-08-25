@@ -224,7 +224,7 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
 
         next = nonws(r.lex, skipNoLf)
         if next == '}':
-          raiseIllegalChar(r.lex, '}')
+          raiseIllegalChar(r.lex, ',')
       of '\n':
         if TomlInlineTableNewline in r.lex.flags:
           eatChar
@@ -384,3 +384,65 @@ proc parseAsString*(r: var TomlReader): string =
 proc parseFloat*(r: var TomlReader, value: var string): Sign =
   expectChars(signedDigits)
   scanFloat(r.lex, value)
+
+template parseInlineTable(r: var TomlReader, table: var auto, body: untyped) =
+  let prevState = r.state
+  var
+    key: string
+    firstComma = true
+  expectChar('{')
+
+  while true:
+    var next = nonws(r.lex, skipLf)
+    case next
+    of '}':
+      eatChar
+      break
+    of EOF:
+      raiseTomlErr(r.lex, errUnterminatedTable)
+    of ',':
+      eatChar
+      if firstComma:
+        raiseTomlErr(r.lex, errMissingFirstElement)
+
+      next = nonws(r.lex, skipNoLf)
+      if next == '}':
+        raiseIllegalChar(r.lex, ',')
+    of '\n':
+      if TomlInlineTableNewline in r.lex.flags:
+        eatChar
+        continue
+      else:
+        raiseIllegalChar(r.lex, next)
+    else:
+      key.setLen(0)
+      scanKey(r.lex, key)
+      expectChar('=')
+      r.state = ExpectValue
+      table[key] = block: body
+      r.state = prevState
+      firstComma = false
+
+template parseRecord(r: var TomlReader, table: var auto, body: untyped) =
+  let prevState = r.state
+  var key: string
+  while true:
+    var next = nonws(r.lex, skipLf)
+    case next
+    of '[', EOF:
+      break
+    of '#', '.', ']', '=':
+      raiseIllegalChar(r.lex, next)
+    else:
+      key.setLen(0)
+      scanKey(r.lex, key)
+      expectChar('=')
+      r.state = ExpectValue
+      table[key] = block: body
+      r.state = prevState
+
+template parseTable*(r: var TomlReader, table: var auto, body: untyped) =
+  if r.state == ExpectValue:
+    parseInlineTable(r, table, body)
+  else:
+    parseRecord(r, table, body)
