@@ -8,7 +8,8 @@
 import
   strutils,
   ../types,
-  serialization/object_serialization
+  serialization/object_serialization,
+  faststreams/outputs
 
 type
   CodecState* = enum
@@ -80,3 +81,65 @@ proc findFieldReader*(fieldsTable: FieldReadersTable,
       return fieldsTable[i].reader
 
   return nil
+
+const
+  digits = block:
+    var z = ""
+    for i in 0..99:
+      if i < 10: z.add '0'
+      z.add $i
+    z
+
+  maxLen = ($BiggestInt.high).len
+
+proc writeInt*(s: OutputStream, x: BiggestInt, len: Positive) =
+  var
+    num: array[maxLen, char]
+    pos = num.len
+    numWritten = 0
+
+  template prepend(c: char) =
+    if numWritten < len:
+      dec pos
+      num[pos] = c
+      inc numWritten
+
+  var val = x
+  while val > 99:
+    let idx = (val mod 100) * 2
+    val = val div 100
+
+    prepend digits[idx + 1]
+    prepend digits[idx]
+
+  if val < 10:
+    prepend char(ord('0') + val)
+  else:
+    let idx = val * 2
+    prepend digits[idx + 1]
+    prepend digits[idx]
+
+  for _ in numWritten ..< len:
+    prepend '0'
+
+  write s, num.toOpenArray(pos, static(num.len - 1))
+
+proc toHex*(s: OutputStream, x: BiggestInt, len: Positive) =
+  const
+    hexChars  = "0123456789ABCDEF"
+    maxDigits = sizeof(x) * 2
+
+  var
+    hex: array[maxDigits, char]
+    pos = hex.len
+    n = x
+
+  template prepend(c: char) =
+    dec pos
+    hex[pos] = c
+
+  for _ in 0 ..< len:
+    prepend(hexChars[int(n and 0xF)])
+    n = n shr 4
+
+  write s, hex.toOpenArray(pos, static(hex.len - 1))

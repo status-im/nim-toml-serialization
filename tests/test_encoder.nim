@@ -7,7 +7,8 @@
 
 import
   unittest, os, options, tables,
-  ../toml_serialization
+  ../toml_serialization,
+  ../toml_serialization/private/utils
 
 type
   Fruits = enum
@@ -52,6 +53,18 @@ template runTest(x: untyped, flags: TomlFlags = {}) =
   var toml = Toml.encode(x, flags)
   var z =  Toml.decode(toml, T, flags)
   check x == z
+
+template testToHex(x: BiggestInt, len: Positive, expectedOutput: string) =
+  var s = memoryOutput()
+  toHex(s, x, len)
+  let output = s.getOutput string
+  check output == expectedOutput
+
+template testWriteInt(x: BiggestInt, len: Positive, expectedOutput: string) =
+  var s = memoryOutput()
+  writeInt(s, x, len)
+  let output = s.getOutput string
+  check output == expectedOutput
 
 proc main() =
   let time = TomlTime(hour: 17, minute: 18, second: 19, subsecond: 20)
@@ -114,5 +127,22 @@ proc main() =
       var x = StringObject(text: "\x01\x02")
       runTest(x)
       runTest(x, flags = {TomlHexEscape})
+
+    test "toHex":
+      testToHex(1, 1, "1")
+      testToHex(1, 2, "01")
+      testToHex(10, 2, "0A")
+      testToHex(11, 4, "000B")
+      testToHex(1234, 4, "04D2")
+      testToHex(0x1234, 3, "234")
+
+    test "writeInt":
+      testWriteInt(0, 1, "0")
+      testWriteInt(1, 1, "1")
+      testWriteInt(1, 2, "01")
+      testWriteInt(10, 2, "10")
+      testWriteInt(10, 1, "0")
+      testWriteInt(11, 2, "11")
+      testWriteInt(11, 3, "011")
 
 main()
