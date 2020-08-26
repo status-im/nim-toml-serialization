@@ -199,6 +199,24 @@ var z = Toml.decode("bignum = 1234567890_1234567890", Uint256, "bignum")
 assert $z == "12345678901234567890"
 ```
 
+## Table
+Decoding can be achieved via `parseTable` template. Because the key always string,
+nim-toml-serialization only accepts `Table` with string key.
+To parse the value, you can use one of the helper functions or use `readValue`.
+Table can be used to parse top level value, regular table, and inline table
+in a manner similar to object.
+
+No builtin `readValue` for table provided, you must overload it yourself depends on your need.
+
+`Table` can be stdlib table, ordered table, table ref, or any table like data types that has
+`[]=` operator.
+
+```Nim
+proc readValue*(r: var TomlReader, table: var Table[string, int]) =
+  parseTable(r, table):
+    r.parseInt(int)
+```
+
 ## Helper functions
   - `parseNumber(r: var TomlReader, value: var string): (Sign, NumberBase)`
   - `parseDateTime(r: var TomlReader): TomlDateTime`
@@ -207,6 +225,9 @@ assert $z == "12345678901234567890"
   - `parseFloat(r: var TomlReader, value: var string): Sign`
   - `parseTime(r: var TomlReader): TomlTime`
   - `parseDate(r: var TomlReader): TomlDate`
+  - `parseValue(r: var TomlReader): TomlValueRef`
+  - `parseEnum(r: var TomlReader, T: type enum): T`
+  - `parseInt(r: var TomlReader, T: type SomeInteger): T`
 
 `parseAsString` can parse any valid TOML value into Nim string including mixed array or inline table.
 

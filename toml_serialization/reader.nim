@@ -95,6 +95,35 @@ proc scanInt[T](r: var TomlReader, value: var T) =
   else:
     value = T(x)
 
+proc parseEnum*(r: var TomlReader, T: type enum): T =
+  var next = nonws(r.lex, skipLf)
+  case next
+  of '\"':
+    eatChar
+    var enumStr: string
+    if scanString(r.lex, enumStr, StringType.Basic):
+      raiseTomlErr(r.lex, errMLStringName)
+    r.stringEnum(result, enumStr)
+  of '\'':
+    eatChar
+    var enumStr: string
+    if scanString(r.lex, enumStr, StringType.Literal):
+      raiseTomlErr(r.lex, errMLStringName)
+    r.stringEnum(result, enumStr)
+  of signedDigits:
+    r.scanInt(result)
+  else: raiseIllegalChar(r.lex, next)
+
+proc parseValue*(r: var TomlReader): TomlValueRef =
+  try:
+    if r.state == TopLevel:
+      result = parseToml(r.lex)
+    else:
+      parseValue(r.lex, result)
+  except ValueError:
+    const typeName = typetraits.name(type result)
+    raiseUnexpectedValue(r.lex, typeName)
+
 proc decodeRecord[T](r: var TomlReader, value: var T) =
   mixin readValue
 
@@ -195,7 +224,7 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
 
         next = nonws(r.lex, skipNoLf)
         if next == '}':
-          raiseIllegalChar(r.lex, '}')
+          raiseIllegalChar(r.lex, ',')
       of '\n':
         if TomlInlineTableNewline in r.lex.flags:
           eatChar
@@ -236,14 +265,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
     value = some(z)
 
   elif value is TomlValueRef:
-    try:
-      if r.state == TopLevel:
-        value = parseToml(r.lex)
-      else:
-        parseValue(r.lex, value)
-    except ValueError:
-      const typeName = typetraits.name(T)
-      raiseUnexpectedValue(r.lex, typeName)
+    value = r.parseValue
 
   elif value is string:
     # every value can be deserialized as string
@@ -273,23 +295,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
     value = scanBool(r.lex)
 
   elif value is enum:
-    var next = nonws(r.lex, skipLf)
-    case next
-    of '\"':
-      eatChar
-      var enumStr: string
-      if scanString(r.lex, enumStr, StringType.Basic):
-        raiseTomlErr(r.lex, errMLStringName)
-      r.stringEnum(value, enumStr)
-    of '\'':
-      eatChar
-      var enumStr: string
-      if scanString(r.lex, enumStr, StringType.Literal):
-        raiseTomlErr(r.lex, errMLStringName)
-      r.stringEnum(value, enumStr)
-    of signedDigits:
-      r.scanInt(value)
-    else: raiseIllegalChar(r.lex, next)
+    value = r.parseEnum(T)
 
   elif value is seq:
     expectChar('[')
@@ -343,6 +349,10 @@ proc parseNumber*(r: var TomlReader, value: var string): (Sign, NumberBase) =
   expectChars(signedDigits)
   scanInt(r.lex, value)
 
+proc parseInt*(r: var TomlReader, T: type SomeInteger): T =
+  expectChars(signedDigits)
+  r.scanInt(result)
+
 proc parseDateTime*(r: var TomlReader): TomlDateTime =
   expectChars(strutils.Digits, errInvalidDateTime)
   scanDateTime(r.lex, result)
@@ -374,3 +384,65 @@ proc parseAsString*(r: var TomlReader): string =
 proc parseFloat*(r: var TomlReader, value: var string): Sign =
   expectChars(signedDigits)
   scanFloat(r.lex, value)
+
+template parseInlineTable(r: var TomlReader, table: var auto, body: untyped) =
+  let prevState = r.state
+  var
+    key: string
+    firstComma = true
+  expectChar('{')
+
+  while true:
+    var next = nonws(r.lex, skipLf)
+    case next
+    of '}':
+      eatChar
+      break
+    of EOF:
+      raiseTomlErr(r.lex, errUnterminatedTable)
+    of ',':
+      eatChar
+      if firstComma:
+        raiseTomlErr(r.lex, errMissingFirstElement)
+
+      next = nonws(r.lex, skipNoLf)
+      if next == '}':
+        raiseIllegalChar(r.lex, ',')
+    of '\n':
+      if TomlInlineTableNewline in r.lex.flags:
+        eatChar
+        continue
+      else:
+        raiseIllegalChar(r.lex, next)
+    else:
+      key.setLen(0)
+      scanKey(r.lex, key)
+      expectChar('=')
+      r.state = ExpectValue
+      table[key] = block: body
+      r.state = prevState
+      firstComma = false
+
+template parseRecord(r: var TomlReader, table: var auto, body: untyped) =
+  let prevState = r.state
+  var key: string
+  while true:
+    var next = nonws(r.lex, skipLf)
+    case next
+    of '[', EOF:
+      break
+    of '#', '.', ']', '=':
+      raiseIllegalChar(r.lex, next)
+    else:
+      key.setLen(0)
+      scanKey(r.lex, key)
+      expectChar('=')
+      r.state = ExpectValue
+      table[key] = block: body
+      r.state = prevState
+
+template parseTable*(r: var TomlReader, table: var auto, body: untyped) =
+  if r.state == ExpectValue:
+    parseInlineTable(r, table, body)
+  else:
+    parseRecord(r, table, body)
