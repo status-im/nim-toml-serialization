@@ -146,10 +146,10 @@ server = {
   When parsing TOML date time, use `string`, `TomlDateTime`, or `TomlValueRef`.
 
 - Date.
-  You can parse TOML date using `string` or `TomlDate`.
+  You can parse TOML date using `string`, `TomlDate`, `TomlDateTime`, or `TomlValueRef`.
 
 - Time.
-  You can parse TOML time using `string` or `TomlTime`.
+  You can parse TOML time using `string`, `TomlTime`, `TomlDateTime`, or `TomlValueRef`.
 
 - Heterogenous array.
   When parsing heterogenous array, use `string` or `TomlValueRef`.
