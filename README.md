@@ -6,6 +6,7 @@
 [![License: Apache](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![TOML](assets/badge-TOML.svg)](https://github.com/toml-lang/toml/releases/tag/1.0.0-rc.2)
 ![Stability: experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
+![nimble](https://img.shields.io/badge/available%20on-nimble-yellow.svg?style=flat-square)
 
 Flexible TOML serialization [not] relying on run-time type information.
 
