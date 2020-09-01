@@ -15,6 +15,8 @@ nim-toml-serialization is a member of [nim-serialization](https://github.com/sta
 family and provides several operation modes:
 
   - Decode into Nim data types without any intermediate steps using only a **subset** of TOML.
+    - Unlike typical lexer based parser, nim-toml-serialization is very efficient because
+      the parser convert text directly into Nim data types and using no intermediate `token.
   - Decode into Nim data types mixed with `TomlValueRef` to parse any valid TOML value.
   - Decode into `TomlValueRef` from any valid TOML.
   - Encode Nim data types into a **subset** of TOML.
@@ -51,6 +53,8 @@ All others Nim basic datatypes such as floats, ints, array, boolean must
 be a value of a key.
 
 nim-toml-serialization offers `keyed` mode decoding to overcome this limitation.
+The parser can skip any non-matching key-value pair efficiently because
+the parser produce no token but at the same time can validate the syntax correctly.
 
 ```toml
 [server]
@@ -216,6 +220,44 @@ No builtin `readValue` for table provided, you must overload it yourself depends
 proc readValue*(r: var TomlReader, table: var Table[string, int]) =
   parseTable(r, table):
     r.parseInt(int)
+```
+
+## Sets and list-like
+Similar to `Table`, sets and list or array like data structure can be parsed using
+`parseList` template. It come with two flavors, indexed and non indexed.
+
+```nim
+type
+  HoldArray = object
+    data: array[3, int]
+
+  HoldSeq = object
+    data: seq[int]
+
+  WelderFlag = enum
+    TIG
+    MIG
+    MMA
+
+  Welder = object
+    flags: set[WelderFlag]
+
+proc readValue*(r: var TomlReader, value: var HoldArray) =
+  # parseList with index, `i` can be any valid identifier
+  r.parseList(i):
+    value.data[i] = r.parseInt(int)
+
+proc readValue*(r: var TomlReader, value: var HoldSeq) =
+  # parseList without index
+  r.parseList:
+    let lastPos = value.data.len
+    value.data.setLen(lastPos + 1)
+    readValue(r, value.data[lastPos])
+
+proc readValue*(r: var TomlReader, value: var Welder) =
+  # populating set also okay
+  r.parseList:
+    value.flags.incl r.parseEnum(WelderFlag)
 ```
 
 ## Helper functions
