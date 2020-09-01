@@ -107,6 +107,14 @@ type
   HoldSeq = object
     data: seq[int]
 
+  WelderFlag = enum
+    TIG
+    MIG
+    MMA
+
+  Welder = object
+    flags: set[WelderFlag]
+
 proc readValue*(r: var TomlReader, value: var HoldArray) =
   r.parseList(i):
     value.data[i] = r.parseInt(int)
@@ -116,6 +124,10 @@ proc readValue*(r: var TomlReader, value: var HoldSeq) =
     let lastPos = value.data.len
     value.data.setLen(lastPos + 1)
     readValue(r, value.data[lastPos])
+
+proc readValue*(r: var TomlReader, value: var Welder) =
+  r.parseList:
+    value.flags.incl r.parseEnum(WelderFlag)
 
 proc main() =
   suite "features test suite":
@@ -302,6 +314,11 @@ proc helperParsers() =
 
       let y = Toml.decode("x = [1, 2, 3]", HoldSeq, "x")
       check y.data == @[1, 2, 3]
+
+      let z = Toml.decode("x = ['MMA', 'MIG']", Welder, "x")
+      check:
+        MMA in z.flags
+        MIG in z.flags
 
 main()
 helperParsers()
