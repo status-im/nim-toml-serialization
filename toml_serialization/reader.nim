@@ -81,6 +81,10 @@ template expectChars(c: set[char], skip = skipLf) =
   if next notin c:
     raiseIllegalChar(r.lex, next)
 
+template maybeChar(c: char, skip = skipLf) =
+  if nonws(r.lex, skipLf) == c:
+    eatChar
+  
 proc scanInt[T](r: var TomlReader, value: var T) =
   var x: uint64
   let (sign, _) = scanInt(r.lex, x)
@@ -331,6 +335,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
       expectChar(',')
 
     readValue(r, value[high(value)])
+    maybeChar(',')
     expectChar(']')
 
   elif value is (object or tuple):

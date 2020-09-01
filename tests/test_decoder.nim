@@ -141,4 +141,21 @@ proc testDecoder() =
       expect TomlError:
         discard Toml.decode("child = name = \"Toml\"",  TopObject)
 
+    test "trailing comma in array":
+      type
+        XX = array[3, int]
+        YY = seq[int]
+      
+      let x = Toml.decode("x = [1, 2, 3]", XX, "x")
+      check x == [1, 2, 3]
+      
+      let y = Toml.decode("x = [1, 2, 3]", YY, "x")
+      check y == @[1, 2, 3]      
+    
+      let xx = Toml.decode("x = [1, 2, 3, ]", XX, "x")
+      check xx == [1, 2, 3]
+      
+      let yy = Toml.decode("x = [1, 2, 3, ]", YY, "x")
+      check yy == @[1, 2, 3]      
+    
 testDecoder()
