@@ -100,6 +100,23 @@ proc readValue*(r: var TomlReader, value: var Table) =
   parseTable(r, value):
     r.parseInt(int)
 
+type
+  HoldArray = object
+    data: array[3, int]
+
+  HoldSeq = object
+    data: seq[int]
+
+proc readValue*(r: var TomlReader, value: var HoldArray) =
+  r.parseList(i):
+    value.data[i] = r.parseInt(int)
+
+proc readValue*(r: var TomlReader, value: var HoldSeq) =
+  r.parseList:
+    let lastPos = value.data.len
+    value.data.setLen(lastPos + 1)
+    readValue(r, value.data[lastPos])
+
 proc main() =
   suite "features test suite":
     let rawToml = readFile("tests" / "tomls" / "example.toml")
@@ -201,24 +218,6 @@ proc main() =
       var p = Toml.decode("val = 1", HoldValue, "val")
       check p.data == TomlValueRef(kind: TomlKind.Int, intVal: 1)
 
-      var q = Toml.decode("p = 1\nq = 2\nr = 3", Table[string, int])
-      check:
-        q["p"] == 1
-        q["q"] == 2
-        q["r"] == 3
-
-      var r = Toml.decode("[data]\np = 1\nq = 2\nr = 3", HoldTable)
-      check:
-        r.data["p"] == 1
-        r.data["q"] == 2
-        r.data["r"] == 3
-
-      var s = Toml.decode("data = {p = 1, q = 2, r = 3}", HoldTable)
-      check:
-        s.data["p"] == 1
-        s.data["q"] == 2
-        s.data["r"] == 3
-
     test "hex escape sequence":
       var x = Toml.decode("val = \"H\\x45X\"", string, "val", TomlCaseSensitive, {TomlHexEscape})
       check x == "HEX"
@@ -276,4 +275,33 @@ proc main() =
       check x.minute == 13
       check x.second == 0
 
+proc helperParsers() =
+  suite "helper parsers":
+    test "parseTable":
+      var q = Toml.decode("p = 1\nq = 2\nr = 3", Table[string, int])
+      check:
+        q["p"] == 1
+        q["q"] == 2
+        q["r"] == 3
+
+      var r = Toml.decode("[data]\np = 1\nq = 2\nr = 3", HoldTable)
+      check:
+        r.data["p"] == 1
+        r.data["q"] == 2
+        r.data["r"] == 3
+
+      var s = Toml.decode("data = {p = 1, q = 2, r = 3}", HoldTable)
+      check:
+        s.data["p"] == 1
+        s.data["q"] == 2
+        s.data["r"] == 3
+
+    test "parseList":
+      let x = Toml.decode("x = [1, 2, 3]", HoldArray, "x")
+      check x.data == [1, 2, 3]
+
+      let y = Toml.decode("x = [1, 2, 3]", HoldSeq, "x")
+      check y.data == @[1, 2, 3]
+
 main()
+helperParsers()

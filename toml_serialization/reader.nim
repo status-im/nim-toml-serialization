@@ -84,7 +84,7 @@ template expectChars(c: set[char], skip = skipLf) =
 template maybeChar(c: char, skip = skipLf) =
   if nonws(r.lex, skipLf) == c:
     eatChar
-  
+
 proc scanInt[T](r: var TomlReader, value: var T) =
   var x: uint64
   let (sign, _) = scanInt(r.lex, x)
@@ -127,6 +127,39 @@ proc parseValue*(r: var TomlReader): TomlValueRef =
   except ValueError:
     const typeName = typetraits.name(type result)
     raiseUnexpectedValue(r.lex, typeName)
+
+template parseListImpl*(r: var TomlReader, index, body: untyped) =
+  expectChar('[')
+  while true:
+    var next = nonws(r.lex, skipLf)
+    case next
+    of ']':
+      eatChar
+      break
+    of EOF:
+      raiseTomlErr(r.lex, errUnterminatedArray)
+    of ',':
+      eatChar
+      if index == 0:
+        # This happens with "[, 1, 2]", for instance
+        raiseTomlErr(r.lex, errMissingFirstElement)
+
+      # Check that this is not a terminating comma (like in
+      #  "[b,]")
+      next = nonws(r.lex, skipLf)
+      if next == ']':
+        break
+    else:
+      body
+      inc index
+
+template parseList*(r: var TomlReader, body: untyped) =
+  var idx = 0
+  parseListImpl(r, idx, body)
+
+template parseList*(r: var TomlReader, i, body: untyped) =
+  var `i` {.inject.} = 0
+  parseListImpl(r, `i`, body)
 
 proc decodeRecord[T](r: var TomlReader, value: var T) =
   mixin readValue
@@ -302,30 +335,10 @@ proc readValue*[T](r: var TomlReader, value: var T)
     value = r.parseEnum(T)
 
   elif value is seq:
-    expectChar('[')
-    while true:
-      var next = nonws(r.lex, skipLf)
-      case next
-      of ']':
-        eatChar
-        break
-      of EOF:
-        raiseTomlErr(r.lex, errUnterminatedArray)
-      of ',':
-        eatChar
-        if value.len == 0:
-          # This happens with "[, 1, 2]", for instance
-          raiseTomlErr(r.lex, errMissingFirstElement)
-
-        # Check that this is not a terminating comma (like in
-        #  "[b,]")
-        next = nonws(r.lex, skipLf)
-        if next == ']':
-          break
-      else:
-        let lastPos = value.len
-        value.setLen(lastPos + 1)
-        readValue(r, value[lastPos])
+    r.parseList:
+      let lastPos = value.len
+      value.setLen(lastPos + 1)
+      readValue(r, value[lastPos])
 
   elif value is array:
     expectChar('[')
