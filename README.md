@@ -16,8 +16,10 @@ family and provides several operation modes:
 
   - Decode into Nim data types without any intermediate steps using only a **subset** of TOML.
     - Unlike typical lexer based parser, nim-toml-serialization is very efficient because
-      the parser convert text directly into Nim data types and using no intermediate `token.
+      the parser convert text directly into Nim data types and using no intermediate `token`.
   - Decode into Nim data types mixed with `TomlValueRef` to parse any valid TOML value.
+    - Using `TomlValueRef` can offer more flexibility but also require more memory.
+      If you can avoid using dotted key, there is no reason to use `TomlValueRef`.
   - Decode into `TomlValueRef` from any valid TOML.
   - Encode Nim data types into a **subset** of TOML.
   - Encode `TomlValueRef` into full spec TOML.
@@ -92,7 +94,7 @@ But it won't work because the grammar of TOML make it very difficult
 to `exit` from inline-table-parser in a clean way.
 
 ## Decoder
-```
+```nim
   type
     NimServer = object
       name: string
