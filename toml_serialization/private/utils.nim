@@ -144,3 +144,9 @@ proc toHex*(s: OutputStream, x: BiggestInt, len: Positive) =
     n = n shr 4
 
   write s, hex.toOpenArray(pos, static(hex.len - 1))
+
+proc emptyTable*(): TomlValueRef =
+  TomlValueRef(
+    kind: TomlKind.Table,
+    tableVal: TomlTableRef.new
+  )

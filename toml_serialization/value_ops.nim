@@ -7,7 +7,7 @@
 
 import
   tables, typetraits, strutils,
-  types, lexer, private/utils
+  types, private/utils
 
 proc innerValue(n: TomlValueRef, T: type): T =
   when T is (SomeInteger of SomeFloat):
@@ -137,7 +137,7 @@ proc `{}=`*(node: TomlValueRef, keys: varargs[string], value: TomlValueRef) =
   var node = node
   for i in 0..(keys.len-2):
     if not node.hasKey(keys[i]):
-      node[keys[i]] = newTTable()
+      node[keys[i]] = emptyTable()
     node = node[keys[i]]
   node[keys[keys.len-1]] = value
 
@@ -148,30 +148,47 @@ proc delete*(obj: TomlValueRef, key: string) =
     raise newException(IndexError, "key not in object")
   obj.tableVal.del(key)
 
-proc copy*(p: TomlValueRef): TomlValueRef =
-  ## Performs a deep copy of `a`.
+proc copy*(p: TomlValueRef): TomlValueRef
+
+proc copy*(p: TomlTableRef): TomlTableRef =
+  result = TomlTableRef.new
+  for key, val in pairs(p):
+    result[key] = copy(val)
+
+proc copy(p: TomlValueRef): TomlValueRef =
+  ## Performs a deep copy of `p`.
   case p.kind
   of TomlKind.String:
-    result = newTString(p.stringVal)
+    result = TomlValueRef(
+      kind: TomlKind.String,
+      stringVal: p.stringVal
+    )
   of TomlKind.Int:
-    result = newTInt(p.intVal)
+    result = TomlValueRef(
+      kind: TomlKind.Int,
+      intVal: p.intVal
+    )
   of TomlKind.Float:
-    result = newTFloat(p.floatVal)
+    result = TomlValueRef(
+      kind: TomlKind.Float,
+      floatVal: p.floatVal
+    )
   of TomlKind.Bool:
-    result = newTBool(p.boolVal)
-  of TomlKind.None:
-    result = newTNull()
-  of TomlKind.Table:
-    result = newTTable()
-    for key, val in pairs(p.tableVal):
-      result.tableVal[key] = copy(val)
+    result = TomlValueRef(
+      kind: TomlKind.Bool,
+      boolVal: p.boolVal
+    )
+  of TomlKind.Table, TomlKind.InlineTable:
+    result = TomlValueRef(kind: p.kind)
+    result.tableVal = copy(p.tableVal)
   of TomlKind.Array:
-    result = newTArray()
-    for i in items(p.arrayVal):
-      result.arrayVal.add(copy(i))
+    result = TomlValueRef(kind: TomlKind.Array)
+    for x in items(p.arrayVal):
+      result.arrayVal.add copy(x)
   of TomlKind.DateTime:
-    deepCopy(result, p)
-  of TomlKind.Date:
-    deepCopy(result, p)
-  of TomlKind.Time:
-    deepCopy(result, p)
+    result = TomlValueRef(kind: TomlKind.DateTime)
+    result.dateTime = p.dateTime
+  of TomlKind.Tables:
+    result = TomlValueRef(kind: TomlKind.Tables)
+    for x in items(p.tablesVal):
+      result.tablesVal.add copy(x)

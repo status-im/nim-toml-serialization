@@ -1625,12 +1625,6 @@ proc parseValue[T](lex: var TomlLexer, value: var T) =
   else:
     raiseIllegalChar(lex, next)
 
-proc emptyTable(): TomlValueRef =
-  TomlValueRef(
-    kind: TomlKind.Table,
-    tableVal: TomlTableRef.new
-  )
-
 proc newTableArray(size: int = 0): TomlValueRef =
   TomlValueRef(
     kind: TomlKind.Tables,

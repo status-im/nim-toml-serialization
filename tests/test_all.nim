@@ -13,4 +13,5 @@ import
   test_parser,
   test_features,
   test_encoder,
+  test_value_ops,
   test_lexer
