@@ -24,6 +24,9 @@ family and provides several operation modes:
   - Encode Nim data types into a **subset** of TOML.
   - Encode `TomlValueRef` into full spec TOML.
   - Both encoder and decoder support `keyed` mode.
+  - Allow skipping unknown fields using `TomlUnknownFields` flag.
+    - Skipping unknown fields also done efficiently, no token produced.
+      But skipped fields should contains valid TOML value or the parser will raise exception.
 
 ## Spec compliance
 nim-toml-serialization implements [v1.0.0-rc.2](https://github.com/toml-lang/toml/releases/tag/1.0.0-rc.2)
