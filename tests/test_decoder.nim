@@ -182,4 +182,36 @@ proc testDecoder() =
       #let banana = Toml.decode(toml, CaseObject, "banana")
       #check banana.bananaVal == "Hello Banana"
 
+    test "table array":
+      type
+        Disc = object
+          sector: int
+          cylinder: int
+
+        TableArray = object
+          disc: seq[Disc]
+          cd: array[3, Disc]
+
+      const taFile = "tests" / "tomls" / "table-array.toml"
+      let ta = Toml.loadFile(taFile, TableArray)
+      check:
+        ta.disc.len == 3
+        ta.disc[2].sector == 7
+        ta.disc[2].cylinder == 8
+        ta.cd[0].sector == 9
+        ta.cd[0].cylinder == 10
+
+      type
+        WantCD = object
+          cd: array[3, Disc]
+
+      let cds = """
+        [[cx]]
+          sector = 11
+          cylinder = 12
+      """
+
+      expect TomlError:
+        discard Toml.decode(cds, WantCD)
+
 testDecoder()

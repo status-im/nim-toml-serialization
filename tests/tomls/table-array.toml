@@ -1,0 +1,22 @@
+# table array test case
+
+[[disc]]
+  sector = 3
+  cylinder = 4
+  
+[[disc]]
+  sector = 5
+  cylinder = 6
+
+[[disc]]
+  sector = 7
+  cylinder = 8
+
+[[cd]]
+  sector = 9
+  cylinder = 10
+
+[[cd]]
+  sector = 11
+  cylinder = 12
+  

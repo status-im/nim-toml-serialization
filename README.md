@@ -171,7 +171,8 @@ server = {
   When parsing integers, use `string` or `SomeInteger`, or `TomlValueRef`.
 
 - Array of tables.
-  Currently array of tables only can be parsed via `TomlValueRef`.
+  Array of tables can be parsed via `TomlValueRef` or parsed as a field of object.
+  Parsing with keyed mode will not works.
 
 - Dotted key.
   When parse into nim object, key must not a dotted key.
