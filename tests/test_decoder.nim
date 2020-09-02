@@ -145,17 +145,41 @@ proc testDecoder() =
       type
         XX = array[3, int]
         YY = seq[int]
-      
+
       let x = Toml.decode("x = [1, 2, 3]", XX, "x")
       check x == [1, 2, 3]
-      
+
       let y = Toml.decode("x = [1, 2, 3]", YY, "x")
-      check y == @[1, 2, 3]      
-    
+      check y == @[1, 2, 3]
+
       let xx = Toml.decode("x = [1, 2, 3, ]", XX, "x")
       check xx == [1, 2, 3]
-      
+
       let yy = Toml.decode("x = [1, 2, 3, ]", YY, "x")
-      check yy == @[1, 2, 3]      
-    
+      check yy == @[1, 2, 3]
+
+    test "case object":
+      type
+        CaseObject = object
+          case kind: Fruits
+          of Apple: appleVal: int
+          of Banana: bananaVal: string
+
+      let toml = """
+      [apple]
+        kind = "Apple"
+        appleVal = 123
+
+      [banana]
+        kind = "Banana"
+        bananaVal = "Hello Banana"
+      """
+
+      let apple = Toml.decode(toml, CaseObject, "apple")
+      check apple.appleVal == 123
+
+      # TODO: this still fails
+      #let banana = Toml.decode(toml, CaseObject, "banana")
+      #check banana.bananaVal == "Hello Banana"
+
 testDecoder()

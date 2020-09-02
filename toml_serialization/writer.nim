@@ -401,6 +401,9 @@ proc writeValue*(w: var TomlWriter, value: auto) =
         w.state = prevState
         append '\n'
 
+      else:
+        discard
+
     if w.state == ExpectValue:
       if TomlInlineTableNewline in w.flags:
         append'\n'

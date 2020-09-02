@@ -8,7 +8,7 @@
 import
   tables, strutils, typetraits, options,
   faststreams/inputs, serialization/[object_serialization, errors],
-  types, lexer, private/utils
+  types, lexer, private/[utils, array_reader]
 
 type
   TomlReader* = object
@@ -161,12 +161,32 @@ template parseList*(r: var TomlReader, i, body: untyped) =
   var `i` {.inject.} = 0
   parseListImpl(r, `i`, body)
 
+proc readValue*[T](r: var TomlReader, value: var T, numRead: int)
+                  {.raises: [SerializationError, IOError, Defect].} =
+  mixin readValue
+
+  when T is seq:
+    value.setLen(numRead + 1)
+    readValue(r, value[numRead])
+  elif T is array:
+    readValue(r, value[numRead])
+  else:
+    const typeName = typetraits.name(T)
+    {.error: "Failed to convert from TOML an unsupported type: " & typeName.}
+
 proc decodeRecord[T](r: var TomlReader, value: var T) =
   mixin readValue
 
-  const totalFields = T.totalSerializedFields
+  const
+    totalFields = T.totalSerializedFields
+    arrayFields = T.totalArrayFields
+
   when  totalFields > 0:
     let fields = T.fieldReadersTable(TomlReader)
+
+    when arrayFields > 0:
+      var arrayReaders = T.arrayReadersTable(TomlReader)
+
     var
       expectedFieldPos = 0
       fieldsDone = 0
@@ -190,8 +210,13 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
           raiseIllegalChar(r.lex, next)
         eatChar
         let bracket = scanTableName(r.lex, fieldName)
-        if bracket == BracketType.double:
-          raiseTomlErr(r.lex, errDoubleBracket)
+
+        when arrayFields > 0:
+          if bracket == BracketType.double:
+            r.state = ArrayOfTable
+        else:
+          if bracket == BracketType.double:
+            raiseTomlErr(r.lex, errDoubleBracket)
 
       of '=': raiseTomlErr(r.lex, errKeyNameMissing)
       of '#', '.', ']':
@@ -205,6 +230,20 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
         r.state = ExpectValue
         scanKey(r.lex, fieldName)
         expectChar('=')
+
+      when arrayFields > 0:
+        if r.state == ArrayOfTable:
+          r.state = prevState
+          let reader = findArrayReader(arrayReaders, fieldName, r.tomlCase)
+          if reader != BadArrayReader:
+            reader.readArray(arrayReaders, value, r)
+          elif TomlUnknownFields in r.lex.flags:
+            var skipValue: TomlVoid
+            parseValue(r.lex, skipValue)
+          else:
+            const typeName = typetraits.name(T)
+            raiseUnexpectedField(r.lex, fieldName, typeName)
+          continue
 
       when value is tuple:
         var reader = fields[][expectedFieldPos].reader
@@ -359,7 +398,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
 
   else:
     const typeName = typetraits.name(T)
-    {.error: "Failed to convert to TOML an unsupported type: " & typeName.}
+    {.error: "Failed to convert from TOML an unsupported type: " & typeName.}
 
 # these are helpers functions
 

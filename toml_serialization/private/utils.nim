@@ -16,6 +16,7 @@ type
     TopLevel
     InsideRecord
     ExpectValue
+    ArrayOfTable
 
 func cmpNimIdent(a, b: string): bool =
   if a.len == 0 and b.len == 0:
