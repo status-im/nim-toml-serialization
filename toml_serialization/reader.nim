@@ -442,11 +442,9 @@ proc parseFloat*(r: var TomlReader, value: var string): Sign =
   expectChars(signedDigits)
   scanFloat(r.lex, value)
 
-template parseInlineTable(r: var TomlReader, table: var auto, body: untyped) =
+template parseInlineTable(r: var TomlReader, key: untyped, body: untyped) =
   let prevState = r.state
-  var
-    key: string
-    firstComma = true
+  var firstComma = true
   expectChar('{')
 
   while true:
@@ -476,13 +474,12 @@ template parseInlineTable(r: var TomlReader, table: var auto, body: untyped) =
       scanKey(r.lex, key)
       expectChar('=')
       r.state = ExpectValue
-      table[key] = block: body
+      body
       r.state = prevState
       firstComma = false
 
-template parseRecord(r: var TomlReader, table: var auto, body: untyped) =
+template parseRecord(r: var TomlReader, key: untyped, body: untyped) =
   let prevState = r.state
-  var key: string
   while true:
     var next = nonws(r.lex, skipLf)
     case next
@@ -495,11 +492,12 @@ template parseRecord(r: var TomlReader, table: var auto, body: untyped) =
       scanKey(r.lex, key)
       expectChar('=')
       r.state = ExpectValue
-      table[key] = block: body
+      body
       r.state = prevState
 
-template parseTable*(r: var TomlReader, table: var auto, body: untyped) =
+template parseTable*(r: var TomlReader, key: untyped, body: untyped) =
+  var `key` {.inject.}: string
   if r.state == ExpectValue:
-    parseInlineTable(r, table, body)
+    parseInlineTable(r, `key`, body)
   else:
-    parseRecord(r, table, body)
+    parseRecord(r, `key`, body)

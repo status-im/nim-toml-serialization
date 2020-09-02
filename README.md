@@ -221,8 +221,8 @@ No builtin `readValue` for table provided, you must overload it yourself depends
 
 ```Nim
 proc readValue*(r: var TomlReader, table: var Table[string, int]) =
-  parseTable(r, table):
-    r.parseInt(int)
+  parseTable(r, key):
+    table[key] = r.parseInt(int)
 ```
 
 ## Sets and list-like
