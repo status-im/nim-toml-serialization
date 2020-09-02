@@ -8,7 +8,7 @@
 import
   tables, strutils, typetraits, options,
   faststreams/inputs, serialization/[object_serialization, errors],
-  types, lexer, private/utils
+  types, lexer, private/[utils, array_reader]
 
 type
   TomlReader* = object
@@ -128,6 +128,66 @@ proc parseValue*(r: var TomlReader): TomlValueRef =
     const typeName = typetraits.name(type result)
     raiseUnexpectedValue(r.lex, typeName)
 
+template parseInlineTable(r: var TomlReader, key: untyped, body: untyped) =
+  let prevState = r.state
+  var firstComma = true
+  expectChar('{')
+
+  while true:
+    var next = nonws(r.lex, skipLf)
+    case next
+    of '}':
+      eatChar
+      break
+    of EOF:
+      raiseTomlErr(r.lex, errUnterminatedTable)
+    of ',':
+      eatChar
+      if firstComma:
+        raiseTomlErr(r.lex, errMissingFirstElement)
+
+      next = nonws(r.lex, skipNoLf)
+      if next == '}':
+        raiseIllegalChar(r.lex, ',')
+    of '\n':
+      if TomlInlineTableNewline in r.lex.flags:
+        eatChar
+        continue
+      else:
+        raiseIllegalChar(r.lex, next)
+    else:
+      key.setLen(0)
+      scanKey(r.lex, key)
+      expectChar('=')
+      r.state = ExpectValue
+      body
+      r.state = prevState
+      firstComma = false
+
+template parseRecord(r: var TomlReader, key: untyped, body: untyped) =
+  let prevState = r.state
+  while true:
+    var next = nonws(r.lex, skipLf)
+    case next
+    of '[', EOF:
+      break
+    of '#', '.', ']', '=':
+      raiseIllegalChar(r.lex, next)
+    else:
+      key.setLen(0)
+      scanKey(r.lex, key)
+      expectChar('=')
+      r.state = ExpectValue
+      body
+      r.state = prevState
+
+template parseTable*(r: var TomlReader, key: untyped, body: untyped) =
+  var `key` {.inject.}: string
+  if r.state == ExpectValue:
+    parseInlineTable(r, `key`, body)
+  else:
+    parseRecord(r, `key`, body)
+
 template parseListImpl*(r: var TomlReader, index, body: untyped) =
   expectChar('[')
   while true:
@@ -161,12 +221,38 @@ template parseList*(r: var TomlReader, i, body: untyped) =
   var `i` {.inject.} = 0
   parseListImpl(r, `i`, body)
 
+proc skipTableBody(r: var TomlReader) =
+  var skipValue: TomlVoid
+  r.parseTable(key):
+    discard key
+    parseValue(r.lex, skipValue)
+
+proc readValue*[T](r: var TomlReader, value: var T, numRead: int)
+                  {.raises: [SerializationError, IOError, Defect].} =
+  mixin readValue
+
+  when T is seq:
+    value.setLen(numRead + 1)
+    readValue(r, value[numRead])
+  elif T is array:
+    readValue(r, value[numRead])
+  else:
+    const typeName = typetraits.name(T)
+    {.error: "Failed to convert from TOML an unsupported type: " & typeName.}
+
 proc decodeRecord[T](r: var TomlReader, value: var T) =
   mixin readValue
 
-  const totalFields = T.totalSerializedFields
+  const
+    totalFields = T.totalSerializedFields
+    arrayFields = T.totalArrayFields
+
   when  totalFields > 0:
     let fields = T.fieldReadersTable(TomlReader)
+
+    when arrayFields > 0:
+      var arrayReaders = T.arrayReadersTable(TomlReader)
+
     var
       expectedFieldPos = 0
       fieldsDone = 0
@@ -190,8 +276,13 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
           raiseIllegalChar(r.lex, next)
         eatChar
         let bracket = scanTableName(r.lex, fieldName)
-        if bracket == BracketType.double:
-          raiseTomlErr(r.lex, errDoubleBracket)
+
+        when arrayFields > 0:
+          if bracket == BracketType.double:
+            r.state = ArrayOfTable
+        else:
+          if bracket == BracketType.double:
+            raiseTomlErr(r.lex, errDoubleBracket)
 
       of '=': raiseTomlErr(r.lex, errKeyNameMissing)
       of '#', '.', ']':
@@ -205,6 +296,19 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
         r.state = ExpectValue
         scanKey(r.lex, fieldName)
         expectChar('=')
+
+      when arrayFields > 0:
+        if r.state == ArrayOfTable:
+          r.state = prevState
+          let reader = findArrayReader(arrayReaders, fieldName, r.tomlCase)
+          if reader != BadArrayReader:
+            reader.readArray(arrayReaders, value, r)
+          elif TomlUnknownFields in r.lex.flags:
+            r.skipTableBody
+          else:
+            const typeName = typetraits.name(T)
+            raiseUnexpectedField(r.lex, fieldName, typeName)
+          continue
 
       when value is tuple:
         var reader = fields[][expectedFieldPos].reader
@@ -359,7 +463,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
 
   else:
     const typeName = typetraits.name(T)
-    {.error: "Failed to convert to TOML an unsupported type: " & typeName.}
+    {.error: "Failed to convert from TOML an unsupported type: " & typeName.}
 
 # these are helpers functions
 
@@ -402,65 +506,3 @@ proc parseAsString*(r: var TomlReader): string =
 proc parseFloat*(r: var TomlReader, value: var string): Sign =
   expectChars(signedDigits)
   scanFloat(r.lex, value)
-
-template parseInlineTable(r: var TomlReader, table: var auto, body: untyped) =
-  let prevState = r.state
-  var
-    key: string
-    firstComma = true
-  expectChar('{')
-
-  while true:
-    var next = nonws(r.lex, skipLf)
-    case next
-    of '}':
-      eatChar
-      break
-    of EOF:
-      raiseTomlErr(r.lex, errUnterminatedTable)
-    of ',':
-      eatChar
-      if firstComma:
-        raiseTomlErr(r.lex, errMissingFirstElement)
-
-      next = nonws(r.lex, skipNoLf)
-      if next == '}':
-        raiseIllegalChar(r.lex, ',')
-    of '\n':
-      if TomlInlineTableNewline in r.lex.flags:
-        eatChar
-        continue
-      else:
-        raiseIllegalChar(r.lex, next)
-    else:
-      key.setLen(0)
-      scanKey(r.lex, key)
-      expectChar('=')
-      r.state = ExpectValue
-      table[key] = block: body
-      r.state = prevState
-      firstComma = false
-
-template parseRecord(r: var TomlReader, table: var auto, body: untyped) =
-  let prevState = r.state
-  var key: string
-  while true:
-    var next = nonws(r.lex, skipLf)
-    case next
-    of '[', EOF:
-      break
-    of '#', '.', ']', '=':
-      raiseIllegalChar(r.lex, next)
-    else:
-      key.setLen(0)
-      scanKey(r.lex, key)
-      expectChar('=')
-      r.state = ExpectValue
-      table[key] = block: body
-      r.state = prevState
-
-template parseTable*(r: var TomlReader, table: var auto, body: untyped) =
-  if r.state == ExpectValue:
-    parseInlineTable(r, table, body)
-  else:
-    parseRecord(r, table, body)

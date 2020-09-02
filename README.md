@@ -24,6 +24,9 @@ family and provides several operation modes:
   - Encode Nim data types into a **subset** of TOML.
   - Encode `TomlValueRef` into full spec TOML.
   - Both encoder and decoder support `keyed` mode.
+  - Allow skipping unknown fields using `TomlUnknownFields` flag.
+    - Skipping unknown fields also done efficiently, no token produced.
+      But skipped fields should contains valid TOML value or the parser will raise exception.
 
 ## Spec compliance
 nim-toml-serialization implements [v1.0.0-rc.2](https://github.com/toml-lang/toml/releases/tag/1.0.0-rc.2)
@@ -171,7 +174,8 @@ server = {
   When parsing integers, use `string` or `SomeInteger`, or `TomlValueRef`.
 
 - Array of tables.
-  Currently array of tables only can be parsed via `TomlValueRef`.
+  Array of tables can be parsed via `TomlValueRef` or parsed as a field of object.
+  Parsing with keyed mode will not works.
 
 - Dotted key.
   When parse into nim object, key must not a dotted key.
@@ -207,26 +211,28 @@ assert $z == "12345678901234567890"
 ```
 
 ## Table
-Decoding can be achieved via `parseTable` template. Because the key always string,
-nim-toml-serialization only accepts `Table` with string key.
+Decoding a table can be achieved via `parseTable` template.
 To parse the value, you can use one of the helper functions or use `readValue`.
+
 Table can be used to parse top level value, regular table, and inline table
 in a manner similar to object.
 
 No builtin `readValue` for table provided, you must overload it yourself depends on your need.
 
-`Table` can be stdlib table, ordered table, table ref, or any table like data types that has
-`[]=` operator.
+`Table` can be stdlib table, ordered table, table ref, or any table like data types.
 
 ```Nim
 proc readValue*(r: var TomlReader, table: var Table[string, int]) =
-  parseTable(r, table):
-    r.parseInt(int)
+  parseTable(r, key):
+    table[key] = r.parseInt(int)
 ```
 
 ## Sets and list-like
 Similar to `Table`, sets and list or array like data structure can be parsed using
 `parseList` template. It come with two flavors, indexed and non indexed.
+
+Builtin `readValue` for regular `seq` and `array` are implemented for you.
+No builtin `readValue` for `set` or `set-like` provided, you must overload it yourself depends on your need.
 
 ```nim
 type
@@ -291,7 +297,10 @@ proc readValue*(r: var TomlReader, value: var Welder) =
 
 ## Implementation specifics
 TomlTime contains subsecond field. The spec says the precision is implementation specific.
+
 In nim-toml-serialization the default is 6 digits precision.
+Longer precision will be truncated by the parser.
+
 You can override this using compiler switch `-d:subsecondPrecision=numDigits`.
 
 ## Installation

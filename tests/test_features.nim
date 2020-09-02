@@ -97,8 +97,8 @@ proc readValue*(r: var TomlReader, value: var HoldValue) =
   value.data = r.parseValue()
 
 proc readValue*(r: var TomlReader, value: var Table) =
-  parseTable(r, value):
-    r.parseInt(int)
+  parseTable(r, key):
+    value[key] = r.parseInt(int)
 
 type
   HoldArray = object
