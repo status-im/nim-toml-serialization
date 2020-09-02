@@ -128,6 +128,66 @@ proc parseValue*(r: var TomlReader): TomlValueRef =
     const typeName = typetraits.name(type result)
     raiseUnexpectedValue(r.lex, typeName)
 
+template parseInlineTable(r: var TomlReader, key: untyped, body: untyped) =
+  let prevState = r.state
+  var firstComma = true
+  expectChar('{')
+
+  while true:
+    var next = nonws(r.lex, skipLf)
+    case next
+    of '}':
+      eatChar
+      break
+    of EOF:
+      raiseTomlErr(r.lex, errUnterminatedTable)
+    of ',':
+      eatChar
+      if firstComma:
+        raiseTomlErr(r.lex, errMissingFirstElement)
+
+      next = nonws(r.lex, skipNoLf)
+      if next == '}':
+        raiseIllegalChar(r.lex, ',')
+    of '\n':
+      if TomlInlineTableNewline in r.lex.flags:
+        eatChar
+        continue
+      else:
+        raiseIllegalChar(r.lex, next)
+    else:
+      key.setLen(0)
+      scanKey(r.lex, key)
+      expectChar('=')
+      r.state = ExpectValue
+      body
+      r.state = prevState
+      firstComma = false
+
+template parseRecord(r: var TomlReader, key: untyped, body: untyped) =
+  let prevState = r.state
+  while true:
+    var next = nonws(r.lex, skipLf)
+    case next
+    of '[', EOF:
+      break
+    of '#', '.', ']', '=':
+      raiseIllegalChar(r.lex, next)
+    else:
+      key.setLen(0)
+      scanKey(r.lex, key)
+      expectChar('=')
+      r.state = ExpectValue
+      body
+      r.state = prevState
+
+template parseTable*(r: var TomlReader, key: untyped, body: untyped) =
+  var `key` {.inject.}: string
+  if r.state == ExpectValue:
+    parseInlineTable(r, `key`, body)
+  else:
+    parseRecord(r, `key`, body)
+
 template parseListImpl*(r: var TomlReader, index, body: untyped) =
   expectChar('[')
   while true:
@@ -160,6 +220,12 @@ template parseList*(r: var TomlReader, body: untyped) =
 template parseList*(r: var TomlReader, i, body: untyped) =
   var `i` {.inject.} = 0
   parseListImpl(r, `i`, body)
+
+proc skipTableBody(r: var TomlReader) =
+  var skipValue: TomlVoid
+  r.parseTable(key):
+    discard key
+    parseValue(r.lex, skipValue)
 
 proc readValue*[T](r: var TomlReader, value: var T, numRead: int)
                   {.raises: [SerializationError, IOError, Defect].} =
@@ -238,8 +304,7 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
           if reader != BadArrayReader:
             reader.readArray(arrayReaders, value, r)
           elif TomlUnknownFields in r.lex.flags:
-            var skipValue: TomlVoid
-            parseValue(r.lex, skipValue)
+            r.skipTableBody
           else:
             const typeName = typetraits.name(T)
             raiseUnexpectedField(r.lex, fieldName, typeName)
@@ -441,63 +506,3 @@ proc parseAsString*(r: var TomlReader): string =
 proc parseFloat*(r: var TomlReader, value: var string): Sign =
   expectChars(signedDigits)
   scanFloat(r.lex, value)
-
-template parseInlineTable(r: var TomlReader, key: untyped, body: untyped) =
-  let prevState = r.state
-  var firstComma = true
-  expectChar('{')
-
-  while true:
-    var next = nonws(r.lex, skipLf)
-    case next
-    of '}':
-      eatChar
-      break
-    of EOF:
-      raiseTomlErr(r.lex, errUnterminatedTable)
-    of ',':
-      eatChar
-      if firstComma:
-        raiseTomlErr(r.lex, errMissingFirstElement)
-
-      next = nonws(r.lex, skipNoLf)
-      if next == '}':
-        raiseIllegalChar(r.lex, ',')
-    of '\n':
-      if TomlInlineTableNewline in r.lex.flags:
-        eatChar
-        continue
-      else:
-        raiseIllegalChar(r.lex, next)
-    else:
-      key.setLen(0)
-      scanKey(r.lex, key)
-      expectChar('=')
-      r.state = ExpectValue
-      body
-      r.state = prevState
-      firstComma = false
-
-template parseRecord(r: var TomlReader, key: untyped, body: untyped) =
-  let prevState = r.state
-  while true:
-    var next = nonws(r.lex, skipLf)
-    case next
-    of '[', EOF:
-      break
-    of '#', '.', ']', '=':
-      raiseIllegalChar(r.lex, next)
-    else:
-      key.setLen(0)
-      scanKey(r.lex, key)
-      expectChar('=')
-      r.state = ExpectValue
-      body
-      r.state = prevState
-
-template parseTable*(r: var TomlReader, key: untyped, body: untyped) =
-  var `key` {.inject.}: string
-  if r.state == ExpectValue:
-    parseInlineTable(r, `key`, body)
-  else:
-    parseRecord(r, `key`, body)

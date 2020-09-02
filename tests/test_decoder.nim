@@ -203,15 +203,25 @@ proc testDecoder() =
 
       type
         WantCD = object
-          cd: array[3, Disc]
+          cd: seq[Disc]
 
       let cds = """
         [[cx]]
           sector = 11
           cylinder = 12
+
+        [[cd]]
+          sector = 13
+          cylinder = 14
       """
 
       expect TomlError:
         discard Toml.decode(cds, WantCD)
+
+      let z = Toml.decode(cds, WantCD, flags = {TomlUnknownFields})
+      check:
+        z.cd.len == 1
+        z.cd[0].sector == 13
+        z.cd[0].cylinder == 14
 
 testDecoder()
