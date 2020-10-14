@@ -145,4 +145,31 @@ proc main() =
       testWriteInt(11, 2, "11")
       testWriteInt(11, 3, "011")
 
+proc testTableArray() =
+  suite "table array encoder":
+    test "basic table array encoder":
+      type
+        Disc = object
+          sector: int
+          cylinder: int
+
+        SeqList = object
+          disc: seq[Disc]
+
+        ArrayList = object
+          disc: array[3, Disc]
+
+      var x = SeqList()
+      x.disc.add Disc(sector: 128, cylinder: 16)
+      x.disc.add Disc(sector: 256, cylinder: 8)
+      x.disc.add Disc(sector: 512, cylinder: 32)
+      runTest(x)
+
+      var y = ArrayList()
+      y.disc[0] = Disc(sector: 128, cylinder: 16)
+      y.disc[1] = Disc(sector: 256, cylinder: 8)
+      y.disc[2] = Disc(sector: 512, cylinder: 32)
+      runTest(y)
+
 main()
+testTableArray()

@@ -63,7 +63,7 @@ proc writeIterable*(w: var TomlWriter, collection: auto) =
 
   append ']'
 
-proc writeArray*[T](w: var TomlWriter, elements: openarray[T]) =
+template writeArray*[T](w: var TomlWriter, elements: openarray[T]) =
   writeIterable(w, elements)
 
 proc writeValue*(w: var TomlWriter, time: TomlTime) =
@@ -310,6 +310,37 @@ proc writeFieldName(w: var TomlWriter, s: string) =
   w.writeKey s
   append " = "
 
+template uTypeIsObject*[T](_: seq[T]): bool =
+  when T is (object or tuple):
+    true
+  else:
+    false
+
+# nim bug? cannot use openArray to represent seq[T] and array[N, T]
+template uTypeIsObject*[N, T](_: array[N, T]): bool =
+  when T is (object or tuple):
+    true
+  else:
+    false
+
+template uTypeIsObject*(_: typed): bool =
+  false
+
+template writeArrayOfTable*[T](w: var TomlWriter, fieldName: string, list: openArray[T]) =
+  mixin writeValue
+
+  w.state = InsideRecord
+  for val in list:
+    append "[["
+    append fieldName
+    append "]]"
+    append '\n'
+
+    inc w.level
+    w.writeValue(val)
+    dec w.level
+  w.state = prevState
+
 proc writeValue*(w: var TomlWriter, value: auto) =
   mixin enumInstanceSerializedFields, writeValue, writeFieldIMPL
 
@@ -352,6 +383,16 @@ proc writeValue*(w: var TomlWriter, value: auto) =
         append '\n'
     value.enumInstanceSerializedFields(fieldName, field):
       type FieldType = type field
+
+      template regularFieldWriter() =
+        inc w.level
+        w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
+        dec w.level
+        w.state = prevState
+
+        when FieldType isnot (object or tuple) or FieldType is (TomlSpecial):
+          append '\n'
+
       case w.state
       of TopLevel:
         when FieldType is (object or tuple) and FieldType isnot (TomlSpecial):
@@ -360,17 +401,13 @@ proc writeValue*(w: var TomlWriter, value: auto) =
           append ']'
           append '\n'
           w.state = InsideRecord
+          regularFieldWriter()
+        elif (FieldType is (seq or array)) and (FieldType isnot (TomlSpecial)) and uTypeIsObject(field):
+          writeArrayOfTable(w, fieldName, field)
         else:
           w.writeFieldName(fieldName)
           w.state = ExpectValue
-
-        inc w.level
-        w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
-        dec w.level
-        w.state = prevState
-
-        when FieldType isnot (object or tuple) or FieldType is (TomlSpecial):
-          append '\n'
+          regularFieldWriter()
 
       of ExpectValue:
         if not firstField:
