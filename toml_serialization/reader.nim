@@ -465,6 +465,60 @@ proc readValue*[T](r: var TomlReader, value: var T)
     const typeName = typetraits.name(T)
     {.error: "Failed to convert from TOML an unsupported type: " & typeName.}
 
+proc readTableArray*(r: var TomlReader, T: type, key: string, tomlCase: TomlCase): T
+                        {.raises: [SerializationError, IOError, Defect].} =
+  mixin readValue
+
+  ## move cursor to key position
+  var
+    next: char
+    names: seq[string]
+    keyList = parseKey(key, tomlCase)
+    found = false
+
+  when T is array:
+    var i = 0
+
+  while true:
+    next = nonws(r.lex, skipLf)
+    case next
+    of '[':
+      eatChar
+      names.setLen(0)
+      let bracket = scanTableName(r.lex, names)
+      if not compare(keyList, names, tomlCase):
+        continue
+
+      if bracket == BracketType.single:
+        raiseTomlErr(r.lex, errExpectDoubleBracket)
+
+      found = true
+      r.state = InsideRecord
+      when T is array:
+        if i < result.len:
+          r.readValue(result[i])
+          inc i
+        else:
+          break
+      else:
+        let lastPos = result.len
+        result.setLen(lastPos + 1)
+        r.readValue(result[lastPos])
+
+    of '=':
+      raiseTomlErr(r.lex, errKeyNameMissing)
+    of '#', '.', ']':
+      raiseIllegalChar(r.lex, next)
+    of EOF:
+      break
+    else:
+      # Everything else marks the presence of a "key = value" pattern
+      if parseKeyValue(r.lex, names, keyList, tomlCase):
+        raiseTomlErr(r.lex, errExpectDoubleBracket)
+
+  if not found:
+    raiseKeyNotFound(r.lex, key)
+
 # these are helpers functions
 
 proc parseNumber*(r: var TomlReader, value: var string): (Sign, NumberBase) =

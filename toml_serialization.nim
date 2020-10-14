@@ -6,7 +6,8 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  serialization, toml_serialization/[reader, writer, types]
+  serialization, toml_serialization/[reader, writer, types],
+  toml_serialization/private/utils
 
 export
   serialization, reader, writer, types
@@ -63,12 +64,14 @@ template loadFile*(_: type Toml,
 template encode*(_: type Toml,
                  value: TomlNotTopLevel,
                  params: varargs[untyped]): auto =
+  type RecordType = type value
   tomlFatalImpl(encode, RecordType)
 
 template saveFile*(_: type Toml,
                    fileName: string,
                    value: TomlNotTopLevel,
                    params: varargs[untyped]) =
+  type RecordType = type value
   tomlFatalImpl(saveFile, RecordType)
 
 # override default behaviour when in keyed mode
@@ -90,8 +93,11 @@ template tomlDecodeImpl*(input: untyped,
     try:
       var stream = unsafeMemoryInput(input)
       var reader = unpackArgs(init, [TomlReader, stream, tomlCase, params])
-      reader.moveToKey(key, tomlCase)
-      reader.readValue(RecordType)
+      when RecordType is (seq or array) and uTypeIsRecord(RecordType):
+        reader.readTableArray(RecordType, key, tomlCase)
+      else:
+        reader.moveToKey(key, tomlCase)
+        reader.readValue(RecordType)
     except IOError:
       raise (ref Defect)() # memory inputs cannot raise an IOError
 
@@ -128,8 +134,11 @@ template tomlLoadImpl*(filename: string,
   var stream = memFileInput(filename)
   try:
     var reader = unpackArgs(init, [TomlReader, stream, params])
-    reader.moveToKey(key, tomlCase)
-    reader.readValue(RecordType)
+    when RecordType is (seq or array) and uTypeIsRecord(RecordType):
+      reader.readTableArray(RecordType, key, tomlCase)
+    else:
+      reader.moveToKey(key, tomlCase)
+      reader.readValue(RecordType)
   finally:
     close stream
 

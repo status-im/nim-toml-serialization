@@ -48,6 +48,7 @@ type
     errDuplicateTableKey  = "duplicate table key not allowed: \'"
     errKeyNotFound        = "key not found: "
     errInvalidHex         = "invalid hex escape, "
+    errExpectDoubleBracket= "expect table array for given key"
 
 const
   CR   = '\r'
@@ -112,7 +113,7 @@ template raiseNotTable(lex: TomlLexer, name: string) =
 template raiseNotArray(lex: TomlLexer, name: string) =
   raiseTomlErr(lex, "\"" & name & "\" is not an array")
 
-template raiseKeyNotFound(lex: TomlLexer, key: string) =
+template raiseKeyNotFound*(lex: TomlLexer, key: string) =
   raiseTomlErr(lex, $errKeyNotFound & "\'" & key & "\'")
 
 template raiseInvalidHex*(lex: TomlLexer, s: string) =
@@ -1765,7 +1766,7 @@ proc parseToml*(lex: var TomlLexer): TomlValueRef =
       # Everything else marks the presence of a "key = value" pattern
       parseKeyValue(lex, curTable)
 
-proc parseKeyValue(lex: var TomlLexer,
+proc parseKeyValue*(lex: var TomlLexer,
                    names, key: openArray[string],
                    tomlCase: TomlCase): bool =
 
@@ -1787,7 +1788,7 @@ proc parseKeyValue(lex: var TomlLexer,
 
   checkEol(lex, line)
 
-proc parseKey(key: string, tomlCase: TomlCase): seq[string] =
+proc parseKey*(key: string, tomlCase: TomlCase): seq[string] =
   var stream = unsafeMemoryInput(key)
   var lex = init(TomlLexer, stream)
   lex.scanKey(result)
