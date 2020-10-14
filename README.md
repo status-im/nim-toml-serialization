@@ -175,7 +175,7 @@ server = {
 
 - Array of tables.
   Array of tables can be parsed via `TomlValueRef` or parsed as a field of object.
-  Parsing with keyed mode will not works.
+  Parsing with keyed mode also works.
 
 - Dotted key.
   When parse into nim object, key must not a dotted key.

@@ -182,17 +182,20 @@ proc testDecoder() =
       #let banana = Toml.decode(toml, CaseObject, "banana")
       #check banana.bananaVal == "Hello Banana"
 
-    test "table array":
-      type
-        Disc = object
-          sector: int
-          cylinder: int
+proc testTableArray() =
+  suite "table array test suite":
+    type
+      Disc = object
+        sector: int
+        cylinder: int
 
-        TableArray = object
-          disc: seq[Disc]
-          cd: array[3, Disc]
+      TableArray = object
+        disc: seq[Disc]
+        cd: array[3, Disc]
 
-      const taFile = "tests" / "tomls" / "table-array.toml"
+    const taFile = "tests" / "tomls" / "table-array.toml"
+
+    test "table array basic decoder":
       let ta = Toml.loadFile(taFile, TableArray)
       check:
         ta.disc.len == 3
@@ -224,4 +227,32 @@ proc testDecoder() =
         z.cd[0].sector == 13
         z.cd[0].cylinder == 14
 
+    test "table array keyed mode":
+      let rawTa = readFile(taFile)
+      let x = Toml.decode(rawTa, seq[Disc], "cd")
+      check:
+        x.len == 2
+        x[0].sector == 9
+        x[0].cylinder == 10
+        x[1].sector == 11
+        x[1].cylinder == 12
+
+      let y = Toml.decode(rawTa, array[3, Disc], "disc")
+      check:
+        y[0].sector == 3
+        y[0].cylinder == 4
+        y[1].sector == 5
+        y[1].cylinder == 6
+        y[2].sector == 7
+        y[2].cylinder == 8
+
+      let z = Toml.loadFile(taFile, seq[Disc], "cd")
+      check:
+        z.len == 2
+        z[0].sector == 9
+        z[0].cylinder == 10
+        z[1].sector == 11
+        z[1].cylinder == 12
+
 testDecoder()
+testTableArray()

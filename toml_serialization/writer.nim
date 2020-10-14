@@ -310,22 +310,6 @@ proc writeFieldName(w: var TomlWriter, s: string) =
   w.writeKey s
   append " = "
 
-template uTypeIsObject*[T](_: seq[T]): bool =
-  when T is (object or tuple):
-    true
-  else:
-    false
-
-# nim bug? cannot use openArray to represent seq[T] and array[N, T]
-template uTypeIsObject*[N, T](_: array[N, T]): bool =
-  when T is (object or tuple):
-    true
-  else:
-    false
-
-template uTypeIsObject*(_: typed): bool =
-  false
-
 template writeArrayOfTable*[T](w: var TomlWriter, fieldName: string, list: openArray[T]) =
   mixin writeValue
 
@@ -402,7 +386,7 @@ proc writeValue*(w: var TomlWriter, value: auto) =
           append '\n'
           w.state = InsideRecord
           regularFieldWriter()
-        elif (FieldType is (seq or array)) and (FieldType isnot (TomlSpecial)) and uTypeIsObject(field):
+        elif (FieldType is (seq or array)) and (FieldType isnot (TomlSpecial)) and uTypeIsRecord(FieldType):
           writeArrayOfTable(w, fieldName, field)
         else:
           w.writeFieldName(fieldName)

@@ -150,3 +150,18 @@ proc emptyTable*(): TomlValueRef =
     kind: TomlKind.Table,
     tableVal: TomlTableRef.new
   )
+
+template uTypeIsRecord*(_: typed): bool =
+  false
+
+template uTypeIsRecord*[T](_: type seq[T]): bool =
+  when T is (object or tuple):
+    true
+  else:
+    false
+
+template uTypeIsRecord*[N, T](_: type array[N, T]): bool =
+  when T is (object or tuple):
+    true
+  else:
+    false
