@@ -336,6 +336,10 @@ proc writeValue*(w: var TomlWriter, value: auto) =
     for k in emptyTable:
       append k
 
+  elif value is Option:
+    if value.isSome:
+      w.writeValue value.get
+
   elif value is bool:
     append if value: "true" else: "false"
 
@@ -374,12 +378,12 @@ proc writeValue*(w: var TomlWriter, value: auto) =
         dec w.level
         w.state = prevState
 
-        when FieldType isnot (object or tuple) or FieldType is (TomlSpecial):
+        when FieldType isnot (object or tuple) or FieldType is (TomlSpecial or Option):
           append '\n'
 
       case w.state
       of TopLevel:
-        when FieldType is (object or tuple) and FieldType isnot (TomlSpecial):
+        when FieldType is (object or tuple) and FieldType isnot (TomlSpecial or Option):
           append '['
           append fieldName
           append ']'
@@ -389,9 +393,16 @@ proc writeValue*(w: var TomlWriter, value: auto) =
         elif (FieldType is (seq or array)) and (FieldType isnot (TomlSpecial)) and uTypeIsRecord(FieldType):
           writeArrayOfTable(w, fieldName, field)
         else:
-          w.writeFieldName(fieldName)
-          w.state = ExpectValue
-          regularFieldWriter()
+          template shouldWriteField() =
+            w.writeFieldName(fieldName)
+            w.state = ExpectValue
+            regularFieldWriter()
+
+          when FieldType is Option:
+            if field.isSome:
+              shouldWriteField()
+          else:
+            shouldWriteField()
 
       of ExpectValue:
         if not firstField:
