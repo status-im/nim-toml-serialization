@@ -171,5 +171,22 @@ proc testTableArray() =
       y.disc[2] = Disc(sector: 512, cylinder: 32)
       runTest(y)
 
+proc testOptionalField() =
+  suite "optional field encoder":
+    test "encode optional field":
+      type
+        Vehicle = object
+          bumper: Option[string]
+          antennae: Option[int]
+
+      let v = Vehicle(
+        bumper: some("Chromium")
+      )
+
+      let w = Toml.encode(v)
+      let u = Toml.decode(w, Vehicle)
+      check u == v
+
 main()
 testTableArray()
+testOptionalField()
