@@ -401,9 +401,10 @@ proc readValue*[T](r: var TomlReader, value: var T)
   mixin readValue
 
   when value is Option:
-    var z: getUnderlyingType(value)
-    readValue(r, z)
-    value = some(z)
+    # `readValue` from nim-serialization will suppress
+    # compiler error when the underlying type
+    # has `requiresInit` pragma.
+    value = some(r.readValue(getUnderlyingType(value)))
 
   elif value is TomlValueRef:
     value = r.parseValue
