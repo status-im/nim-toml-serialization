@@ -254,5 +254,23 @@ proc testTableArray() =
         z[1].sector == 11
         z[1].cylinder == 12
 
+type
+  ValidIpAddress {.requiresInit.} = object
+    value: string
+
+  TestObject = object
+    address: Option[ValidIpAddress]
+
+proc readValue(r: var TomlReader, value: var ValidIpAddress) =
+  value.value = r.parseAsString()
+
+proc testOptionalFields() =
+  suite "optional fields test suite":
+    test "optional field with requiresInit pragma":
+      var x = Toml.decode("address = '1.2.3.4'", TestObject)
+      check x.address.isSome
+      check x.address.get().value == "1.2.3.4"
+
 testDecoder()
 testTableArray()
+testOptionalFields()
