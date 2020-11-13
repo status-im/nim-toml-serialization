@@ -254,6 +254,39 @@ proc testTableArray() =
         z[1].sector == 11
         z[1].cylinder == 12
 
+    test "table array optional fields":
+      type
+        Transition = enum
+          noTransition
+          crossFade
+
+        Rgba8 = object
+          r, g, b: uint8
+
+        PointD = object
+          x, y: float64
+
+        Label = object
+          face: Option[string]
+          text: Option[string]
+          color: Option[Rgba8]
+          size: Option[float64]
+          shadow: Option[bool]
+          pos: Option[PointD]
+
+        Scene = object
+          background: Option[string]
+          duration: Option[float32]
+          labels: seq[Label]
+          transition: Option[Transition]
+
+        Song = object
+          scenes: seq[Scene]
+
+      const taof = "tests" / "tomls" / "table-array-optional-fields.toml"
+      let p = Toml.loadFile(taof, Song, flags = {TomlInlineTableNewline})
+      check p.scenes.len == 5
+
 type
   ValidIpAddress {.requiresInit.} = object
     value: string
