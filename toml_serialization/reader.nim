@@ -269,7 +269,7 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
         case r.state
         of TopLevel:
           r.state = InsideRecord
-        of InsideRecord:
+        of InsideRecord, ArrayOfTable:
           r.state = prevState
           break
         else:
@@ -291,7 +291,7 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
         break
       else:
         # Everything else marks the presence of a key
-        if r.state notin {TopLevel, InsideRecord}:
+        if r.state notin {TopLevel, InsideRecord, ArrayOfTable}:
           raiseIllegalChar(r.lex, next)
         r.state = ExpectValue
         scanKey(r.lex, fieldName)
@@ -299,7 +299,6 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
 
       when arrayFields > 0:
         if r.state == ArrayOfTable:
-          r.state = prevState
           let reader = findArrayReader(arrayReaders, fieldName, r.tomlCase)
           if reader != BadArrayReader:
             reader.readArray(arrayReaders, value, r)
@@ -308,6 +307,7 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
           else:
             const typeName = typetraits.name(T)
             raiseUnexpectedField(r.lex, fieldName, typeName)
+          r.state = prevState
           continue
 
       when value is tuple:

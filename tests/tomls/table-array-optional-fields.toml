@@ -1,0 +1,38 @@
+# song definition
+
+[[scenes]]
+  # title scene
+  duration = 16
+  labels = [
+    { text = "Title"   , pos = {x = 10, y = 10} },
+    { text = "Title 1" , pos = {x = 10, y = 10} },
+    { text = "Title 2" , pos = {x = 10, y = 10} }
+  ]
+
+[[scenes]]
+  duration = 9
+  labels = [
+    {text = "Lyrics 1",   pos = {x = 632, y = 400} },
+    {text = "Lyrics 2", pos = {x = 815, y = 620} }
+  ]
+
+[[scenes]]
+  duration = 8
+  labels = [
+    {text = "Lyrics 3", pos = {x = 583, y = 398} },
+    {text = "Lyrics 4",  pos = {x = 770, y = 620} }
+  ]
+
+[[scenes]]
+  duration = 9
+  labels = [
+    {text = "Lyrics 5", pos = {x = 570, y = 413} },
+    {text = "Lyrics 6",   pos = {x = 737, y = 620} }
+  ]
+
+[[scenes]]
+  duration = 9
+  labels = [
+    {text = "Lyrics 7", pos = {x = 569, y = 385} },
+    {text = "Lyrics 8", pos = {x = 761, y = 495} }
+  ]
