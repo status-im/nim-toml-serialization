@@ -7,6 +7,7 @@
 [![TOML](assets/badge-TOML.svg)](https://github.com/toml-lang/toml/releases/tag/1.0.0-rc.2)
 ![Stability: experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
 ![nimble](https://img.shields.io/badge/available%20on-nimble-yellow.svg?style=flat-square)
+![Github action](https://github.com/status-im/nim-toml-serialization/workflows/nim-toml-serialization%20CI/badge.svg)
 
 Flexible TOML serialization [not] relying on run-time type information.
 
