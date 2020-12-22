@@ -24,7 +24,7 @@ hosts = [
 
 configcap = 1
 cc = "TomlCap"
-fruit = "Banana"
+fruit = "banana"
 
 [servers]
 
