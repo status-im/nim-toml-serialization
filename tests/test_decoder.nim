@@ -167,11 +167,11 @@ proc testDecoder() =
 
       let toml = """
       [apple]
-        kind = "Apple"
+        kind = "apple"
         appleVal = 123
 
       [banana]
-        kind = "Banana"
+        kind = "banana"
         bananaVal = "Hello Banana"
       """
 

@@ -18,6 +18,12 @@ proc test(env, path: string) =
   if existsEnv"TEST_LANG":
     lang = getEnv"TEST_LANG"
 
+  when defined(macosx):
+    # cpp backend on macosx have mysterious
+    # bug
+    if lang == "cpp":
+      lang = "c"
+
   if not dirExists "build":
     mkDir "build"
   exec "nim " & lang & " " & env &
