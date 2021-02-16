@@ -30,7 +30,7 @@ family and provides several operation modes:
       But skipped fields should contains valid TOML value or the parser will raise exception.
 
 ## Spec compliance
-nim-toml-serialization implements [v1.0.0-rc.2](https://github.com/toml-lang/toml/releases/tag/1.0.0-rc.2)
+nim-toml-serialization implements [v1.0.0](https://github.com/toml-lang/toml/releases/tag/1.0.0)
 TOML spec and pass these test suites:
 
   - [iarna toml test suite](https://github.com/iarna/toml-spec-tests)

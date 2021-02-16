@@ -8,7 +8,7 @@
 import
   unittest, os, options,
   ../toml_serialization,
-  ../toml_serialization/lexer
+  ../toml_serialization/[lexer, value_ops]
 
 type
   Owner = object
@@ -304,6 +304,74 @@ proc testOptionalFields() =
       check x.address.isSome
       check x.address.get().value == "1.2.3.4"
 
+proc test_v1_spec() =
+  type
+    KV = object
+      key: string
+
+  suite "toml v1.0.0 spec":
+    test "raw tab in single/multi line basic string":
+      var x = Toml.decode("key = \"\t\"", KV)
+      check x.key == "\t"
+
+      x = Toml.decode("key = \"\"\"\t\"\"\"", KV)
+      check x.key == "\t"
+
+    test "invalid chars in comment":
+      expect TomlError:
+        discard Toml.decode("# com\x00ment \nkey = \"hello\"", KV)
+
+      expect TomlError:
+        discard Toml.decode("# com\x08ment \nkey = \"hello\"", KV)
+
+      expect TomlError:
+        discard Toml.decode("# com\x0Ament \nkey = \"hello\"", KV)
+
+      expect TomlError:
+        discard Toml.decode("# com\x1Fment \nkey = \"hello\"", KV)
+
+      expect TomlError:
+        discard Toml.decode("# com\x7Fment \nkey = \"hello\"", KV)
+
+    test "trailing commas not allowed in inline table":
+      expect TomlError:
+        discard Toml.decode("key = {subkey: \"val\", } ", TomlValueRef)
+
+    test "leading zeroes in exponent parts of float":
+      check Toml.decode("key = 10.0e001", float64, "key") == 10.0e1'f64
+
+    test "no surrogate pairs in string":
+      expect TomlError:
+        discard Toml.decode("key = \"\\uD8000\"", KV)
+
+      expect TomlError:
+        discard Toml.decode("key = \"\\uDFFF\"", KV)
+
+    test "EOF is allowed after key value pair":
+      var x = Toml.decode("key = \"hello\"", KV)
+      check x.key == "hello"
+
+    test "various styles of writing keys":
+      var x = Toml.decode("fruit. color = \"yellow\"    # same as fruit.color", TomlValueRef)
+      check x["fruit"]["color", string] == "yellow"
+
+      x = Toml.decode("fruit . color = \"yellow\"    # same as fruit.color", TomlValueRef)
+      check x["fruit"]["color", string] == "yellow"
+
+    test "line-ending backslashes must be unescaped in multi-line strings.":
+      const text = "equivalent text"
+      check Toml.decode("key = \"\"\"equivalent \\\n    text\"\"\"", string, "key") == text
+
+    test "comments and newlines are allowed before commas in arrays":
+      let x = Toml.decode("key = [123 # comments\n, 345]", array[2, int], "key")
+      check x[1] == 345
+
+    test "ignored indentation":
+      check Toml.decode("  key = 123", int, "key") == 123
+      check Toml.decode("  [table]\n  key = 123", int, "table.key") == 123
+      check Toml.decode("  key = [  123,   123 ]", array[2, int], "key") == [123, 123]
+
 testDecoder()
 testTableArray()
 testOptionalFields()
+test_v1_spec()

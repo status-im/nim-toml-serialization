@@ -10,7 +10,7 @@ import
   types, private/utils
 
 proc innerValue(n: TomlValueRef, T: type): T =
-  when T is (SomeInteger of SomeFloat):
+  when T is (SomeInteger or SomeFloat):
     case n.kind
     of TomlKind.Int: result = T(n.intVal)
     of TomlKind.Float: result = T(n.floatVal)
