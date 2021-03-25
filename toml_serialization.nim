@@ -13,10 +13,10 @@ export
   serialization, reader, writer, types
 
 serializationFormat Toml,
-                    Reader = TomlReader,
-                    Writer = TomlWriter,
-                    PreferedOutput = string,
                     mimeType = "application/toml"
+
+Toml.setReader TomlReader
+Toml.setWriter TomlWriter, PreferredOutput = string
 
 template supports*(_: type Toml, T: type): bool =
   # The TOML format should support every type
