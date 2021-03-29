@@ -1,7 +1,5 @@
 # nim-toml-serialization
 
-[![Build Status (Travis)](https://img.shields.io/travis/status-im/nim-toml-serialization/master.svg?label=Linux%20/%20macOS "Linux/macOS build status (Travis)")](https://travis-ci.org/status-im/nim-toml-serialization)
-[![Windows build status (Appveyor)](https://img.shields.io/appveyor/ci/nimbus/nim-toml-serialization/master.svg?label=Windows "Windows build status (Appveyor)")](https://ci.appveyor.com/project/nimbus/nim-toml-serialization)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![License: Apache](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![TOML](assets/badge-TOML.svg)](https://github.com/toml-lang/toml/releases/tag/1.0.0-rc.2)
@@ -330,4 +328,4 @@ at your option. This file may not be copied, modified, or distributed except acc
 
 ## Credits
 
- A portion of toml decoder was taken from PMunch's [`parsetoml`](https://github.com/NimParsers/parsetoml)
+A portion of toml decoder was taken from PMunch's [`parsetoml`](https://github.com/NimParsers/parsetoml)
