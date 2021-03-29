@@ -409,6 +409,13 @@ proc scanMultiLineString[T](lex: var TomlLexer, res: var T, kind: static[StringT
 
     # Skip the first newline, if it comes immediately after the
     # quotation marks
+    if isFirstChar and (next == CR):
+      isFirstChar = false
+      next = advancePeek
+      if next == LF:
+        advance
+      continue
+
     if isFirstChar and (next == LF):
       isFirstChar = false
       advance

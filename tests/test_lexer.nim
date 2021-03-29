@@ -346,6 +346,11 @@ proc testString() =
       testLiteralString("\'\'\'That\'s still pointless\', she said.\'\'\'",
         "\'That\'s still pointless\', she said.")
 
+    test "skip first empty new line in multiline":
+      testBasicString("\"\"\r\"\"\"", "")
+      testBasicString("\"\"\n\"\"\"", "")
+      testBasicString("\"\"\r\n\"\"\"", "")
+    
 proc testInt() =
   suite "integer test suite":
     test "scanBool":
