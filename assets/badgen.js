@@ -6,7 +6,7 @@ const { badgen } = require('badgen')
 const svgString = badgen({
   label: 'TOML',      // <Text>
   labelColor: '555', // <Color RGB> or <Color Name> (default: '555')
-  status: 'v1.0.0-rc.2',  // <Text>, required
+  status: 'v1.0.0',  // <Text>, required
   color: 'blue',     // <Color RGB> or <Color Name> (default: 'blue')
   style: 'classic',     // 'flat' or 'classic' (default: 'classic')
   icon: 'data:image/svg+xml;base64,...', // Use icon (default: undefined)
