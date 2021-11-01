@@ -6,10 +6,10 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  unittest, os, options, tables,
+  unittest2, os, options, tables,
   ../toml_serialization
 
-proc validInputTest(inputFolder: string) =
+template validInputTest(inputFolder: string) =
   suite inputFolder & " valid":
     var failed = 0
     for fileName in walkDirRec("tests" / "tomls" / inputFolder / "valid"):
@@ -24,7 +24,7 @@ proc validInputTest(inputFolder: string) =
     if failed > 0:
       debugEcho "failed: ", failed
 
-proc invalidInputTest(inputFolder: string) =
+template invalidInputTest(inputFolder: string) =
   suite inputFolder & " invalid":
     var failed = 0
     for fileName in walkDirRec("tests" / "tomls" / inputFolder / "invalid"):
@@ -46,7 +46,7 @@ template roundTrip(fileName: string, params: varargs[untyped]): untyped =
 
   toml == tomlVal
 
-proc roundTripTest(inputFolder: string) =
+template roundTripTest(inputFolder: string) =
   suite inputFolder & " valid roundtrip":
     var failed = 0
     for fileName in walkDirRec("tests" / "tomls" / inputFolder / "valid"):
@@ -60,30 +60,28 @@ proc roundTripTest(inputFolder: string) =
     if failed > 0:
       debugEcho "failed: ", failed
 
-proc main() =
-  validInputTest("iarna")
-  validInputTest("burntsushi")
 
-  invalidInputTest("iarna")
-  invalidInputTest("burntsushi")
+validInputTest("iarna")
+validInputTest("burntsushi")
 
-  roundTripTest("iarna")
-  roundTripTest("burntsushi")
+invalidInputTest("iarna")
+invalidInputTest("burntsushi")
 
-  suite "toml-serialization test suite":
-    test "case.toml":
-      check roundTrip("tests" / "tomls" / "case.toml")
+roundTripTest("iarna")
+roundTripTest("burntsushi")
 
-    test "example.toml":
-      check roundTrip("tests" / "tomls" / "example.toml")
+suite "toml-serialization test suite":
+  test "case.toml":
+    check roundTrip("tests" / "tomls" / "case.toml")
 
-    test "nested_object.toml":
-      check roundTrip("tests" / "tomls" / "nested_object.toml")
+  test "example.toml":
+    check roundTrip("tests" / "tomls" / "example.toml")
 
-    test "spec.toml":
-      check roundTrip("tests" / "tomls" / "spec.toml")
+  test "nested_object.toml":
+    check roundTrip("tests" / "tomls" / "nested_object.toml")
 
-    test "inline-table-newline.toml":
-      check roundTrip("tests" / "tomls" / "inline-table-newline.toml", flags = {TomlInlineTableNewline})
+  test "spec.toml":
+    check roundTrip("tests" / "tomls" / "spec.toml")
 
-main()
+  test "inline-table-newline.toml":
+    check roundTrip("tests" / "tomls" / "inline-table-newline.toml", flags = {TomlInlineTableNewline})

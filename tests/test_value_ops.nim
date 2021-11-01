@@ -6,7 +6,7 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  unittest, os, options, tables,
+  unittest2, os, options, tables,
   ../toml_serialization,
   ../toml_serialization/value_ops
 
@@ -17,7 +17,7 @@ template roundTrip(fileName: string, params: varargs[untyped]): untyped =
 
   toml == copyVal
 
-proc copyRoundTripTest(inputFolder: string) =
+template copyRoundTripTest(inputFolder: string) =
   suite inputFolder & " valid roundtrip":
     var failed = 0
     for fileName in walkDirRec("tests" / "tomls" / inputFolder / "valid"):
@@ -31,8 +31,5 @@ proc copyRoundTripTest(inputFolder: string) =
     if failed > 0:
       debugEcho "failed: ", failed
 
-proc main() =
-  copyRoundTripTest("iarna")
-  copyRoundTripTest("burntsushi")
-
-main()
+copyRoundTripTest("iarna")
+copyRoundTripTest("burntsushi")

@@ -6,7 +6,7 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  unittest, os, strutils, tables,
+  unittest2, os, strutils, tables,
   ../toml_serialization,
   ../toml_serialization/lexer,
   stint
@@ -129,196 +129,191 @@ proc readValue*(r: var TomlReader, value: var Welder) =
   r.parseList:
     value.flags.incl r.parseEnum(WelderFlag)
 
-proc main() =
-  suite "features test suite":
-    let rawToml = readFile("tests" / "tomls" / "example.toml")
-    let rawCase = readFile("tests" / "tomls" / "case.toml")
+suite "features test suite":
+  let rawToml = readFile("tests" / "tomls" / "example.toml")
+  let rawCase = readFile("tests" / "tomls" / "case.toml")
 
-    test "case sensitive":
-      let server = Toml.decode(rawToml, string, "database.server")
-      check server == "192.168.1.1"
+  test "case sensitive":
+    let server = Toml.decode(rawToml, string, "database.server")
+    check server == "192.168.1.1"
 
-      let owner = Toml.decode(rawToml, string, "owner.name")
-      check owner == "Tom Preston-Werner"
+    let owner = Toml.decode(rawToml, string, "owner.name")
+    check owner == "Tom Preston-Werner"
 
-      let serverName = Toml.decode(rawCase, string, "SeRveR.nAmE")
-      check serverName == "Toml"
+    let serverName = Toml.decode(rawCase, string, "SeRveR.nAmE")
+    check serverName == "Toml"
 
-      expect TomlError:
-        discard Toml.decode(rawToml, string, "Fruit")
+    expect TomlError:
+      discard Toml.decode(rawToml, string, "Fruit")
 
-    test "case insensitive":
-      let fruit = Toml.decode(rawCase, string, "fruit.name", TomlCaseInsensitive)
-      check fruit == "banana"
+  test "case insensitive":
+    let fruit = Toml.decode(rawCase, string, "fruit.name", TomlCaseInsensitive)
+    check fruit == "banana"
 
-      let animal = Toml.decode(rawCase, string, "animal.name", TomlCaseInsensitive)
-      check animal == "Elephant"
+    let animal = Toml.decode(rawCase, string, "animal.name", TomlCaseInsensitive)
+    check animal == "Elephant"
 
-    test "case nim style":
-      let fruit = Toml.decode(rawCase, string, "Fruit.Name", TomlCaseNim)
-      check fruit == "banana"
+  test "case nim style":
+    let fruit = Toml.decode(rawCase, string, "Fruit.Name", TomlCaseNim)
+    check fruit == "banana"
 
-      let vehicle = Toml.decode(rawCase, string, "Vehicle.Name", TomlCaseNim)
-      check vehicle == "hovercraft"
+    let vehicle = Toml.decode(rawCase, string, "Vehicle.Name", TomlCaseNim)
+    check vehicle == "hovercraft"
 
-      let server = Toml.decode(rawCase, string, "Server.name", TomlCaseNim)
-      check server == "Toml"
+    let server = Toml.decode(rawCase, string, "Server.name", TomlCaseNim)
+    check server == "Toml"
 
-    test "allowUnknownFields":
-      expect TomlError:
-        discard Toml.decode(rawToml, Owner, "owner")
+  test "allowUnknownFields":
+    expect TomlError:
+      discard Toml.decode(rawToml, Owner, "owner")
 
-      var owner = Toml.decode(rawToml, Owner, "owner", TomlCaseInsensitive, {TomlUnknownFields})
-      check owner.name == "Tom Preston-Werner"
+    var owner = Toml.decode(rawToml, Owner, "owner", TomlCaseInsensitive, {TomlUnknownFields})
+    check owner.name == "Tom Preston-Werner"
 
-      var fakeOwner = Toml.decode(rawToml, FakeOwner, "owner", TomlCaseInsensitive, {TomlUnknownFields})
-      check fakeOwner.name == "Tom Preston-Werner"
+    var fakeOwner = Toml.decode(rawToml, FakeOwner, "owner", TomlCaseInsensitive, {TomlUnknownFields})
+    check fakeOwner.name == "Tom Preston-Werner"
 
-      type
-        NoName = object
-          age: int
+    type
+      NoName = object
+        age: int
 
-      let toml = readFile("tests" / "tomls" / "nested_object.toml")
-      let y = Toml.decode(toml, NoName, "someone.noname", {TomlUnknownFields})
-      check y.age == 30
+    let toml = readFile("tests" / "tomls" / "nested_object.toml")
+    let y = Toml.decode(toml, NoName, "someone.noname", {TomlUnknownFields})
+    check y.age == 30
 
-    test "newline in inline table":
-      let toml = readFile("tests" / "tomls" / "inline-table-newline.toml")
+  test "newline in inline table":
+    let toml = readFile("tests" / "tomls" / "inline-table-newline.toml")
 
-      expect TomlError:
-        discard Toml.decode(toml, Server, "server")
+    expect TomlError:
+      discard Toml.decode(toml, Server, "server")
 
-      var server = Toml.decode(toml, Server, "server", TomlCaseInsensitive, {TomlInlineTableNewline})
-      check server.port == 8005
+    var server = Toml.decode(toml, Server, "server", TomlCaseInsensitive, {TomlInlineTableNewline})
+    check server.port == 8005
 
-      var z = Toml.decode(toml, Encoding, "encoding", TomlCaseInsensitive, {TomlInlineTableNewline})
-      check z.name == "TOML"
+    var z = Toml.decode(toml, Encoding, "encoding", TomlCaseInsensitive, {TomlInlineTableNewline})
+    check z.name == "TOML"
 
-      var w = Toml.decode(toml, TomlValueRef, {TomlInlineTableNewline})
-      check w.tableVal["server"].kind == TomlKind.InlineTable
+    var w = Toml.decode(toml, TomlValueRef, {TomlInlineTableNewline})
+    check w.tableVal["server"].kind == TomlKind.InlineTable
 
-      expect TomlError:
-        discard Toml.decode(toml, TomlValueRef)
+    expect TomlError:
+      discard Toml.decode(toml, TomlValueRef)
 
-    test "bignum":
-      var z = Toml.decode("bignum = 1234567890_1234567890", Uint256, "bignum")
-      check $z == "12345678901234567890"
+  test "bignum":
+    var z = Toml.decode("bignum = 1234567890_1234567890", Uint256, "bignum")
+    check $z == "12345678901234567890"
 
-    test "helper functions":
-      var u = Toml.decode("val = 1970-08-08 07:10:11", HoldDateTime, "val")
-      check u.dt.date.isSome
+  test "helper functions":
+    var u = Toml.decode("val = 1970-08-08 07:10:11", HoldDateTime, "val")
+    check u.dt.date.isSome
 
-      var v = Toml.decode("val = \'Toml Literal\'", HoldString, "val")
-      check:
-        v.name == "Toml Literal"
-        v.multiLine == false
-        v.literal == true
+    var v = Toml.decode("val = \'Toml Literal\'", HoldString, "val")
+    check:
+      v.name == "Toml Literal"
+      v.multiLine == false
+      v.literal == true
 
-      var w = Toml.decode("val = 1970-08-08 07:10:11", DateString, "val")
-      check w.date == "1970-08-08 07:10:11"
+    var w = Toml.decode("val = 1970-08-08 07:10:11", DateString, "val")
+    check w.date == "1970-08-08 07:10:11"
 
-      var z = Toml.decode("val = -123.123", HoldFloat, "val")
-      check z.sign == Sign.Neg
-      check z.data == "-123.123"
+    var z = Toml.decode("val = -123.123", HoldFloat, "val")
+    check z.sign == Sign.Neg
+    check z.data == "-123.123"
 
-      var x = Toml.decode("val = 768", HoldInt, "val")
-      check x.data == 768
+    var x = Toml.decode("val = 768", HoldInt, "val")
+    check x.data == 768
 
-      var y = Toml.decode("val = 1", HoldEnum, "val")
-      check y.data == ParseEnum
+    var y = Toml.decode("val = 1", HoldEnum, "val")
+    check y.data == ParseEnum
 
-      var p = Toml.decode("val = 1", HoldValue, "val")
-      check p.data == TomlValueRef(kind: TomlKind.Int, intVal: 1)
+    var p = Toml.decode("val = 1", HoldValue, "val")
+    check p.data == TomlValueRef(kind: TomlKind.Int, intVal: 1)
 
-    test "hex escape sequence":
-      var x = Toml.decode("val = \"H\\x45X\"", string, "val", TomlCaseSensitive, {TomlHexEscape})
-      check x == "HEX"
+  test "hex escape sequence":
+    var x = Toml.decode("val = \"H\\x45X\"", string, "val", TomlCaseSensitive, {TomlHexEscape})
+    check x == "HEX"
 
-      expect TomlError:
-        discard Toml.decode("val = \"H\\x45X\"", string, "val")
+    expect TomlError:
+      discard Toml.decode("val = \"H\\x45X\"", string, "val")
 
-      var z = Toml.decode("val = \"H\\x45X\" \n name = \"skip hex\"",
-        string, "name", TomlCaseSensitive, {TomlHexEscape})
-      check z == "skip hex"
+    var z = Toml.decode("val = \"H\\x45X\" \n name = \"skip hex\"",
+      string, "name", TomlCaseSensitive, {TomlHexEscape})
+    check z == "skip hex"
 
-      expect TomlError:
-        discard Toml.decode("val = \"H\\x45X\" \n name = \"skip hex\"", string, "name")
+    expect TomlError:
+      discard Toml.decode("val = \"H\\x45X\" \n name = \"skip hex\"", string, "name")
 
-    test "api test":
-      var x = Toml.decode("val = \"H\\x45X\"", string, "val", {TomlHexEscape})
-      check x == "HEX"
+  test "api test":
+    var x = Toml.decode("val = \"H\\x45X\"", string, "val", {TomlHexEscape})
+    check x == "HEX"
 
-      var w = Toml.decode("Val = \"HEX\"", string, "Val", TomlCaseSensitive)
-      check w == "HEX"
+    var w = Toml.decode("Val = \"HEX\"", string, "Val", TomlCaseSensitive)
+    check w == "HEX"
 
-      var u = Toml.decode("val = 123456", int, "val")
-      check u == 123456
+    var u = Toml.decode("val = 123456", int, "val")
+    check u == 123456
 
-      let file = "tests" / "tomls" / "example.toml"
-      var z = Toml.loadFile(file, bool, "database.enabled")
-      check z == true
+    let file = "tests" / "tomls" / "example.toml"
+    var z = Toml.loadFile(file, bool, "database.enabled")
+    check z == true
 
-      let toml = "tests" / "tomls" / "case.toml"
-      var v = Toml.loadFile(toml, string, "animal.name", TomlCaseInsensitive)
-      check v == "Elephant"
+    let toml = "tests" / "tomls" / "case.toml"
+    var v = Toml.loadFile(toml, string, "animal.name", TomlCaseInsensitive)
+    check v == "Elephant"
 
-    test "unsupported keyed mode":
-      let table = "tests" / "tomls" / "inline-table-newline.toml"
-      expect TomlError:
-        discard Toml.loadFile(table, int, "server.port", {TomlInlineTableNewline})
+  test "unsupported keyed mode":
+    let table = "tests" / "tomls" / "inline-table-newline.toml"
+    expect TomlError:
+      discard Toml.loadFile(table, int, "server.port", {TomlInlineTableNewline})
 
-    test "date time reader":
-      var x = Toml.decode("x = 12:13:14", TomlTime, "x")
-      check x.hour == 12
-      check x.minute == 13
-      check x.second == 14
+  test "date time reader":
+    var x = Toml.decode("x = 12:13:14", TomlTime, "x")
+    check x.hour == 12
+    check x.minute == 13
+    check x.second == 14
 
-      var y = Toml.decode("x = 2020-08-16", TomlDate, "x")
-      check y.year == 2020
-      check y.month == 8
-      check y.day == 16
+    var y = Toml.decode("x = 2020-08-16", TomlDate, "x")
+    check y.year == 2020
+    check y.month == 8
+    check y.day == 16
 
-    test "TomlHourMinute flags":
-      expect TomlError:
-        discard Toml.decode("x = 12:13", TomlTime, "x")
+  test "TomlHourMinute flags":
+    expect TomlError:
+      discard Toml.decode("x = 12:13", TomlTime, "x")
 
-      var x = Toml.decode("x = 12:13", TomlTime, "x", {TomlHourMinute})
-      check x.hour == 12
-      check x.minute == 13
-      check x.second == 0
+    var x = Toml.decode("x = 12:13", TomlTime, "x", {TomlHourMinute})
+    check x.hour == 12
+    check x.minute == 13
+    check x.second == 0
 
-proc helperParsers() =
-  suite "helper parsers":
-    test "parseTable":
-      var q = Toml.decode("p = 1\nq = 2\nr = 3", Table[string, int])
-      check:
-        q["p"] == 1
-        q["q"] == 2
-        q["r"] == 3
+suite "helper parsers":
+  test "parseTable":
+    var q = Toml.decode("p = 1\nq = 2\nr = 3", Table[string, int])
+    check:
+      q["p"] == 1
+      q["q"] == 2
+      q["r"] == 3
 
-      var r = Toml.decode("[data]\np = 1\nq = 2\nr = 3", HoldTable)
-      check:
-        r.data["p"] == 1
-        r.data["q"] == 2
-        r.data["r"] == 3
+    var r = Toml.decode("[data]\np = 1\nq = 2\nr = 3", HoldTable)
+    check:
+      r.data["p"] == 1
+      r.data["q"] == 2
+      r.data["r"] == 3
 
-      var s = Toml.decode("data = {p = 1, q = 2, r = 3}", HoldTable)
-      check:
-        s.data["p"] == 1
-        s.data["q"] == 2
-        s.data["r"] == 3
+    var s = Toml.decode("data = {p = 1, q = 2, r = 3}", HoldTable)
+    check:
+      s.data["p"] == 1
+      s.data["q"] == 2
+      s.data["r"] == 3
 
-    test "parseList":
-      let x = Toml.decode("x = [1, 2, 3]", HoldArray, "x")
-      check x.data == [1, 2, 3]
+  test "parseList":
+    let x = Toml.decode("x = [1, 2, 3]", HoldArray, "x")
+    check x.data == [1, 2, 3]
 
-      let y = Toml.decode("x = [1, 2, 3]", HoldSeq, "x")
-      check y.data == @[1, 2, 3]
+    let y = Toml.decode("x = [1, 2, 3]", HoldSeq, "x")
+    check y.data == @[1, 2, 3]
 
-      let z = Toml.decode("x = ['MMA', 'MIG']", Welder, "x")
-      check:
-        MMA in z.flags
-        MIG in z.flags
-
-main()
-helperParsers()
+    let z = Toml.decode("x = ['MMA', 'MIG']", Welder, "x")
+    check:
+      MMA in z.flags
+      MIG in z.flags
