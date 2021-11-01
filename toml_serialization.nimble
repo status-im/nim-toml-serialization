@@ -20,10 +20,14 @@ proc test(env, path: string) =
     lang = getEnv"TEST_LANG"
 
   when defined(macosx):
-    # cpp backend on macosx have mysterious
-    # bug
+    # cpp backend on macosx have mysterious bug
     if lang == "cpp":
       lang = "c"
+
+  when defined(windows) and defined(cpu64):
+    # crash upon `expect TomlError:`
+    if lang == "c":
+      lang = "cpp"
 
   if not dirExists "build":
     mkDir "build"
