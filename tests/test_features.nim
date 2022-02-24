@@ -62,7 +62,7 @@ type
   HoldTable = object
     data: Table[string, int]
 
-proc readValue*(r: var TomlReader, value: var Uint256) =
+proc readValue*(r: var TomlReader, value: var UInt256) =
   var z: string
   let (sign, base) = r.parseNumber(z)
 
@@ -70,10 +70,10 @@ proc readValue*(r: var TomlReader, value: var Uint256) =
     raiseTomlErr(r.lex, errNegateUint)
 
   case base
-  of base10: value = parse(z, Uint256, 10)
-  of base16: value = parse(z, Uint256, 16)
-  of base8:  value = parse(z, Uint256, 8)
-  of base2:  value = parse(z, Uint256, 2)
+  of base10: value = parse(z, UInt256, 10)
+  of base16: value = parse(z, UInt256, 16)
+  of base8:  value = parse(z, UInt256, 8)
+  of base2:  value = parse(z, UInt256, 2)
 
 proc readValue*(r: var TomlReader, value: var HoldDateTime) =
   value.dt = r.parseDateTime()
@@ -200,7 +200,7 @@ suite "features test suite":
       discard Toml.decode(toml, TomlValueRef)
 
   test "bignum":
-    var z = Toml.decode("bignum = 1234567890_1234567890", Uint256, "bignum")
+    var z = Toml.decode("bignum = 1234567890_1234567890", UInt256, "bignum")
     check $z == "12345678901234567890"
 
   test "helper functions":

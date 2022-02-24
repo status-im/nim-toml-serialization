@@ -728,8 +728,8 @@ suite "float test suite 3":
 
     testScanFloat("+inf", Inf, true)
     testScanFloat("-inf", -Inf, true)
-    testScanFloat("+nan", Nan, true)
-    testScanFloat("-nan", -Nan, true)
+    testScanFloat("+nan", NaN, true)
+    testScanFloat("-nan", -NaN, true)
 
     testScanFloat("123E1", 123E1)
     testScanFloat("-123E1", -123E1)
@@ -922,7 +922,7 @@ suite "date time test suite 3":
 
     x.date = none(TomlDate)
     x.time = some(TomlTime(hour: 7, minute: 32, second: 0, subsecond: 0))
-    x.zone = none(TomlTimezone)
+    x.zone = none(TomlTimeZone)
     testDateTime("7:32:00", x, zeroLead = true)
 
     x.date = some(TomlDate(year: 979, month: 5, day:27))

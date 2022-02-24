@@ -18,7 +18,7 @@ type
                  {.gcsafe, nimcall, raises: [SerializationError, Defect].}
   ]
 
-  ArrayReadersTable*[RecordType, Reader] = openarray[ArrayReader[RecordType, Reader]]
+  ArrayReadersTable*[RecordType, Reader] = openArray[ArrayReader[RecordType, Reader]]
 
 const
   BadArrayReader* = -1

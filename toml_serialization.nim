@@ -44,15 +44,15 @@ template decode*(_: type Toml,
                  RecordType: type TomlNotTopLevel,
                  params: varargs[untyped]): auto =
   # TODO, this is duplicated only due to a Nim bug:
-  # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
+  # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
   tomlFatalImpl(decode, RecordType)
 
 template decode*(_: type Toml,
-                 input: openarray[byte],
+                 input: openArray[byte],
                  RecordType: type TomlNotTopLevel,
                  params: varargs[untyped]): auto =
   # TODO, this is duplicated only due to a Nim bug:
-  # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
+  # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
   tomlFatalImpl(decode, RecordType)
 
 template loadFile*(_: type Toml,
@@ -112,13 +112,13 @@ template decode*(_: type Toml, input: string,
                  key: string, params: varargs[untyped]): auto =
   tomlDecodeImpl(input, RecordType, key, TomlCaseSensitive, params)
 
-template decode*(_: type Toml, input: openarray[byte],
+template decode*(_: type Toml, input: openArray[byte],
                  RecordType: distinct type,
                  key: string, tomlCase: TomlCase,
                  params: varargs[untyped]): auto =
   tomlDecodeImpl(input, RecordType, key, tomlCase, params)
 
-template decode*(_: type Toml, input: openarray[byte],
+template decode*(_: type Toml, input: openArray[byte],
                  RecordType: distinct type,
                  key: string, params: varargs[untyped]): auto =
   tomlDecodeImpl(input, RecordType, key, TomlCaseSensitive, params)
