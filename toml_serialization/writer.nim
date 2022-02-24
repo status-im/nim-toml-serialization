@@ -63,7 +63,7 @@ proc writeIterable*(w: var TomlWriter, collection: auto) =
 
   append ']'
 
-template writeArray*[T](w: var TomlWriter, elements: openarray[T]) =
+template writeArray*[T](w: var TomlWriter, elements: openArray[T]) =
   writeIterable(w, elements)
 
 proc writeValue*(w: var TomlWriter, time: TomlTime) =
@@ -259,7 +259,7 @@ proc writeToml(w: var TomlWriter, value:
       for k, v in x:
         if v.kind == TomlKind.Tables:
           continue
-        var newkeyList = @[k]
+        var newKeyList = @[k]
         writeToml(w, v, newKeyList, emptyTable, false)
 
       for k, v in x:
@@ -330,8 +330,8 @@ proc writeValue*(w: var TomlWriter, value: auto) =
 
   when value is TomlValueRef:
     doAssert(value.kind == TomlKind.Table)
-    var keyList = newSeqofCap[string](5)
-    var emptyTable = newSeqofCap[string](5)
+    var keyList = newSeqOfCap[string](5)
+    var emptyTable = newSeqOfCap[string](5)
     writeToml(w, value, keyList, emptyTable)
     for k in emptyTable:
       append k

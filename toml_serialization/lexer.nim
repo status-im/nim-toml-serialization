@@ -880,8 +880,8 @@ proc scanFloat*[T](lex: var TomlLexer, value: var T): Sign =
       when T is string:
         value.add "nan"
       else:
-        value = Nan
-        if sign == Sign.Neg: value = -Nan
+        value = NaN
+        if sign == Sign.Neg: value = -NaN
       return sign
     of strutils.Digits:
       break
@@ -1117,7 +1117,7 @@ proc scanTimeZone*[T](lex: var TomlLexer, value: var T): bool =
 
     when T is string:
       value.add next
-    elif T is TomlTimezone:
+    elif T is TomlTimeZone:
       value.hourShift = num
 
     scanStrictNum(lex, num, minVal = 0, maxVal = 59, count = 2,
@@ -1454,7 +1454,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       when T is string:
         value.add "nan"
       elif T is TomlValueRef:
-        value = TomlValueRef(kind: TomlKind.Float, floatVal: Nan)
+        value = TomlValueRef(kind: TomlKind.Float, floatVal: NaN)
       return
     else:
       raiseIllegalChar(lex, next)

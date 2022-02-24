@@ -85,7 +85,7 @@ suite "test decoder":
       ex.database.negative == -3
       ex.hosts[0] == "alpha"
       ex.hosts[1] == "omega"
-      ex.configCap == JsonCap
+      ex.configcap == JsonCap
       ex.cc == TomlCap
       ex.fruit == Banana
 
