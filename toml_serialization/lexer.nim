@@ -33,6 +33,7 @@ type
     errInvalidUnicode     = "invalid Unicode codepoint, "
     errEmptyDecimalPart   = "decimal part empty"
     errMLStringName       = "multi line string not allowed in name"
+    errMLStringEnum       = "multi line string not allowed as enum value"
     errNoDoubleBracket    = "\']]\' expected"
     errNoSingleBracket    = "\']\' expected"
     errExponentTooLarge   = "exponent too large"

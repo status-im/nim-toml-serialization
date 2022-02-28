@@ -267,6 +267,50 @@ proc readValue*(r: var TomlReader, value: var Welder) =
     value.flags.incl r.parseEnum(WelderFlag)
 ```
 
+## Enums
+There is no enums in TOML specification. The reader/decoder is able to parse both
+`ordinal` or `string` representation of an enum. While on the other hand, the
+writer/encoder only have `ordinal` builtin writer. But that is not a limitation,
+you can always overload the `writeValue` to produce whatever representation of
+enum you need.
+
+`Ordinal` representation of an enum is TOML integer, and `string` representation
+is TOML `basic string` or `literal string`. Both multi-line basic string(e.g. """TOML""") or
+multi-line literal string(e.g. '''TOML''') are not allowed for enum value.
+
+```toml
+# fruits.toml
+fruit1 = "Apple"   # basic string
+fruit2 = 1         # ordinal value
+fruit3 = 'Orange'  # literal string
+```
+
+```Nim
+type
+  Fruits = enum
+    Apple
+    Banana
+    Orange
+
+  FruitBasket = object
+    fruit1: Fruits
+    fruit2: Fruits
+    fruit3: Fruits
+
+var x = Toml.loadFile("fruits.toml", FruitBasket)
+assert x.fruit1 == Apple
+assert x.fruit2 == Banana
+assert x.fruit3 == Orange
+
+# write enum output as string
+proc writeValue*(w: var TomlWriter, val: Fruits) =
+  w.writeValue $val
+
+let z = FruitBasket(fruit1: Apple, fruit2: Banana, fruit3: Orange)
+let res = Toml.encode(z)
+assert res == "fruit1 = \"Apple\"\nfruit2 = \"Banana\"\nfruit3 = \"Orange\"\n"
+```
+
 ## Helper functions
   - `parseNumber(r: var TomlReader, value: var string): (Sign, NumberBase)`
   - `parseDateTime(r: var TomlReader): TomlDateTime`

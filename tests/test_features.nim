@@ -226,6 +226,18 @@ suite "features test suite":
     var y = Toml.decode("val = 1", HoldEnum, "val")
     check y.data == ParseEnum
 
+    y = Toml.decode("val = 'ParseInt'", HoldEnum, "val")
+    check y.data == ParseInt
+
+    y = Toml.decode("val = \"ParseFloat\"", HoldEnum, "val")
+    check y.data == ParseFloat
+
+    expect TomlError:
+      discard Toml.decode("val = '''ParseString'''", HoldEnum, "val")
+
+    expect TomlError:
+      discard Toml.decode("val = \"\"\"ParseString\"\"\"", HoldEnum, "val")
+
     var p = Toml.decode("val = 1", HoldValue, "val")
     check p.data == TomlValueRef(kind: TomlKind.Int, intVal: 1)
 
@@ -317,3 +329,30 @@ suite "helper parsers":
     check:
       MMA in z.flags
       MIG in z.flags
+
+type
+  Fruits = enum
+    Apple
+    Banana
+    Orange
+
+  FruitBasket = object
+    fruit1: Fruits
+    fruit2: Fruits
+    fruit3: Fruits
+
+proc writeValue*(w: var TomlWriter, val: Fruits) =
+  w.writeValue $val
+
+suite "enums examples":
+  test "read enums":
+    var x = Toml.loadFile("tests" / "tomls" / "fruits.toml", FruitBasket)
+    check x.fruit1 == Apple
+    check x.fruit2 == Banana
+    check x.fruit3 == Orange
+
+  test "write enums":
+    let z = FruitBasket(fruit1: Apple, fruit2: Banana, fruit3: Orange)
+    let res = Toml.encode(z)
+    let want = "fruit1 = \"Apple\"\nfruit2 = \"Banana\"\nfruit3 = \"Orange\"\n"
+    check res == want

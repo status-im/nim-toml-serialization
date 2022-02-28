@@ -106,13 +106,13 @@ proc parseEnum*(r: var TomlReader, T: type enum): T =
     eatChar
     var enumStr: string
     if scanString(r.lex, enumStr, StringType.Basic):
-      raiseTomlErr(r.lex, errMLStringName)
+      raiseTomlErr(r.lex, errMLStringEnum)
     r.stringEnum(result, enumStr)
   of '\'':
     eatChar
     var enumStr: string
     if scanString(r.lex, enumStr, StringType.Literal):
-      raiseTomlErr(r.lex, errMLStringName)
+      raiseTomlErr(r.lex, errMLStringEnum)
     r.stringEnum(result, enumStr)
   of signedDigits:
     r.scanInt(result)
