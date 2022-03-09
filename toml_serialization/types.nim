@@ -157,3 +157,7 @@ proc `==`(a, b: TomlValueRef): bool =
     return true
   of TomlKind.Table, TomlKind.InlineTable:
     result = a.tableVal == b.tableVal
+
+method formatMsg*(err: ref TomlError, filename: string): string
+                 {.gcsafe, raises: [Defect].} =
+  filename & err.msg
