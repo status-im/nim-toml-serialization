@@ -83,7 +83,7 @@ method formatMsg*(err: ref TomlFieldReadingError, filename: string): string
 
 proc newTomlError*(line, col: int, msg: string): ref TomlError =
   result = newException(TomlError, "(" & $line &
-                        ":" & $col & ")" & " " & msg)
+                        ", " & $col & ")" & " " & msg)
 
 template raiseTomlErr*(li: (int, int), kind: TomlErrorKind) =
   raise newTomlError(li[0], li[1], $kind)
