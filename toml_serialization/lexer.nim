@@ -6,7 +6,7 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  strutils, unicode, options, tables, math,
+  std/[strutils, strformat, options, tables, math, unicode],
   faststreams/inputs,
   types, private/utils
 
@@ -19,6 +19,10 @@ type
 
   TomlReaderError* = object of TomlError
     line*, col*: int
+
+  TomlFieldReadingError* = object of TomlReaderError
+    field*: string
+    error*: ref TomlError
 
   TomlErrorKind* = enum
     errNone               = "no error"
@@ -65,9 +69,21 @@ template readChar(s: InputStream): char =
 proc lineInfo(lex: TomlLexer): (int, int) {.inline.} =
   (lex.line, lex.col)
 
+template tryFmt(expr: untyped): string =
+  try: expr
+  except CatchableError as err: err.msg
+
+method formatMsg*(err: ref TomlReaderError, filename: string): string
+                 {.gcsafe, raises: [Defect].} =
+  tryFmt: fmt"{filename}({err.line}, {err.col}) Error while reading TOML file: {err.msg}"
+
+method formatMsg*(err: ref TomlFieldReadingError, filename: string): string
+                 {.gcsafe, raises: [Defect].} =
+  err.error.formatMsg(filename)
+
 proc newTomlError*(line, col: int, msg: string): ref TomlError =
-  result = newException(TomlError, "[" & $line &
-                        ":" & $col & "]" & " " & msg)
+  result = newException(TomlError, "(" & $line &
+                        ":" & $col & ")" & " " & msg)
 
 template raiseTomlErr*(li: (int, int), kind: TomlErrorKind) =
   raise newTomlError(li[0], li[1], $kind)

@@ -10,6 +10,9 @@ import
   faststreams/inputs, serialization/[object_serialization, errors],
   types, lexer, private/[utils, array_reader]
 
+export
+  TomlReaderError, TomlFieldReadingError
+
 type
   TomlReader* = object
     lex*: TomlLexer
@@ -318,7 +321,10 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
                       fieldName, expectedFieldPos, r.tomlCase)
 
       if reader != nil:
-        reader(value, r)
+        try:
+          reader(value, r)
+        except TomlError as err:
+          raise (ref TomlFieldReadingError)(field: fieldName, error: err)
         checkEol(r.lex, line)
         r.state = prevState
         inc fieldsDone
