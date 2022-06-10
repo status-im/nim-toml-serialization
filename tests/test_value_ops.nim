@@ -8,7 +8,7 @@
 import
   unittest2, os, options, tables,
   ../toml_serialization,
-  ../toml_serialization/value_ops
+  ../toml_serialization/[value_ops, types]
 
 template roundTrip(fileName: string, params: varargs[untyped]): untyped =
   let
@@ -33,3 +33,28 @@ template copyRoundTripTest(inputFolder: string) =
 
 copyRoundTripTest("iarna")
 copyRoundTripTest("burntsushi")
+
+suite "table comparison":
+  let a = TomlValueRef(kind: TomlKind.Int, intVal: 1)
+  let b = TomlValueRef(kind: TomlKind.Int, intVal: 2)
+  let x = TomlValueRef(kind: TomlKind.Table, tableVal: TomlTableRef())
+  let y = TomlValueRef(kind: TomlKind.Table, tableVal: TomlTableRef())
+  let z = TomlValueRef(kind: TomlKind.Table, tableVal: TomlTableRef())
+
+  x.tableVal["b"] = b
+  x.tableVal["a"] = a
+
+  y.tableVal["a"] = a
+  y.tableVal["b"] = b
+
+  z.tableVal["b"] = b
+  z.tableVal["a"] = a
+
+  test "different insertion order":
+    when tomlOrderedTable:
+      check x != y
+    else:
+      check x == y
+
+  test "same insertion order":
+    check x == z

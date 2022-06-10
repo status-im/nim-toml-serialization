@@ -226,6 +226,8 @@ proc readValue*(r: var TomlReader, table: var Table[string, int]) =
     table[key] = r.parseInt(int)
 ```
 
+Since v0.2.1 you can choose to use `OrderedTable` instead of `Table` using `-d:tomlOrderedTable` compile time switch.
+
 ## Sets and list-like
 Similar to `Table`, sets and list or array like data structure can be parsed using
 `parseList` template. It come with two flavors, indexed and non indexed.

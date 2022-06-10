@@ -15,6 +15,13 @@ export
 const
   defaultStringCapacity* = 256
   subsecondPrecision* {.intdefine.} = 6
+  tomlOrderedTable* {.booldefine.} = false
+
+template TableForToml(A, B: type): type =
+  when tomlOrderedTable:
+    OrderedTable[A, B]
+  else:
+    Table[A, B]
 
 type
   TomlError* = object of SerializationError
@@ -80,7 +87,7 @@ type
     time*: Option[TomlTime]
     zone*: Option[TomlTimeZone]
 
-  TomlTable* = Table[string, TomlValueRef]
+  TomlTable* = TableForToml(string, TomlValueRef)
   TomlTableRef* = ref TomlTable
 
   TomlValueRef* = ref TomlValue
@@ -107,19 +114,32 @@ type
     of TomlKind.Table, TomlKind.InlineTable:
       tableVal*: TomlTableRef
 
+when tomlOrderedTable:
+  template withValue*(x: TomlTable, key: string,
+                      value, body1, body2: untyped) =
+    var valx = x.getOrDefault(key, nil)
+    if valx.isNil:
+      body2
+    else:
+      let value {.inject.} = addr(valx)
+      body1
+
 proc `==`*(a, b: TomlValueRef): bool
 
 proc `==`*(a, b: TomlTableRef): bool =
   result = true
   if a.len != b.len:
     return false
-  for key, val in a:
-    b[].withValue(key, node) do:
-      result = node[] == val
-    do:
-      result = false
 
-proc `==`(a, b: TomlValueRef): bool =
+  when tomlOrderedTable and (NimMajor,NimMinor,NimPatch) < (1,6,0):
+    # https://github.com/nim-lang/Nim/issues/15750
+    # workaround for Nim 1.2.0 and 1.4.0 or less
+    if a.len == 0 and b.len == 0:
+      return true
+
+  result = a[] == b[]
+
+proc `==`*(a, b: TomlValueRef): bool =
   const
     tableKind = {TomlKind.Table, TomlKind.InlineTable}
 
@@ -161,3 +181,54 @@ proc `==`(a, b: TomlValueRef): bool =
 method formatMsg*(err: ref TomlError, filename: string): string
                  {.gcsafe, raises: [Defect].} =
   filename & err.msg
+
+proc `$`*(p: TomlDateTime): string =
+  if p.date.isSome: result.add $p.date.get()
+  if p.time.isSome: result.add $p.time.get()
+  if p.zone.isSome: result.add $p.zone.get()
+
+proc toUgly*(result: var string, p: TomlValueRef)
+
+proc toUgly*(result: var string, p: TomlTableRef) =
+  var comma = false
+  result.add "{"
+  for key, val in p:
+    if comma: result.add ","
+    else: comma = true
+    result.add key
+    result.add ":"
+    result.toUgly val
+  result.add "}"
+
+proc toUgly(result: var string, p: TomlValueRef) =
+  var comma = false
+  case p.kind
+  of TomlKind.String:
+    result.add p.stringVal
+  of TomlKind.Int:
+    result.add $p.intVal
+  of TomlKind.Float:
+    result.add $p.floatVal
+  of TomlKind.Bool:
+    result.add $p.boolVal
+  of TomlKind.Table, TomlKind.InlineTable:
+    result.toUgly p.tableVal
+  of TomlKind.Array:
+    result.add "["
+    for child in p.arrayVal:
+      if comma: result.add ","
+      else: comma = true
+      result.toUgly child
+    result.add "]"
+  of TomlKind.DateTime:
+    result.add $p.dateTime
+  of TomlKind.Tables:
+    result.add "[["
+    for child in p.tablesVal:
+      if comma: result.add ","
+      else: comma = true
+      result.toUgly child
+    result.add "]]"
+
+proc `$`*(p: TomlValueRef): string =
+  toUgly(result, p)
