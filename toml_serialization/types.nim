@@ -44,6 +44,7 @@ type
 
   TomlFlag* = enum
     TomlInlineTableNewline
+    TomlInlineTableTrailingComma
     TomlHexEscape     # allow \xHH escape sequence
     TomlHourMinute    # allow HH:MM format
     TomlUnknownFields # allow unknow fields

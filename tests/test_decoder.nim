@@ -6,7 +6,8 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  unittest2, os, options,
+  std/[os, options, tables],
+  unittest2,
   ../toml_serialization,
   ../toml_serialization/[lexer, value_ops]
 
@@ -53,6 +54,10 @@ type
   NestedObject = object
     child: ChildObject
     son: GrandChild
+
+proc readValue(r: var TomlReader, table: var Table[string, int]) =
+  parseTable(r, key):
+    table[key] = r.parseInt(int)
 
 suite "test decoder":
   let rawToml = readFile("tests" / "tomls" / "example.toml")
@@ -180,6 +185,38 @@ suite "test decoder":
     check zz.w == ww
     check zz.s == "[10,11,12]"
     check zz.z == "ok"
+
+  test "Trailing comma in inline table":
+    type
+      AbcTC = object
+        a: int
+        b: int
+        c: int
+
+      TrailingCommaIT = object
+        x: TomlValueRef
+        y: string
+        z: AbcTC
+        w: Table[string, int]
+        s: string
+
+    const doc = """
+      x = {a=1, b=2, c=3, }
+      y = {a=1, b=2, c=3, }
+      z = {a=1, b=2, c=3, }
+      w = {a=1, b=2, c=3, }
+      s = "ok"
+    """
+
+    let xx = Toml.decode("x = {a=1, b=2, c=3, }", TomlValueRef, "x", {TomlInlineTableTrailingComma})
+    let r = Toml.decode(doc, TrailingCommaIT, {TomlInlineTableTrailingComma})
+    check r.x == xx
+    check r.y == "{a=1,b=2,c=3}"
+    check r.z == AbcTC(a:1,b:2,c:3)
+    check r.w["a"] == 1
+    check r.w["b"] == 2
+    check r.w["c"] == 3
+    check r.s == "ok"
 
   test "case object":
     type
