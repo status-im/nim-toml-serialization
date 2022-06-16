@@ -1,7 +1,7 @@
 mode = ScriptMode.Verbose
 
 packageName   = "toml_serialization"
-version       = "0.2.1"
+version       = "0.2.2"
 author        = "Status Research & Development GmbH"
 description   = "Flexible TOML serialization [not] relying on run-time type information"
 license       = "Apache License 2.0"
@@ -9,8 +9,7 @@ skipDirs      = @["tests", "assets"]
 
 requires "nim >= 1.1.2",
          "serialization",
-         "stew",
-         "https://github.com/status-im/nim-unittest2"
+         "stew"
 
 ### Helper functions
 proc test(env, path: string) =

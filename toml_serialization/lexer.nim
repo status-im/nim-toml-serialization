@@ -1554,12 +1554,18 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
       if firstComma:
         raiseTomlErr(lex, errMissingFirstElement)
 
-      when T is string:
-        value.add ','
-
       next = lex.nonws(skipNoLf)
       if next == '}':
-        raiseIllegalChar(lex, '}')
+        if TomlInlineTableTrailingComma in lex.flags:
+          advance
+          when T is string:
+            value.add '}'
+          return
+        else:
+          raiseIllegalChar(lex, '}')
+      else:
+        when T is string:
+          value.add ','
     of '\n':
       if TomlInlineTableNewline in lex.flags:
         advance

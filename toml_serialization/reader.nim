@@ -151,7 +151,11 @@ template parseInlineTable(r: var TomlReader, key: untyped, body: untyped) =
 
       next = nonws(r.lex, skipNoLf)
       if next == '}':
-        raiseIllegalChar(r.lex, ',')
+        if TomlInlineTableTrailingComma in r.lex.flags:
+          eatChar
+          break
+        else:
+          raiseIllegalChar(r.lex, ',')
     of '\n':
       if TomlInlineTableNewline in r.lex.flags:
         eatChar
@@ -211,6 +215,7 @@ template parseListImpl*(r: var TomlReader, index, body: untyped) =
       #  "[b,]")
       next = nonws(r.lex, skipLf)
       if next == ']':
+        eatChar
         break
     else:
       body
@@ -371,7 +376,11 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
 
         next = nonws(r.lex, skipNoLf)
         if next == '}':
-          raiseIllegalChar(r.lex, ',')
+          if TomlInlineTableTrailingComma in r.lex.flags:
+            eatChar
+            break
+          else:
+            raiseIllegalChar(r.lex, ',')
       of '\n':
         if TomlInlineTableNewline in r.lex.flags:
           eatChar
