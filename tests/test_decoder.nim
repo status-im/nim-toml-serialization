@@ -145,6 +145,13 @@ suite "test decoder":
       XX = array[3, int]
       YY = seq[int]
 
+      TrailingComma = object
+        x: seq[int]
+        y: array[3, int]
+        w: TomlValueRef
+        s: string
+        z: string
+
     let x = Toml.decode("x = [1, 2, 3]", XX, "x")
     check x == [1, 2, 3]
 
@@ -156,6 +163,23 @@ suite "test decoder":
 
     let yy = Toml.decode("x = [1, 2, 3, ]", YY, "x")
     check yy == @[1, 2, 3]
+
+    let ww = Toml.decode("x = [7, 8, 9, ]", TomlValueRef, "x")
+
+    const doc = """
+      x = [1, 2, 3, ]
+      y = [4,5,6,]
+      w = [7,8,9,]
+      s = [10 , 11 , 12 , ]
+      z = "ok" # this last entry is to make sure we parse past last entry ']'
+    """
+
+    let zz = Toml.decode(doc, TrailingComma)
+    check zz.x == @[1, 2, 3]
+    check zz.y == [4, 5, 6]
+    check zz.w == ww
+    check zz.s == "[10,11,12]"
+    check zz.z == "ok"
 
   test "case object":
     type

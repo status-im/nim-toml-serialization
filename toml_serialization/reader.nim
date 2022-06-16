@@ -211,6 +211,7 @@ template parseListImpl*(r: var TomlReader, index, body: untyped) =
       #  "[b,]")
       next = nonws(r.lex, skipLf)
       if next == ']':
+        eatChar
         break
     else:
       body
