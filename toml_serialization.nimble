@@ -9,8 +9,7 @@ skipDirs      = @["tests", "assets"]
 
 requires "nim >= 1.1.2",
          "serialization",
-         "stew",
-         "https://github.com/status-im/nim-unittest2"
+         "stew"
 
 ### Helper functions
 proc test(env, path: string) =

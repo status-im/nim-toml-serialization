@@ -152,4 +152,5 @@ jobs:
         run: |
           nimble install -y --depsOnly
           nimble install -y stint
+          nimble install -y "https://github.com/status-im/nim-unittest2"
           env TEST_LANG="${{ matrix.test_lang }}" nimble test
