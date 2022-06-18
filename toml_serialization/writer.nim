@@ -374,7 +374,7 @@ proc writeValue*(w: var TomlWriter, value: auto) =
 
       template regularFieldWriter() =
         inc w.level
-        w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
+        w.writeFieldIMPL(FieldTag[RecordType, fieldName], field, value)
         dec w.level
         w.state = prevState
 
@@ -418,7 +418,7 @@ proc writeValue*(w: var TomlWriter, value: auto) =
 
         w.writeFieldName(fieldName)
         inc w.level
-        w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
+        w.writeFieldIMPL(FieldTag[RecordType, fieldName], field, value)
         dec w.level
         firstField = false
 
@@ -428,7 +428,7 @@ proc writeValue*(w: var TomlWriter, value: auto) =
         w.state = ExpectValue
         w.writeFieldName(fieldName)
         inc w.level
-        w.writeFieldIMPL(FieldTag[RecordType, fieldName, FieldType], field, value)
+        w.writeFieldIMPL(FieldTag[RecordType, fieldName], field, value)
         dec w.level
         w.state = prevState
         append '\n'
