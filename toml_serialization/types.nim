@@ -7,7 +7,8 @@
 
 import
   tables, options, math,
-  serialization/errors
+  serialization/errors,
+  faststreams/inputs
 
 export
   errors
@@ -233,3 +234,18 @@ proc toUgly(result: var string, p: TomlValueRef) =
 
 proc `$`*(p: TomlValueRef): string =
   toUgly(result, p)
+
+type
+  VMInputStream* = ref object of InputStream
+    pos*: int
+    data*: string
+
+proc read*(s: VMInputStream): char =
+  result = s.data[s.pos]
+  inc s.pos
+
+proc readable*(s: VMInputStream): bool =
+  s.pos < s.data.len
+
+proc peekChar*(s: VMInputStream): char =
+  s.data[s.pos]

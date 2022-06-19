@@ -39,6 +39,14 @@ template tomlFatalImpl(fn,  R: untyped) =
     "\' not allowed at top level Toml, called from" &
     $instantiationInfo().}
 
+template toVMString*(x: openArray[byte]): string =
+  var z = newString(x.len)
+  for i, c in x: z[i] = char(c)
+  z
+
+template toVMString*(x: string): string =
+  x
+
 template decode*(_: type Toml,
                  input: string,
                  RecordType: type TomlNotTopLevel,
@@ -91,7 +99,11 @@ template tomlDecodeImpl*(input: untyped,
     # from the fact that the dynamic dispatch mechanisms used in
     # faststreams may be reading from a file or a network device.
     try:
-      var stream = unsafeMemoryInput(input)
+      var stream: InputStream
+      when nimvm:
+        stream = VMInputStream(pos: 0, data: toVMString(input))
+      else:
+        stream = unsafeMemoryInput(input)
       var reader = unpackArgs(init, [TomlReader, stream, tomlCase, params])
       when RecordType is (seq or array) and uTypeIsRecord(RecordType):
         reader.readTableArray(RecordType, key, tomlCase)
@@ -123,6 +135,17 @@ template decode*(_: type Toml, input: openArray[byte],
                  key: string, params: varargs[untyped]): auto =
   tomlDecodeImpl(input, RecordType, key, TomlCaseSensitive, params)
 
+template decode*(_: type Toml,
+                 input: string,
+                 RecordType: distinct type,
+                 params: varargs[untyped]): auto =
+  tomlDecodeImpl(input, RecordType, "", TomlCaseSensitive, params)
+
+template decode*(_: type Toml,
+                 input: openArray[byte],
+                 RecordType: distinct type,
+                 params: varargs[untyped]): auto =
+  tomlDecodeImpl(input, RecordType, "", TomlCaseSensitive, params)
 
 template tomlLoadImpl*(filename: string,
                        RecordType: distinct type,
@@ -131,7 +154,12 @@ template tomlLoadImpl*(filename: string,
 
   mixin init, ReaderType, readValue
 
-  var stream = memFileInput(filename)
+  var stream: InputStream
+  when nimvm:
+    let input = staticRead(filename)
+    stream = VMInputStream(pos: 0, data: toVMString(input))
+  else:
+    stream = memFileInput(filename)
   try:
     var reader = unpackArgs(init, [TomlReader, stream, params])
     when RecordType is (seq or array) and uTypeIsRecord(RecordType):
@@ -152,3 +180,14 @@ template loadFile*(_: type Toml, filename: string,
                    RecordType: distinct type,
                    key: string, params: varargs[untyped]): auto =
   tomlLoadImpl(filename, RecordType, key, TomlCaseSensitive, params)
+
+template loadFile*(_: type Toml, filename: string,
+                   RecordType: distinct type,
+                   tomlCase: TomlCase,
+                   params: varargs[untyped]): auto =
+  tomlLoadImpl(filename, RecordType, "", tomlCase, params)
+
+template loadFile*(_: type Toml, filename: string,
+                   RecordType: distinct type,
+                   params: varargs[untyped]): auto =
+  tomlLoadImpl(filename, RecordType, "", TomlCaseSensitive, params)

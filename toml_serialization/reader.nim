@@ -52,7 +52,8 @@ proc init*(T: type TomlReader,
   TomlReader.init(stream, TomlCaseSensitive, flags)
 
 proc moveToKey*(r: var TomlReader, key: string, tomlCase: TomlCase) =
-  r.state = r.lex.parseToml(key, tomlCase)
+  if key.len > 0:
+    r.state = r.lex.parseToml(key, tomlCase)
 
 proc setParsed[T: enum](e: var T, s: string) =
   e = parseEnum[T](s)
