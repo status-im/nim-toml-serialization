@@ -2,3 +2,5 @@ nimcache
 *.exe
 node_modules
 package-lock.json
+nimble.develop
+nimble.paths
