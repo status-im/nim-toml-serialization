@@ -26,7 +26,10 @@ family and provides several operation modes:
   - Allow skipping unknown fields using `TomlUnknownFields` flag.
     - Skipping unknown fields also done efficiently, no token produced.
       But skipped fields should contains valid TOML value or the parser will raise exception.
-  - Since v0.2.3, compile time decoding/loadFile are allowed.
+  - Since v0.2.1 you can choose to use `OrderedTable` instead of `Table` when parsing into `TomlValueRef`
+    using `-d:tomlOrderedTable` compile time switch.
+  - Since v0.2.3, compile time decode/loadFile are allowed. It means you can initialize const value using
+    `decode` or `loadFile`. It also ok to use it inside static block or other nim VM code.
 
 ## Spec compliance
 nim-toml-serialization implements [v1.0.0](https://github.com/toml-lang/toml/releases/tag/1.0.0)
@@ -226,8 +229,6 @@ proc readValue*(r: var TomlReader, table: var Table[string, int]) =
   parseTable(r, key):
     table[key] = r.parseInt(int)
 ```
-
-Since v0.2.1 you can choose to use `OrderedTable` instead of `Table` using `-d:tomlOrderedTable` compile time switch.
 
 ## Sets and list-like
 Similar to `Table`, sets and list or array like data structure can be parsed using
