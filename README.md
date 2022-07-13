@@ -347,7 +347,7 @@ TomlTime contains subsecond field. The spec says the precision is implementation
 In nim-toml-serialization the default is 6 digits precision.
 Longer precision will be truncated by the parser.
 
-You can override this using compiler switch `-d:subsecondPrecision=numDigits`.
+You can override this using compiler switch `-d:tomlSubsecondPrecision=numDigits`.
 
 ## Installation
 

@@ -15,7 +15,7 @@ export
 
 const
   defaultStringCapacity* = 256
-  subsecondPrecision* {.intdefine.} = 6
+  tomlSubsecondPrecision* {.intdefine.} = 6
   tomlOrderedTable* {.booldefine.} = false
 
 template TableForToml(A, B: type): type =

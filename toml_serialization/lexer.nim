@@ -1024,9 +1024,9 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
     # Toml spec says additional subsecond precision
     # should be truncated and not rounded
     when T is (string or TomlVoid):
-      discard scanDigits(lex, value, base10, subsecondPrecision)
+      discard scanDigits(lex, value, base10, tomlSubsecondPrecision)
     elif T is TomlTime:
-      discard scanDigits(lex, value.subsecond, base10, subsecondPrecision)
+      discard scanDigits(lex, value.subsecond, base10, tomlSubsecondPrecision)
 
 proc scanTime*[T](lex: var TomlLexer, value: var T) =
   var line = lex.line
