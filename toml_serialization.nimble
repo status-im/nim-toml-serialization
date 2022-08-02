@@ -13,6 +13,15 @@ requires "nim >= 1.1.2",
 
 ### Helper functions
 proc test(env, path: string) =
+  # nnkArglist was changed to nnkArgList, so can't always use --styleCheck:error
+  # https://github.com/nim-lang/Nim/pull/17529
+  # https://github.com/nim-lang/Nim/pull/19822
+  let styleCheckStyle =
+    if (NimMajor, NimMinor) < (1, 6):
+      "hint"
+    else:
+      "error"
+
   # Compilation language is controlled by TEST_LANG
   var lang = "c"
   if existsEnv"TEST_LANG":
@@ -32,7 +41,8 @@ proc test(env, path: string) =
     mkDir "build"
   exec "nim " & lang & " " & env &
     " --outdir:build -r --hints:off --skipParentCfg" &
-    " --styleCheck:usages --styleCheck:error " & path
+    " --styleCheck:usages --styleCheck:" & styleCheckStyle &
+    " " & path
 
 task test, "Run all tests":
   exec "nim -v"
