@@ -126,9 +126,9 @@ when tomlOrderedTable:
       let value {.inject.} = addr(valx)
       body1
 
-proc `==`*(a, b: TomlValueRef): bool
+proc `==`*(a, b: TomlValueRef): bool {.noSideEffect.}
 
-proc `==`*(a, b: TomlTableRef): bool =
+proc `==`*(a, b: TomlTableRef): bool {.noSideEffect.} =
   result = true
   if a.len != b.len:
     return false
