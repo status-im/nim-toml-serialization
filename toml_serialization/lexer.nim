@@ -190,7 +190,7 @@ type
   LfSkipMode* = enum
     skipLf, skipNoLf
 
-proc nonws*(lex: var TomlLexer, skip: static[LfSkipMode]): char {.raises: [IOError, TomlError].} =
+proc nonws*(lex: var TomlLexer, skip: static[LfSkipMode]): char =
   ## Note: this procedure does *not* consider a newline as a
   ## "whitespace". Since newlines are often mandatory in TOML files
   ## (e.g. after a key/value specification), we do not want to miss
