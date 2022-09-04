@@ -190,7 +190,7 @@ type
   LfSkipMode* = enum
     skipLf, skipNoLf
 
-proc nonws*(lex: var TomlLexer, skip: static[LfSkipMode]): char =
+proc nonws*(lex: var TomlLexer, skip: static[LfSkipMode]): char {.raises: [IOError, TomlError].} =
   ## Note: this procedure does *not* consider a newline as a
   ## "whitespace". Since newlines are often mandatory in TOML files
   ## (e.g. after a key/value specification), we do not want to miss
@@ -1500,7 +1500,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       raiseIllegalChar(lex, next)
     break
 
-proc parseValue*[T](lex: var TomlLexer, value: var T)
+proc parseValue*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, TomlError].}
 
 proc parseArray[T](lex: var TomlLexer, value: var T) =
   when T isnot (seq[TomlValueRef] or string or TomlVoid):
@@ -1765,7 +1765,7 @@ proc checkEol*(lex: var TomlLexer, line: int) =
     if lex.line == line:
       raiseIllegalChar(lex, next)
 
-proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
+proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) {.raises: [IOError, TomlError].} =
   var pushTable = curTable
   var keys: seq[string]
   let line = lex.line
@@ -1788,7 +1788,7 @@ proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
 
   checkEol(lex, line)
 
-proc parseToml*(lex: var TomlLexer): TomlValueRef =
+proc parseToml*(lex: var TomlLexer): TomlValueRef {.raises: [KeyError, IOError, TomlError].} =
   result = emptyTable()
 
   var
