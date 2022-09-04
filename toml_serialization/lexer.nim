@@ -1765,7 +1765,7 @@ proc checkEol*(lex: var TomlLexer, line: int) =
     if lex.line == line:
       raiseIllegalChar(lex, next)
 
-proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) {.raises: [IOError, TomlError].} =
+proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) =
   var pushTable = curTable
   var keys: seq[string]
   let line = lex.line
@@ -1788,7 +1788,7 @@ proc parseKeyValue(lex: var TomlLexer, curTable: var TomlTableRef) {.raises: [IO
 
   checkEol(lex, line)
 
-proc parseToml*(lex: var TomlLexer): TomlValueRef {.raises: [KeyError, IOError, TomlError].} =
+proc parseToml*(lex: var TomlLexer): TomlValueRef =
   result = emptyTable()
 
   var
