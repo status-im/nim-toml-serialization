@@ -413,7 +413,7 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
 template getUnderlyingType*[T](_: Option[T]): untyped = T
 
 proc readValue*[T](r: var TomlReader, value: var T)
-                  {.raises: [SerializationError, IOError, ValueError, Defect].} =
+                  {.raises: [SerializationError, IOError, Defect].} =
   mixin readValue
 
   when value is Option:
