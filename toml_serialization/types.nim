@@ -126,7 +126,7 @@ when tomlOrderedTable:
       let value {.inject.} = addr(valx)
       body1
 
-func `==`*(a, b: TomlValueRef): bool 
+func `==`*(a, b: TomlValueRef): bool
 
 func `==`*(a, b: TomlTableRef): bool =
   result = true
