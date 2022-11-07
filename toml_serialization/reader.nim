@@ -234,7 +234,7 @@ proc skipTableBody(r: var TomlReader) =
     parseValue(r.lex, skipValue)
 
 proc readValue*[T](r: var TomlReader, value: var T, numRead: int)
-                  {.raises: [SerializationError, IOError, ValueError, Defect].} =
+                  {.gcsafe, raises: [SerializationError, IOError, ValueError, Defect].} =
   mixin readValue
 
   when T is seq:
@@ -410,7 +410,7 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
 template getUnderlyingType*[T](_: Option[T]): untyped = T
 
 proc readValue*[T](r: var TomlReader, value: var T)
-                  {.raises: [SerializationError, IOError, Defect].} =
+                  {.gcsafe, raises: [SerializationError, IOError, Defect].} =
   mixin readValue
 
   when value is Option:

@@ -1528,7 +1528,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       raiseIllegalChar(lex, next)
     break
 
-proc parseValue*[T](lex: var TomlLexer, value: var T) {.raises: [Defect, IOError, TomlError].}
+proc parseValue*[T](lex: var TomlLexer, value: var T) {.gcsafe, raises: [Defect, IOError, TomlError].}
 
 proc parseArray[T](lex: var TomlLexer, value: var T) =
   when T isnot (seq[TomlValueRef] or string or TomlVoid):

@@ -45,10 +45,11 @@ proc makeArrayReadersTable(RecordType, Reader: distinct type, L: static[int]):
           const i = fieldName.parseInt
 
         try:
-          when RecordType is tuple:
-            reader.readValue(obj[i], idx)
-          else:
-            reader.readValue(field(obj, realFieldName), idx)
+          {.gcsafe.}:
+            when RecordType is tuple:
+              reader.readValue(obj[i], idx)
+            else:
+              reader.readValue(field(obj, realFieldName), idx)
         except SerializationError as err:
           raise err
         except CatchableError as err:
