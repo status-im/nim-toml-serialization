@@ -244,6 +244,21 @@ func baseToDigits(base: NumberBase): set[char] {.inline.} =
   of base10: strutils.Digits
   of base16: strutils.HexDigits
 
+proc mulOverflow(a, b: uint64): bool =
+  # Check if either of them is zero
+  if a == 0'u64 or b == 0'u64:
+    return false
+
+  let res = a * b
+  a != res div b
+
+proc addOverflow(a, b: uint64): bool =
+  if a == 0'u64 or b == 0'u64:
+    return false
+
+  let res = a + b
+  res < a
+
 proc scanUint[T](lex: var TomlLexer, value: var T, base: NumberBase,
                  leading = Leading.AllowZero) =
   ## scanUint only accepts `string` or `uint64` or `TomlVoid`
@@ -288,7 +303,13 @@ proc scanUint[T](lex: var TomlLexer, value: var T, base: NumberBase,
     when T is string:
       value.add next
     elif T is uint64:
-      value = value * baseNum + charTo(T, next)
+      if mulOverflow(value, baseNum):
+        raiseTomlErr(lex, errIntegerOverflow)
+      value = value * baseNum
+      let digit = charTo(T, next)
+      if addOverflow(value, digit):
+        raiseTomlErr(lex, errIntegerOverflow)
+      value = value + digit
     elif T is TomlVoid:
       discard
     else:
@@ -1241,13 +1262,23 @@ proc scanDateTime*[T](lex: var TomlLexer, value: var T, zeroLead = false) =
   else:
     raiseTomlErr(lex, errInvalidDateTime)
 
-proc toSigned(x: uint64): int64 =
-  # special case to prevent min-int overflow conversion
-  # while letting true overflow happen
-  if x == 9_223_372_036_854_775_808'u64:
-    low(int64)
+proc toSigned*[T](lex: var TomlLexer, x: uint64): T =
+  const maxT = uint64(high(T)) + 1'u64
+  if x > maxT:
+    raiseTomlErr(lex, errIntegerOverflow)
+  elif x == maxT:
+    low(T)
   else:
-    -x.int64
+    T(-x.int64)
+
+proc toIntVal(lex: var TomlLexer, x: uint64, sign: Sign): TomlValueRef =
+  if sign != Neg and x > uint64(high(int64)):
+    raiseTomlErr(lex, errIntegerOverflow)
+
+  TomlValueRef(
+    kind: TomlKind.Int,
+    intVal: if sign == Neg: toSigned[int64](lex, x) else: x.int64
+  )
 
 proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
   when T isnot (TomlValueRef or string or TomlVoid):
@@ -1435,11 +1466,14 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
           elif T is TomlVoid:
             inc digits
           else:
-            try:
-              curSum = curSum * 10'u64 + (uint64(next) - uint64('0'))
-              inc digits
-            except OverflowError:
+            if mulOverflow(curSum, 10'u64):
               raiseTomlErr(lex, errIntegerOverflow)
+            curSum = curSum * 10'u64
+            let digit = (uint64(next) - uint64('0'))
+            if addOverflow(curSum, digit):
+              raiseTomlErr(lex, errIntegerOverflow)
+            curSum = curSum + digit
+            inc digits
           wasUnderscore = false
           continue
         of '_':
@@ -1448,17 +1482,11 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
           continue
         of strutils.Whitespace:
           when T is TomlValueRef:
-            value = TomlValueRef(
-              kind: TomlKind.Int,
-              intVal: if sign == Neg: toSigned(curSum) else: curSum.int64
-            )
+            value = toIntVal(lex, curSum, sign)
           return
         else:
           when T is TomlValueRef:
-            value = TomlValueRef(
-              kind: TomlKind.Int,
-              intVal: if sign == Neg: toSigned(curSum) else: curSum.int64
-            )
+            value = toIntVal(lex, curSum, sign)
           return
         break
 

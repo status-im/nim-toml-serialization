@@ -143,7 +143,8 @@ suite "numbers test suite":
     testScanUint("0a1234567890", 0'u64, base10, Leading.AllowZero)
 
   test "scanUint uint overflow":
-    testScanUint("18446744073709551616", 0'u64, base10, Leading.DenyZero)
+    expect TomlError:
+      testScanUint("18446744073709551616", 0'u64, base10, Leading.DenyZero)
     testScanUint("18446744073709551615", 18446744073709551615'u64, base10, Leading.DenyZero)
 
   test "scanUint underscore int":

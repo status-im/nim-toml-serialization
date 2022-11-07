@@ -96,10 +96,7 @@ proc scanInt[T](r: var TomlReader, value: var T) =
     when value is SomeUnsignedInt:
       raiseTomlErr(r.lex, errNegateUint)
     else:
-      try:
-        value = T(-x.int)
-      except OverflowError:
-        raiseTomlErr(r.lex, errIntegerOverflow)
+      value = toSigned[T](r.lex, x)
   else:
     value = T(x)
 

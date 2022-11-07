@@ -158,6 +158,16 @@ suite "test num or date parse to toml":
     expect TomlError:
       testNumOrDate("123_ ", x)
 
+  test "parseNumOrDate integer overflow":
+    var x = TomlValueRef(kind: TomlKind.Int, intVal: high(int64))
+    testNumOrDate($(high(int64)), x)
+    expect TomlError:
+      testNumOrDate($(high(int64).uint64 + 1'u64), x)
+    x = TomlValueRef(kind: TomlKind.Int, intVal: low(int64))
+    testNumOrDate($(low(int64)), x)
+    expect TomlError:
+      testNumOrDate("-" & $(high(int64).uint64 + 2'u64), x)
+
 suite "test value parser":
   test "parseValue string":
     testParseValue("0", "0")
