@@ -8,7 +8,7 @@ jobs:
       max-parallel: 20
       matrix:
         test_lang: [c, cpp]
-        branch: [version-1-6, devel]
+        branch: [version-1-6]
         target:
           - os: linux
             cpu: amd64
@@ -162,5 +162,6 @@ jobs:
         run: |
           nimble install -y --depsOnly
           nimble install -y stint
-          nimble install -y "https://github.com/status-im/nim-unittest2"
+          nimble install -y unittest2
+          rm -f nimble.lock
           env TEST_LANG="${{ matrix.test_lang }}" nimble test
