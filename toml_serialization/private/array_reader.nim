@@ -25,8 +25,9 @@ const
 
 proc totalArrayFieldsImpl(T: type): int =
   mixin enumAllSerializedFields
+
   enumAllSerializedFields(T):
-    when FieldType is (seq or array):
+    when isArrayLike(FieldType):
       inc result
 
 template totalArrayFields*(T: type): int =
@@ -36,9 +37,9 @@ proc makeArrayReadersTable(RecordType, Reader: distinct type, L: static[int]):
                            array[L, ArrayReader[RecordType, Reader]] =
   var fieldPos = 0
   enumAllSerializedFields(RecordType):
-    when FieldType is (seq or array):
-      proc readArray(obj: var RecordType, reader: var Reader, idx: int)
-                    {.gcsafe, nimcall, raises: [SerializationError, Defect].} =
+    when isArrayLike(FieldType):
+      proc readArrayFieldImpl(obj: var RecordType, reader: var Reader, idx: int)
+                             {.gcsafe, nimcall, raises: [SerializationError, Defect].} =
         mixin readValue
 
         when RecordType is tuple:
@@ -59,7 +60,7 @@ proc makeArrayReadersTable(RecordType, Reader: distinct type, L: static[int]):
             when RecordType is tuple: obj[i] else: field(obj, realFieldName),
             err)
 
-      result[fieldPos] = (0, fieldName, readArray)
+      result[fieldPos] = (0, fieldName, readArrayFieldImpl)
       inc fieldPos
 
 template arrayReadersTable*(RecordType, Reader: distinct type): auto =

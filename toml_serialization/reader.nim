@@ -242,6 +242,10 @@ proc readValue*[T](r: var TomlReader, value: var T, numRead: int)
     readValue(r, value[numRead])
   elif T is array:
     readValue(r, value[numRead])
+  elif isOptionalInToml(T):
+    if value.isNone:
+      value = some default(typeof(value.get))
+    readValue(r, value.get, numRead)
   else:
     const typeName = typetraits.name(T)
     {.error: "Failed to convert from TOML an unsupported type: " & typeName.}

@@ -116,6 +116,21 @@ type
     of TomlKind.Table, TomlKind.InlineTable:
       tableVal*: TomlTableRef
 
+template isOptionalInToml*(T: type): bool = false
+template isOptionalInToml*[X](T: type Option[X]): bool = true
+
+template BaseType*[X](T: type Option[X]): type = X
+
+template isArrayLike*(T: type): bool =
+  mixin isOptionalInToml, BaseType
+
+  when T is seq|array:
+    true
+  elif isOptionalInToml(T):
+    BaseType(T) is seq|array
+  else:
+    false
+
 when tomlOrderedTable:
   template withValue*(x: TomlTable, key: string,
                       value, body1, body2: untyped) =
