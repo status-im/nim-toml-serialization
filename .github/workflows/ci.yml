@@ -8,7 +8,7 @@ jobs:
       max-parallel: 20
       matrix:
         test_lang: [c, cpp]
-        branch: [version-1-6]
+        branch: [version-1-6, version-2-0]
         target:
           - os: linux
             cpu: amd64
