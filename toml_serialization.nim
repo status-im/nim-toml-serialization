@@ -39,14 +39,6 @@ template tomlFatalImpl(fn,  R: untyped) =
     "\' not allowed at top level Toml, called from" &
     $instantiationInfo().}
 
-template toVMString*(x: openArray[byte]): string =
-  var z = newString(x.len)
-  for i, c in x: z[i] = char(c)
-  z
-
-template toVMString*(x: string): string =
-  x
-
 template decode*(_: type Toml,
                  input: string,
                  RecordType: type TomlNotTopLevel,
@@ -99,11 +91,7 @@ template tomlDecodeImpl*(input: untyped,
     # from the fact that the dynamic dispatch mechanisms used in
     # faststreams may be reading from a file or a network device.
     try:
-      var stream: InputStream
-      when nimvm:
-        stream = VMInputStream(pos: 0, data: toVMString(input))
-      else:
-        stream = unsafeMemoryInput(input)
+      let stream = memInputStream(input)
       var reader = unpackArgs(init, [TomlReader, stream, tomlCase, params])
       when RecordType is (seq or array) and uTypeIsRecord(RecordType):
         reader.readTableArray(RecordType, key, tomlCase)
@@ -153,14 +141,13 @@ template tomlLoadImpl*(filename: string,
                        params: varargs[untyped]): auto =
 
   mixin init, ReaderType, readValue
-
   var stream: InputStream
-  when nimvm:
-    let input = staticRead(filename)
-    stream = VMInputStream(pos: 0, data: toVMString(input))
-  else:
-    stream = memFileInput(filename)
   try:
+    when nimvm:
+      let input = staticRead(filename)
+      stream = VMInputStream(pos: 0, data: toVMString(input))
+    else:
+      stream = memFileInput(filename)
     var reader = unpackArgs(init, [TomlReader, stream, params])
     when RecordType is (seq or array) and uTypeIsRecord(RecordType):
       reader.readTableArray(RecordType, key, tomlCase)

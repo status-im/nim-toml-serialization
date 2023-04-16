@@ -347,7 +347,8 @@ proc writeValue*(w: var TomlWriter, value: auto) =
     w.stream.writeText ord(value)
 
   elif value is range:
-    when low(value) < 0:
+    type TVAL = type value
+    when low(TVAL) < 0:
       w.stream.writeText int64(value)
     else:
       w.stream.writeText uint64(value)

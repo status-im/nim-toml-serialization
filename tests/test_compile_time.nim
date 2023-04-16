@@ -25,6 +25,7 @@ const
   xx = Toml.loadFile("tests/" & fruitFile, Fruits)
   yy = Toml.decode(toml, Fruits)
   zz = Toml.decode(toml.toBlob, Fruits)
+  kk = Toml.decode(toml, string, "fruit3")
 
 suite "compile time decoder":
   test "compile time loadFile":
@@ -41,3 +42,6 @@ suite "compile time decoder":
     check zz.fruit1 == "Apple"
     check zz.fruit2 == 1
     check zz.fruit3 == "Orange"
+
+  test "compile time keyed":
+    check kk == "Orange"

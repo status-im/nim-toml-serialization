@@ -2,25 +2,25 @@
   "version": 1,
   "packages": {
     "unittest2": {
-      "version": "0.0.5",
-      "vcsRevision": "da8398c45cafd5bd7772da1fc96e3924a18d3823",
+      "version": "0.0.6",
+      "vcsRevision": "883c7a50ad3b82158e64d074c5578fe33ab3c452",
       "url": "https://github.com/status-im/nim-unittest2",
       "downloadMethod": "git",
       "dependencies": [],
       "checksums": {
-        "sha1": "b3f8493a4948989ef3e645a38b23aad77e851e26"
+        "sha1": "c6a054be175c469c0dd9552f0a9c88e36c3a0b26"
       }
     },
     "stew": {
       "version": "0.1.0",
-      "vcsRevision": "447b23d3bf6eb7be6531385e4db9124772c98068",
+      "vcsRevision": "67fdc87e2521f7e021fd521c41d3228810a183d0",
       "url": "https://github.com/status-im/nim-stew",
       "downloadMethod": "git",
       "dependencies": [
         "unittest2"
       ],
       "checksums": {
-        "sha1": "98cbd5289c44e355d50b3914b0876ea0dd2a6813"
+        "sha1": "e489bfb9d04d0bf6f642662308d8e586dcb39428"
       }
     },
     "httputils": {
@@ -44,7 +44,7 @@
         "unittest2"
       ],
       "checksums": {
-        "sha1": "c939aef6a1c17c95131242a6292ade1c92380792"
+        "sha1": "b19ac458ded738e7821ac9226e7699be84b05fdc"
       }
     },
     "chronos": {
@@ -73,12 +73,12 @@
         "unittest2"
       ],
       "checksums": {
-        "sha1": "16c69a7b454d803dcf28f6115f42bb47421d9376"
+        "sha1": "8a08b7c3ffba4e5ba834b39c0e29a6af2ff82046"
       }
     },
     "serialization": {
       "version": "0.1.0",
-      "vcsRevision": "257e2e02ebe2efbe86beb05c62a739fc9c3d10e7",
+      "vcsRevision": "845bed4478c8f0ac893494083798348e9e7ffb58",
       "url": "https://github.com/status-im/nim-serialization",
       "downloadMethod": "git",
       "dependencies": [
@@ -87,7 +87,7 @@
         "stew"
       ],
       "checksums": {
-        "sha1": "d94373efee43cbd15b1cc73185c0e49528598b37"
+        "sha1": "5d18260f44f8396c8b8f2847769e75bb4b20abc4"
       }
     }
   }

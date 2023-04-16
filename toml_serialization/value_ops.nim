@@ -7,7 +7,8 @@
 
 import
   tables, typetraits, strutils,
-  types, private/utils
+  types, private/utils,
+  stew/shims/stddefects
 
 proc innerValue(n: TomlValueRef, T: type): T =
   when T is (SomeInteger or SomeFloat):
@@ -145,7 +146,7 @@ proc delete*(obj: TomlValueRef, key: string) =
   ## Deletes ``obj[key]``.
   assert(obj.kind == TomlKind.Table)
   if not obj.tableVal.hasKey(key):
-    raise newException(IndexError, "key not in object")
+    raise newException(IndexDefect, "key not in object")
   obj.tableVal.del(key)
 
 proc copy*(p: TomlValueRef): TomlValueRef

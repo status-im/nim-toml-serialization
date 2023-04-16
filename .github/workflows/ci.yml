@@ -8,7 +8,7 @@ jobs:
       max-parallel: 20
       matrix:
         test_lang: [c, cpp]
-        branch: [version-1-6]
+        branch: [version-1-6, version-2-0]
         target:
           - os: linux
             cpu: amd64
@@ -26,7 +26,7 @@ jobs:
             builder: ubuntu-20.04
           - target:
               os: macos
-            builder: macos-11
+            builder: macos-12
           - target:
               os: windows
             builder: windows-latest
@@ -164,4 +164,4 @@ jobs:
           nimble install -y stint
           nimble install -y unittest2
           rm -f nimble.lock
-          env TEST_LANG="${{ matrix.test_lang }}" nimble test
+          env NIMLANG="${{ matrix.test_lang }}" nimble test

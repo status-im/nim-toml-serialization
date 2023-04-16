@@ -6,7 +6,7 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  unittest, os, options, tables,
+  unittest2, os, options, tables,
   ../toml_serialization,
   ../toml_serialization/private/utils
 

@@ -1870,7 +1870,7 @@ proc parseKeyValue*(lex: var TomlLexer,
   checkEol(lex, line)
 
 proc parseKey*(key: string, tomlCase: TomlCase): seq[string] =
-  var stream = unsafeMemoryInput(key)
+  let stream = memInputStream(key)
   var lex = init(TomlLexer, stream)
   lex.scanKey(result)
 

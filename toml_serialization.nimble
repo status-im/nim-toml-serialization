@@ -11,40 +11,25 @@ requires "nim >= 1.1.2",
          "serialization",
          "stew"
 
-### Helper functions
-proc test(env, path: string) =
-  # nnkArglist was changed to nnkArgList, so can't always use --styleCheck:error
-  # https://github.com/nim-lang/Nim/pull/17529
-  # https://github.com/nim-lang/Nim/pull/19822
-  let styleCheckStyle =
-    if (NimMajor, NimMinor) < (1, 6):
-      "hint"
-    else:
-      "error"
+let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
+let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
+let flags = getEnv("NIMFLAGS", "") # Extra flags for the compiler
+let verbose = getEnv("V", "") notin ["", "0"]
 
-  # Compilation language is controlled by TEST_LANG
-  var lang = "c"
-  if existsEnv"TEST_LANG":
-    lang = getEnv"TEST_LANG"
+let styleCheckStyle = if (NimMajor, NimMinor) < (1, 6): "hint" else: "error"
+let cfg =
+  " --styleCheck:usages --styleCheck:" & styleCheckStyle &
+  (if verbose: "" else: " --verbosity:0 --hints:off") &
+  " --outdir:build --nimcache:build/nimcache -f"
 
-  when defined(macosx):
-    # cpp backend on macosx have mysterious bug
-    if lang == "cpp":
-      lang = "c"
+proc build(args, path: string) =
+  exec nimc & " " & lang & " " & cfg & " " & flags & " " & args & " " & path
 
-  when defined(windows) and defined(cpu64):
-    # crash upon `expect TomlError:`
-    if lang == "c":
-      lang = "cpp"
-
-  if not dirExists "build":
-    mkDir "build"
-  exec "nim " & lang & " " & env &
-    " --outdir:build -r --hints:off --skipParentCfg" &
-    " --styleCheck:usages --styleCheck:" & styleCheckStyle &
-    " " & path
+proc run(args, path: string) =
+  build args & " -r", path
+  if (NimMajor, NimMinor) > (1, 6):
+    build args & " --mm:refc -r", path
 
 task test, "Run all tests":
-  exec "nim -v"
-  test "--threads:off -d:release", "tests/test_all"
-  test "--threads:on -d:release", "tests/test_all"
+  for threads in ["--threads:off", "--threads:on"]:
+    run threads & " -d:release ", "tests/test_all"

@@ -16,4 +16,5 @@ import
   test_value_ops,
   test_lexer,
   test_lexer_float,
-  test_compile_time
+  test_compile_time,
+  test_misc
