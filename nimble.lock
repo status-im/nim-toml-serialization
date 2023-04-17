@@ -78,7 +78,7 @@
     },
     "serialization": {
       "version": "0.1.0",
-      "vcsRevision": "845bed4478c8f0ac893494083798348e9e7ffb58",
+      "vcsRevision": "bc46b4c1c1730cc25bf5fb5f3d64bd708a6ad89e",
       "url": "https://github.com/status-im/nim-serialization",
       "downloadMethod": "git",
       "dependencies": [
@@ -87,7 +87,7 @@
         "stew"
       ],
       "checksums": {
-        "sha1": "5d18260f44f8396c8b8f2847769e75bb4b20abc4"
+        "sha1": "3e562780460d399219a54362ca2e0e796f26253a"
       }
     }
   }
