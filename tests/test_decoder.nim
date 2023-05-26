@@ -349,6 +349,9 @@ suite "test decoder":
       Toml.decode("v = \"aaa\"\n", EnumTestZ, "v") == z1
       Toml.decode("v = \"bbb\"\n", EnumTestZ, "v") == z2
       Toml.decode("v = \"ccc\"\n", EnumTestZ, "v") == z3
+      Toml.decode("v = \'aaa\'\n", EnumTestZ, "v") == z1
+      Toml.decode("v = \'bbb\'\n", EnumTestZ, "v") == z2
+      Toml.decode("v = \'ccc\'\n", EnumTestZ, "v") == z3
     expect TomlError:
       discard Toml.decode("v = 0\n", EnumTestZ, "v")
     expect TomlError:
