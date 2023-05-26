@@ -6,8 +6,8 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  tables, strutils, options,
-  stew/[enums, objects], stew/shims/[enumutils, typetraits],
+  enumutils, tables, strutils, typetraits, options,
+  stew/[enums, objects],
   faststreams/inputs, serialization/[object_serialization, errors],
   types, lexer, private/[utils, array_reader]
 
