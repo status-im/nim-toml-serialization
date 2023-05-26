@@ -62,6 +62,9 @@ type
   HoldTable = object
     data: Table[string, int]
 
+HoldEnum.configureTomlDeserialization(
+  allowNumericRepr = true)
+
 proc readValue*(r: var TomlReader, value: var UInt256) =
   var z: string
   let (sign, base) = r.parseNumber(z)
