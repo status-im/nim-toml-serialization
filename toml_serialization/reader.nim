@@ -6,7 +6,7 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  enumutils, tables, strutils, typetraits, options,
+  std/[enumutils, tables, strutils, typetraits, options],
   stew/[enums, objects],
   faststreams/inputs, serialization/[object_serialization, errors],
   types, lexer, private/[utils, array_reader]
@@ -93,7 +93,7 @@ proc scanInt[T](r: var TomlReader, value: var T) =
 
 proc parseStringEnum(
     r: var TomlReader, T: type enum, next: char,
-    normalizer: static[proc(s :string): string]): T =
+    normalizer: static[proc(s: string): string]): T =
   eatChar
   var s: string
   case next
@@ -114,17 +114,18 @@ proc parseStringEnum(
 
 proc parseEnum*(
     r: var TomlReader, T: type enum,
-    normalizer: static[proc(s :string): string]): T =
+    normalizer: static[proc(s: string): string]): T =
   var next = nonws(r.lex, skipLf)
-  const typeName = typetraits.name(T)
-  case T.enumStyle
+  const style = T.enumStyle
+  case style
   of EnumStyle.Numeric:
     if next in signedDigits:
       var n: uint64
       r.scanInt(n)
       if not result.checkedEnumAssign(n):
+        const typeName = typetraits.name(T)
         raiseUnexpectedValue(r.lex, typeName)
-    else:  # Also allow decoding by the enum value itself
+    else:
       result = r.parseStringEnum(T, next, normalizer)
   of EnumStyle.AssociatedStrings:
     result = r.parseStringEnum(T, next, normalizer)
@@ -595,7 +596,7 @@ proc parseFloat*(r: var TomlReader, value: var string): Sign =
   scanFloat(r.lex, value)
 
 template deserializeWithNormalizerInToml*(
-    T: type[enum], normalizer: static[proc(s :string): string]) =
+    T: type[enum], normalizer: static[proc(s: string): string]) =
   proc readValue*(r: var TomlReader, value: var T) {.
       raises: [Defect, IOError, SerializationError].} =
     value = r.parseEnum(T, normalizer)
