@@ -187,6 +187,53 @@ proc testOptionalField() =
       let u = Toml.decode(w, Vehicle)
       check u == v
 
+proc testEnums() =
+  suite "enum encoder":
+    test "OrdinalEnum":
+      type
+        EnumTest = enum
+          x0,
+          x1,
+          x2
+        Wrapper = object
+          v: EnumTest
+
+      check:
+        Toml.encode(Wrapper(v: x0)) == "v = 0\n"
+        Toml.encode(Wrapper(v: x1)) == "v = 1\n"
+        Toml.encode(Wrapper(v: x2)) == "v = 2\n"
+
+    test "HoleyEnum":
+      type
+        EnumTest = enum
+          y1 = 1,
+          y3 = 3,
+          y4,
+          y6 = 6
+        Wrapper = object
+          v: EnumTest
+
+      check:
+        Toml.encode(Wrapper(v: y1)) == "v = 1\n"
+        Toml.encode(Wrapper(v: y3)) == "v = 3\n"
+        Toml.encode(Wrapper(v: y4)) == "v = 4\n"
+        Toml.encode(Wrapper(v: y6)) == "v = 6\n"
+
+    test "StringEnum":
+      type
+        EnumTest = enum
+          z1 = "aaa",
+          z2 = "bbb",
+          z3 = "ccc"
+        Wrapper = object
+          v: EnumTest
+
+      check:
+        Toml.encode(Wrapper(v: z1)) == "v = \"aaa\"\n"
+        Toml.encode(Wrapper(v: z2)) == "v = \"bbb\"\n"
+        Toml.encode(Wrapper(v: z3)) == "v = \"ccc\"\n"
+
 main()
 testTableArray()
 testOptionalField()
+testEnums()
