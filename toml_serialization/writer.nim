@@ -7,7 +7,6 @@
 
 import
   typetraits, options, strutils, tables, unicode,
-  stew/enums,
   faststreams/[outputs, textio], serialization,
   types, private/utils
 
@@ -345,11 +344,7 @@ proc writeValue*(w: var TomlWriter, value: auto) =
     append if value: "true" else: "false"
 
   elif value is enum:
-    case typeof(value).enumStyle
-    of EnumStyle.Numeric:
-      w.stream.writeText ord(value)
-    of EnumStyle.AssociatedStrings:
-      w.writeValue $value
+    w.writeValue $value
 
   elif value is range:
     type TVAL = type value

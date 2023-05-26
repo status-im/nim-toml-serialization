@@ -93,7 +93,7 @@ proc scanInt[T](r: var TomlReader, value: var T) =
 
 proc parseStringEnum(
     r: var TomlReader, T: type enum, next: char,
-    normalizer: static[proc(s: string): string]): T =
+    stringNormalizer: static[proc(s: string): string]): T =
   eatChar
   var s: string
   case next
@@ -107,33 +107,38 @@ proc parseStringEnum(
     raiseIllegalChar(r.lex, next)
   try:
     result = genEnumCaseStmt(
-      T, s, default = nil, ord(T.low), ord(T.high), normalizer)
+      T, s,
+      default = nil, ord(T.low), ord(T.high), stringNormalizer)
   except ValueError as err:
     const typeName = typetraits.name(T)
     raiseUnexpectedValue(r.lex, typeName)
 
-proc parseEnum*(
-    r: var TomlReader, T: type enum,
-    normalizer: static[proc(s: string): string]): T =
-  var next = nonws(r.lex, skipLf)
-  const style = T.enumStyle
-  case style
-  of EnumStyle.Numeric:
-    if next in signedDigits:
-      var n: uint64
-      r.scanInt(n)
-      if not result.checkedEnumAssign(n):
-        const typeName = typetraits.name(T)
-        raiseUnexpectedValue(r.lex, typeName)
-    else:
-      result = r.parseStringEnum(T, next, normalizer)
-  of EnumStyle.AssociatedStrings:
-    result = r.parseStringEnum(T, next, normalizer)
+func strictNormalize(s: string): string =  # Match enum value exactly
+  s
 
-proc parseEnum*(r: var TomlReader, T: type enum): T =
-  func normalizer(s: string): string =  # Strict comparison with values
-    s
-  r.parseEnum(T, normalizer)
+proc parseEnum*(
+    r: var TomlReader, T: type enum, allowNumericRepr: static[bool] = false,
+    stringNormalizer: static[proc(s: string): string] = strictNormalize): T =
+  const style = T.enumStyle
+  var next = nonws(r.lex, skipLf)
+  case next
+  of '\"', '\'':
+    result = r.parseStringEnum(T, next, stringNormalizer)
+  of signedDigits:
+    when allowNumericRepr:
+      case style
+      of EnumStyle.Numeric:
+        var n: uint64
+        r.scanInt(n)
+        if not result.checkedEnumAssign(n):
+          const typeName = typetraits.name(T)
+          raiseUnexpectedValue(r.lex, typeName)
+      of EnumStyle.AssociatedStrings:
+        raiseIllegalChar(r.lex, next)
+    else:
+      raiseIllegalChar(r.lex, next)
+  else:
+    raiseIllegalChar(r.lex, next)
 
 proc parseValue*(r: var TomlReader): TomlValueRef =
   try:
@@ -595,8 +600,10 @@ proc parseFloat*(r: var TomlReader, value: var string): Sign =
   expectChars(signedDigits)
   scanFloat(r.lex, value)
 
-template deserializeWithNormalizerInToml*(
-    T: type[enum], normalizer: static[proc(s: string): string]) =
+template configureTomlDeserialization*(
+    T: type[enum], allowNumericRepr: static[bool] = false,
+    stringNormalizer: static[proc(s: string): string] = strictNormalize) =
   proc readValue*(r: var TomlReader, value: var T) {.
       raises: [Defect, IOError, SerializationError].} =
-    value = r.parseEnum(T, normalizer)
+    static: doAssert not allowNumericRepr or enumStyle(T) == EnumStyle.Numeric
+    value = r.parseEnum(T, allowNumericRepr, stringNormalizer)

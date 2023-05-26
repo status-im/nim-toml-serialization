@@ -55,27 +55,45 @@ type
     child: ChildObject
     son: GrandChild
 
+ConfigCap.configureTomlDeserialization(
+  allowNumericRepr = true)
+
 proc readValue(r: var TomlReader, table: var Table[string, int]) =
   parseTable(r, key):
     table[key] = r.parseInt(int)
 
-type
-  EnumTestN = enum
-    n1 = "aaa",
-    n2 = "bbb",
-    n3 = "ccc"
-  WrapperTestN = object
-    v: EnumTestN
-EnumTestN.deserializeWithNormalizerInToml(nimIdentNormalize)
+type EnumTestX = enum
+  x0,
+  x1,
+  x2
 
-type
-  EnumTestO = enum
-    o1,
-    o2,
-    o3
-  WrapperTestO = object
-    v: EnumTestO
-EnumTestO.deserializeWithNormalizerInToml(nimIdentNormalize)
+type EnumTestY = enum
+  y1 = 1,
+  y3 = 3,
+  y4,
+  y6 = 6
+EnumTestY.configureTomlDeserialization(
+  allowNumericRepr = true)
+
+type EnumTestZ = enum
+  z1 = "aaa",
+  z2 = "bbb",
+  z3 = "ccc"
+
+type EnumTestN = enum
+  n1 = "aaa",
+  n2 = "bbb",
+  n3 = "ccc"
+EnumTestN.configureTomlDeserialization(
+  stringNormalizer = nimIdentNormalize)
+
+type EnumTestO = enum
+  o1,
+  o2,
+  o3
+EnumTestO.configureTomlDeserialization(
+  allowNumericRepr = true,
+  stringNormalizer = nimIdentNormalize)
 
 suite "test decoder":
   let rawToml = readFile("tests" / "tomls" / "example.toml")
@@ -261,39 +279,19 @@ suite "test decoder":
     #check banana.bananaVal == "Hello Banana"
 
   test "enums":
-    type
-      EnumTestX = enum
-        x0,
-        x1,
-        x2
-      WrapperX = object
-        v: EnumTestX
-
-      EnumTestY = enum
-        y1 = 1,
-        y3 = 3,
-        y4,
-        y6 = 6
-      WrapperY = object
-        v: EnumTestY
-
-      EnumTestZ = enum
-        z1 = "aaa",
-        z2 = "bbb",
-        z3 = "ccc"
-      WrapperZ = object
-        v: EnumTestZ
-
     check:
-      Toml.decode("v = 0\n", EnumTestX, "v") == x0
-      Toml.decode("v = 1\n", EnumTestX, "v") == x1
-      Toml.decode("v = 2\n", EnumTestX, "v") == x2
       Toml.decode("v = \"x0\"\n", EnumTestX, "v") == x0
       Toml.decode("v = \"x1\"\n", EnumTestX, "v") == x1
       Toml.decode("v = \"x2\"\n", EnumTestX, "v") == x2
       Toml.decode("v = \'x0\'\n", EnumTestX, "v") == x0
       Toml.decode("v = \'x1\'\n", EnumTestX, "v") == x1
       Toml.decode("v = \'x2\'\n", EnumTestX, "v") == x2
+    expect TomlError:
+      discard Toml.decode("v = 0\n", EnumTestX, "v")
+    expect TomlError:
+      discard Toml.decode("v = 1\n", EnumTestX, "v")
+    expect TomlError:
+      discard Toml.decode("v = 2\n", EnumTestX, "v")
     expect TomlError:
       discard Toml.decode("v = 3\n", EnumTestX, "v")
     expect TomlError:
@@ -310,10 +308,6 @@ suite "test decoder":
       discard Toml.decode("v = \"0\"\n", EnumTestX, "v")
 
     check:
-      Toml.decode("v = 1\n", EnumTestY, "v") == y1
-      Toml.decode("v = 3\n", EnumTestY, "v") == y3
-      Toml.decode("v = 4\n", EnumTestY, "v") == y4
-      Toml.decode("v = 6\n", EnumTestY, "v") == y6
       Toml.decode("v = \"y1\"\n", EnumTestY, "v") == y1
       Toml.decode("v = \"y3\"\n", EnumTestY, "v") == y3
       Toml.decode("v = \"y4\"\n", EnumTestY, "v") == y4
@@ -322,6 +316,10 @@ suite "test decoder":
       Toml.decode("v = \'y3\'\n", EnumTestY, "v") == y3
       Toml.decode("v = \'y4\'\n", EnumTestY, "v") == y4
       Toml.decode("v = \'y6\'\n", EnumTestY, "v") == y6
+      Toml.decode("v = 1\n", EnumTestY, "v") == y1
+      Toml.decode("v = 3\n", EnumTestY, "v") == y3
+      Toml.decode("v = 4\n", EnumTestY, "v") == y4
+      Toml.decode("v = 6\n", EnumTestY, "v") == y6
     expect TomlError:
       discard Toml.decode("v = 0\n", EnumTestY, "v")
     expect TomlError:
@@ -403,15 +401,17 @@ suite "test decoder":
       discard Toml.decode("v = \"\ud83d\udc3c\"\n", EnumTestN, "v")
 
     check:
-      Toml.decode("v = 0\n", EnumTestO, "v") == o1
-      Toml.decode("v = 1\n", EnumTestO, "v") == o2
-      Toml.decode("v = 2\n", EnumTestO, "v") == o3
       Toml.decode("v = \"o1\"\n", EnumTestO, "v") == o1
       Toml.decode("v = \"o2\"\n", EnumTestO, "v") == o2
       Toml.decode("v = \"o3\"\n", EnumTestO, "v") == o3
       Toml.decode("v = \"o_1\"", EnumTestO, "v") == o1
       Toml.decode("v = \"o_2\"", EnumTestO, "v") == o2
       Toml.decode("v = \"o_3\"", EnumTestO, "v") == o3
+      Toml.decode("v = 0\n", EnumTestO, "v") == o1
+      Toml.decode("v = 1\n", EnumTestO, "v") == o2
+      Toml.decode("v = 2\n", EnumTestO, "v") == o3
+    expect TomlError:
+      discard Toml.decode("v = 3\n", EnumTestO, "v")
     expect TomlError:
       discard Toml.decode("v = \"O1\"\n", EnumTestO, "v")
     expect TomlError:

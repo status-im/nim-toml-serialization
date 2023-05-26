@@ -199,9 +199,9 @@ proc testEnums() =
           v: EnumTest
 
       check:
-        Toml.encode(Wrapper(v: x0)) == "v = 0\n"
-        Toml.encode(Wrapper(v: x1)) == "v = 1\n"
-        Toml.encode(Wrapper(v: x2)) == "v = 2\n"
+        Toml.encode(Wrapper(v: x0)) == "v = \"x0\"\n"
+        Toml.encode(Wrapper(v: x1)) == "v = \"x1\"\n"
+        Toml.encode(Wrapper(v: x2)) == "v = \"x2\"\n"
 
     test "HoleyEnum":
       type
@@ -214,10 +214,10 @@ proc testEnums() =
           v: EnumTest
 
       check:
-        Toml.encode(Wrapper(v: y1)) == "v = 1\n"
-        Toml.encode(Wrapper(v: y3)) == "v = 3\n"
-        Toml.encode(Wrapper(v: y4)) == "v = 4\n"
-        Toml.encode(Wrapper(v: y6)) == "v = 6\n"
+        Toml.encode(Wrapper(v: y1)) == "v = \"y1\"\n"
+        Toml.encode(Wrapper(v: y3)) == "v = \"y3\"\n"
+        Toml.encode(Wrapper(v: y4)) == "v = \"y4\"\n"
+        Toml.encode(Wrapper(v: y6)) == "v = \"y6\"\n"
 
     test "StringEnum":
       type
