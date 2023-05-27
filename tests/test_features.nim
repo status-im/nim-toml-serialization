@@ -62,7 +62,7 @@ type
   HoldTable = object
     data: Table[string, int]
 
-HoldEnum.configureTomlDeserialization(
+Features.configureTomlDeserialization(
   allowNumericRepr = true)
 
 proc readValue*(r: var TomlReader, value: var UInt256) =
