@@ -344,7 +344,7 @@ proc writeValue*(w: var TomlWriter, value: auto) =
     append if value: "true" else: "false"
 
   elif value is enum:
-    w.stream.writeText ord(value)
+    w.writeValue $value
 
   elif value is range:
     type TVAL = type value

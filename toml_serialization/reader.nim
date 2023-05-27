@@ -6,7 +6,8 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  tables, strutils, typetraits, options,
+  std/[enumutils, tables, strutils, typetraits, options],
+  stew/[enums, objects],
   faststreams/inputs, serialization/[object_serialization, errors],
   types, lexer, private/[utils, array_reader]
 
@@ -55,16 +56,6 @@ proc moveToKey*(r: var TomlReader, key: string, tomlCase: TomlCase) =
   if key.len > 0:
     r.state = r.lex.parseToml(key, tomlCase)
 
-proc setParsed[T: enum](e: var T, s: string) =
-  e = parseEnum[T](s)
-
-proc stringEnum[T: enum](r: var TomlReader, value: var T, s: string) =
-  try:
-    value.setParsed(s)
-  except ValueError:
-    const typeName = typetraits.name(T)
-    raiseUnexpectedValue(r.lex, typeName)
-
 const
   signedDigits = strutils.Digits + {'+', '-'}
 
@@ -100,24 +91,54 @@ proc scanInt[T](r: var TomlReader, value: var T) =
   else:
     value = T(x)
 
-proc parseEnum*(r: var TomlReader, T: type enum): T =
-  var next = nonws(r.lex, skipLf)
+proc parseStringEnum(
+    r: var TomlReader, T: type enum, next: char,
+    stringNormalizer: static[proc(s: string): string]): T =
+  eatChar
+  var s: string
   case next
   of '\"':
-    eatChar
-    var enumStr: string
-    if scanString(r.lex, enumStr, StringType.Basic):
+    if scanString(r.lex, s, StringType.Basic):
       raiseTomlErr(r.lex, errMLStringEnum)
-    r.stringEnum(result, enumStr)
   of '\'':
-    eatChar
-    var enumStr: string
-    if scanString(r.lex, enumStr, StringType.Literal):
+    if scanString(r.lex, s, StringType.Literal):
       raiseTomlErr(r.lex, errMLStringEnum)
-    r.stringEnum(result, enumStr)
+  else:
+    raiseIllegalChar(r.lex, next)
+  try:
+    result = genEnumCaseStmt(
+      T, s,
+      default = nil, ord(T.low), ord(T.high), stringNormalizer)
+  except ValueError as err:
+    const typeName = typetraits.name(T)
+    raiseUnexpectedValue(r.lex, typeName)
+
+func strictNormalize(s: string): string =  # Match enum value exactly
+  s
+
+proc parseEnum*(
+    r: var TomlReader, T: type enum, allowNumericRepr: static[bool] = false,
+    stringNormalizer: static[proc(s: string): string] = strictNormalize): T =
+  const style = T.enumStyle
+  var next = nonws(r.lex, skipLf)
+  case next
+  of '\"', '\'':
+    result = r.parseStringEnum(T, next, stringNormalizer)
   of signedDigits:
-    r.scanInt(result)
-  else: raiseIllegalChar(r.lex, next)
+    when allowNumericRepr:
+      case style
+      of EnumStyle.Numeric:
+        var n: uint64
+        r.scanInt(n)
+        if not result.checkedEnumAssign(n):
+          const typeName = typetraits.name(T)
+          raiseUnexpectedValue(r.lex, typeName)
+      of EnumStyle.AssociatedStrings:
+        raiseIllegalChar(r.lex, next)
+    else:
+      raiseIllegalChar(r.lex, next)
+  else:
+    raiseIllegalChar(r.lex, next)
 
 proc parseValue*(r: var TomlReader): TomlValueRef =
   try:
@@ -578,3 +599,11 @@ proc parseAsString*(r: var TomlReader): string =
 proc parseFloat*(r: var TomlReader, value: var string): Sign =
   expectChars(signedDigits)
   scanFloat(r.lex, value)
+
+template configureTomlDeserialization*(
+    T: type[enum], allowNumericRepr: static[bool] = false,
+    stringNormalizer: static[proc(s: string): string] = strictNormalize) =
+  proc readValue*(r: var TomlReader, value: var T) {.
+      raises: [Defect, IOError, SerializationError].} =
+    static: doAssert not allowNumericRepr or enumStyle(T) == EnumStyle.Numeric
+    value = r.parseEnum(T, allowNumericRepr, stringNormalizer)

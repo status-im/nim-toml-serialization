@@ -6,7 +6,7 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  std/[os, options, tables],
+  std/[os, options, strutils, tables],
   unittest2,
   ../toml_serialization,
   ../toml_serialization/[lexer, value_ops]
@@ -55,9 +55,45 @@ type
     child: ChildObject
     son: GrandChild
 
+ConfigCap.configureTomlDeserialization(
+  allowNumericRepr = true)
+
 proc readValue(r: var TomlReader, table: var Table[string, int]) =
   parseTable(r, key):
     table[key] = r.parseInt(int)
+
+type EnumTestX = enum
+  x0,
+  x1,
+  x2
+
+type EnumTestY = enum
+  y1 = 1,
+  y3 = 3,
+  y4,
+  y6 = 6
+EnumTestY.configureTomlDeserialization(
+  allowNumericRepr = true)
+
+type EnumTestZ = enum
+  z1 = "aaa",
+  z2 = "bbb",
+  z3 = "ccc"
+
+type EnumTestN = enum
+  n1 = "aaa",
+  n2 = "bbb",
+  n3 = "ccc"
+EnumTestN.configureTomlDeserialization(
+  stringNormalizer = nimIdentNormalize)
+
+type EnumTestO = enum
+  o1,
+  o2,
+  o3
+EnumTestO.configureTomlDeserialization(
+  allowNumericRepr = true,
+  stringNormalizer = nimIdentNormalize)
 
 suite "test decoder":
   let rawToml = readFile("tests" / "tomls" / "example.toml")
@@ -241,6 +277,153 @@ suite "test decoder":
     # TODO: this still fails
     #let banana = Toml.decode(toml, CaseObject, "banana")
     #check banana.bananaVal == "Hello Banana"
+
+  test "enums":
+    check:
+      Toml.decode("v = \"x0\"\n", EnumTestX, "v") == x0
+      Toml.decode("v = \"x1\"\n", EnumTestX, "v") == x1
+      Toml.decode("v = \"x2\"\n", EnumTestX, "v") == x2
+      Toml.decode("v = \'x0\'\n", EnumTestX, "v") == x0
+      Toml.decode("v = \'x1\'\n", EnumTestX, "v") == x1
+      Toml.decode("v = \'x2\'\n", EnumTestX, "v") == x2
+    expect TomlError:
+      discard Toml.decode("v = 0\n", EnumTestX, "v")
+    expect TomlError:
+      discard Toml.decode("v = 1\n", EnumTestX, "v")
+    expect TomlError:
+      discard Toml.decode("v = 2\n", EnumTestX, "v")
+    expect TomlError:
+      discard Toml.decode("v = 3\n", EnumTestX, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"X0\"\n", EnumTestX, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"X1\"\n", EnumTestX, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"X2\"\n", EnumTestX, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"x_0\"\n", EnumTestX, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"\"\n", EnumTestX, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"0\"\n", EnumTestX, "v")
+
+    check:
+      Toml.decode("v = \"y1\"\n", EnumTestY, "v") == y1
+      Toml.decode("v = \"y3\"\n", EnumTestY, "v") == y3
+      Toml.decode("v = \"y4\"\n", EnumTestY, "v") == y4
+      Toml.decode("v = \"y6\"\n", EnumTestY, "v") == y6
+      Toml.decode("v = \'y1\'\n", EnumTestY, "v") == y1
+      Toml.decode("v = \'y3\'\n", EnumTestY, "v") == y3
+      Toml.decode("v = \'y4\'\n", EnumTestY, "v") == y4
+      Toml.decode("v = \'y6\'\n", EnumTestY, "v") == y6
+      Toml.decode("v = 1\n", EnumTestY, "v") == y1
+      Toml.decode("v = 3\n", EnumTestY, "v") == y3
+      Toml.decode("v = 4\n", EnumTestY, "v") == y4
+      Toml.decode("v = 6\n", EnumTestY, "v") == y6
+    expect TomlError:
+      discard Toml.decode("v = 0\n", EnumTestY, "v")
+    expect TomlError:
+      discard Toml.decode("v = 2\n", EnumTestY, "v")
+    expect TomlError:
+      discard Toml.decode("v = 5\n", EnumTestY, "v")
+    expect TomlError:
+      discard Toml.decode("v = 7\n", EnumTestY, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"Y1\"\n", EnumTestY, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"Y3\"\n", EnumTestY, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"Y4\"\n", EnumTestY, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"Y6\"\n", EnumTestY, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"y_1\"\n", EnumTestY, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"\"\n", EnumTestY, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"1\"\n", EnumTestY, "v")
+
+    check:
+      Toml.decode("v = \"aaa\"\n", EnumTestZ, "v") == z1
+      Toml.decode("v = \"bbb\"\n", EnumTestZ, "v") == z2
+      Toml.decode("v = \"ccc\"\n", EnumTestZ, "v") == z3
+      Toml.decode("v = \'aaa\'\n", EnumTestZ, "v") == z1
+      Toml.decode("v = \'bbb\'\n", EnumTestZ, "v") == z2
+      Toml.decode("v = \'ccc\'\n", EnumTestZ, "v") == z3
+    expect TomlError:
+      discard Toml.decode("v = 0\n", EnumTestZ, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"AAA\"\n", EnumTestZ, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"BBB\"\n", EnumTestZ, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"CCC\"\n", EnumTestZ, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"z1\"\n", EnumTestZ, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"a_a_a\"\n", EnumTestZ, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"\"\n", EnumTestZ, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"\ud83d\udc3c\"\n", EnumTestZ, "v")
+
+    check:
+      Toml.decode("v = \"aaa\"\n", EnumTestN, "v") == n1
+      Toml.decode("v = \"bbb\"\n", EnumTestN, "v") == n2
+      Toml.decode("v = \"ccc\"\n", EnumTestN, "v") == n3
+      Toml.decode("v = \"aAA\"", EnumTestN, "v") == n1
+      Toml.decode("v = \"bBB\"", EnumTestN, "v") == n2
+      Toml.decode("v = \"cCC\"", EnumTestN, "v") == n3
+      Toml.decode("v = \"a_a_a\"", EnumTestN, "v") == n1
+      Toml.decode("v = \"b_b_b\"", EnumTestN, "v") == n2
+      Toml.decode("v = \"c_c_c\"", EnumTestN, "v") == n3
+    expect TomlError:
+      discard Toml.decode("v = 0\n", EnumTestN, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"AAA\"\n", EnumTestN, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"BBB\"\n", EnumTestN, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"CCC\"\n", EnumTestN, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"Aaa\"\n", EnumTestN, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"Bbb\"\n", EnumTestN, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"Ccc\"\n", EnumTestN, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"n1\"\n", EnumTestN, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"_aaa\"\n", EnumTestN, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"\"\n", EnumTestN, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"\ud83d\udc3c\"\n", EnumTestN, "v")
+
+    check:
+      Toml.decode("v = \"o1\"\n", EnumTestO, "v") == o1
+      Toml.decode("v = \"o2\"\n", EnumTestO, "v") == o2
+      Toml.decode("v = \"o3\"\n", EnumTestO, "v") == o3
+      Toml.decode("v = \"o_1\"", EnumTestO, "v") == o1
+      Toml.decode("v = \"o_2\"", EnumTestO, "v") == o2
+      Toml.decode("v = \"o_3\"", EnumTestO, "v") == o3
+      Toml.decode("v = 0\n", EnumTestO, "v") == o1
+      Toml.decode("v = 1\n", EnumTestO, "v") == o2
+      Toml.decode("v = 2\n", EnumTestO, "v") == o3
+    expect TomlError:
+      discard Toml.decode("v = 3\n", EnumTestO, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"O1\"\n", EnumTestO, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"O2\"\n", EnumTestO, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"O3\"\n", EnumTestO, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"_o1\"\n", EnumTestO, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"\"\n", EnumTestO, "v")
+    expect TomlError:
+      discard Toml.decode("v = \"\ud83d\udc3c\"\n", EnumTestO, "v")
 
 suite "table array test suite":
   type
