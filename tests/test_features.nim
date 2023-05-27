@@ -62,9 +62,6 @@ type
   HoldTable = object
     data: Table[string, int]
 
-Features.configureTomlDeserialization(
-  allowNumericRepr = true)
-
 proc readValue*(r: var TomlReader, value: var UInt256) =
   var z: string
   let (sign, base) = r.parseNumber(z)
@@ -94,7 +91,7 @@ proc readValue*(r: var TomlReader, value: var HoldInt) =
   value.data = r.parseInt(type value.data)
 
 proc readValue*(r: var TomlReader, value: var HoldEnum) =
-  value.data = r.parseEnum(type value.data)
+  value.data = r.parseEnum(type value.data, allowNumericRepr = true)
 
 proc readValue*(r: var TomlReader, value: var HoldValue) =
   value.data = r.parseValue()
@@ -130,7 +127,7 @@ proc readValue*(r: var TomlReader, value: var HoldSeq) =
 
 proc readValue*(r: var TomlReader, value: var Welder) =
   r.parseList:
-    value.flags.incl r.parseEnum(WelderFlag)
+    value.flags.incl r.parseEnum(WelderFlag, allowNumericRepr = true)
 
 suite "features test suite":
   let rawToml = readFile("tests" / "tomls" / "example.toml")
@@ -343,6 +340,9 @@ type
     fruit1: Fruits
     fruit2: Fruits
     fruit3: Fruits
+
+proc readValue*(r: var TomlReader, value: var Fruits) =
+  value = r.parseEnum(type value, allowNumericRepr = true)
 
 proc writeValue*(w: var TomlWriter, val: Fruits) =
   w.writeValue $val
