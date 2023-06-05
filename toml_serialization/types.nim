@@ -196,7 +196,7 @@ func `==`*(a, b: TomlValueRef): bool =
     result = a.tableVal == b.tableVal
 
 method formatMsg*(err: ref TomlError, filename: string): string
-                 {.gcsafe, raises: [Defect].} =
+                 {.gcsafe, raises: [].} =
   filename & err.msg
 
 proc `$`*(p: TomlDateTime): string =

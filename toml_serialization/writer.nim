@@ -373,7 +373,7 @@ proc writeValue*(w: var TomlWriter, value: auto) =
     value.enumInstanceSerializedFields(fieldName, field):
       type FieldType = type field
 
-      template regularFieldWriter() =
+      template regularFieldWriter() {.used.} =
         inc w.level
         w.writeFieldIMPL(FieldTag[RecordType, fieldName], field, value)
         dec w.level

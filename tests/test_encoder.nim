@@ -90,7 +90,9 @@ proc main() =
 
   suite "encoder test suite":
     test "basic data types":
+      {.warning[UnsafeDefault]:off.}
       runTest(x)
+      {.warning[UnsafeDefault]:on.}
 
     test "nested object":
       var y = NestedObject(child: ChildObject(name: "Toml"))

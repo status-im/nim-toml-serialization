@@ -89,11 +89,11 @@ template tryFmt(expr: untyped): string =
   except CatchableError as err: err.msg
 
 method formatMsg*(err: ref TomlReaderError, filename: string): string
-                 {.gcsafe, raises: [Defect].} =
+                 {.gcsafe, raises: [].} =
   tryFmt: fmt"{filename}({err.line}, {err.col}) Error while reading TOML file: {err.msg}"
 
 method formatMsg*(err: ref TomlFieldReadingError, filename: string): string
-                 {.gcsafe, raises: [Defect].} =
+                 {.gcsafe, raises: [].} =
   err.error.formatMsg(filename)
 
 proc newTomlError*(line, col: int, msg: string): ref TomlError =
@@ -1528,7 +1528,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
       raiseIllegalChar(lex, next)
     break
 
-proc parseValue*[T](lex: var TomlLexer, value: var T) {.gcsafe, raises: [Defect, IOError, TomlError].}
+proc parseValue*[T](lex: var TomlLexer, value: var T) {.gcsafe, raises: [IOError, TomlError].}
 
 proc parseArray[T](lex: var TomlLexer, value: var T) =
   when T isnot (seq[TomlValueRef] or string or TomlVoid):

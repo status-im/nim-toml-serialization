@@ -109,7 +109,7 @@ proc parseStringEnum(
     result = genEnumCaseStmt(
       T, s,
       default = nil, ord(T.low), ord(T.high), stringNormalizer)
-  except ValueError as err:
+  except ValueError:
     const typeName = typetraits.name(T)
     raiseUnexpectedValue(r.lex, typeName)
 
@@ -119,13 +119,13 @@ func strictNormalize(s: string): string =  # Match enum value exactly
 proc parseEnum*(
     r: var TomlReader, T: type enum, allowNumericRepr: static[bool] = false,
     stringNormalizer: static[proc(s: string): string] = strictNormalize): T =
-  const style = T.enumStyle
   var next = nonws(r.lex, skipLf)
   case next
   of '\"', '\'':
     result = r.parseStringEnum(T, next, stringNormalizer)
   of signedDigits:
     when allowNumericRepr:
+      const style = T.enumStyle
       case style
       of EnumStyle.Numeric:
         var n: uint64
@@ -255,7 +255,7 @@ proc skipTableBody(r: var TomlReader) =
     parseValue(r.lex, skipValue)
 
 proc readValue*[T](r: var TomlReader, value: var T, numRead: int)
-                  {.gcsafe, raises: [SerializationError, IOError, ValueError, Defect].} =
+                  {.gcsafe, raises: [SerializationError, IOError].} =
   mixin readValue
 
   when T is seq:
@@ -435,7 +435,7 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
 template getUnderlyingType*[T](_: Option[T]): untyped = T
 
 proc readValue*[T](r: var TomlReader, value: var T)
-                  {.gcsafe, raises: [SerializationError, IOError, Defect].} =
+                  {.gcsafe, raises: [SerializationError, IOError].} =
   mixin readValue
 
   when value is Option:
@@ -505,7 +505,7 @@ proc readValue*[T](r: var TomlReader, value: var T)
     {.error: "Failed to convert from TOML an unsupported type: " & typeName.}
 
 proc readTableArray*(r: var TomlReader, T: type, key: string, tomlCase: TomlCase): T
-                        {.raises: [SerializationError, IOError, ValueError, Defect].} =
+                        {.raises: [SerializationError, IOError].} =
   mixin readValue
 
   ## move cursor to key position
@@ -604,6 +604,6 @@ template configureTomlDeserialization*(
     T: type[enum], allowNumericRepr: static[bool] = false,
     stringNormalizer: static[proc(s: string): string] = strictNormalize) =
   proc readValue*(r: var TomlReader, value: var T) {.
-      raises: [Defect, IOError, SerializationError].} =
+      raises: [IOError, SerializationError].} =
     static: doAssert not allowNumericRepr or enumStyle(T) == EnumStyle.Numeric
     value = r.parseEnum(T, allowNumericRepr, stringNormalizer)
