@@ -197,17 +197,20 @@ Parsing bignum is achieved via helper function `parseNumber`.
 import stint, toml_serialization
 
 proc readValue*(r: var TomlReader, value: var Uint256) =
-  var z: string
-  let (sign, base) = r.parseNumber(z)
+  try:
+    var z: string
+    let (sign, base) = r.parseNumber(z)
 
-  if sign == Sign.Neg:
-    raiseTomlErr(r.lex, errNegateUint)
+    if sign == Sign.Neg:
+      raiseTomlErr(r.lex, errNegateUint)
 
-  case base
-  of base10: value = parse(z, Uint256, 10)
-  of base16: value = parse(z, Uint256, 16)
-  of base8:  value = parse(z, Uint256, 8)
-  of base2:  value = parse(z, Uint256, 2)
+    case base
+    of base10: value = parse(z, Uint256, 10)
+    of base16: value = parse(z, Uint256, 16)
+    of base8:  value = parse(z, Uint256, 8)
+    of base2:  value = parse(z, Uint256, 2)
+  except ValueError as ex:
+    raiseUnexpectedValue(r.lex, ex.msg)
 
 var z = Toml.decode("bignum = 1234567890_1234567890", Uint256, "bignum")
 assert $z == "12345678901234567890"
