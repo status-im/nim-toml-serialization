@@ -1,5 +1,5 @@
 # toml-serialization
-# Copyright (c) 2020 Status Research & Development GmbH
+# Copyright (c) 2020-2023 Status Research & Development GmbH
 # Licensed and distributed under either of
 #   * MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
@@ -7,8 +7,7 @@
 
 import
   tables, typetraits, strutils,
-  types, private/utils,
-  stew/shims/stddefects
+  types, private/utils
 
 proc innerValue(n: TomlValueRef, T: type): T =
   when T is (SomeInteger or SomeFloat):
