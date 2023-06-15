@@ -1,5 +1,5 @@
 # toml-serialization
-# Copyright (c) 2020 Status Research & Development GmbH
+# Copyright (c) 2020-2023 Status Research & Development GmbH
 # Licensed and distributed under either of
 #   * MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
@@ -147,12 +147,6 @@ func `==`*(a, b: TomlTableRef): bool =
   result = true
   if a.len != b.len:
     return false
-
-  when tomlOrderedTable and (NimMajor,NimMinor,NimPatch) < (1,6,0):
-    # https://github.com/nim-lang/Nim/issues/15750
-    # workaround for Nim 1.2.0 and 1.4.0 or less
-    if a.len == 0 and b.len == 0:
-      return true
 
   result = a[] == b[]
 
