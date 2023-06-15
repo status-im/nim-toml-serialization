@@ -63,17 +63,20 @@ type
     data: Table[string, int]
 
 proc readValue*(r: var TomlReader, value: var UInt256) =
-  var z: string
-  let (sign, base) = r.parseNumber(z)
+  try:
+    var z: string
+    let (sign, base) = r.parseNumber(z)
 
-  if sign == Sign.Neg:
-    raiseTomlErr(r.lex, errNegateUint)
+    if sign == Sign.Neg:
+      raiseTomlErr(r.lex, errNegateUint)
 
-  case base
-  of base10: value = parse(z, UInt256, 10)
-  of base16: value = parse(z, UInt256, 16)
-  of base8:  value = parse(z, UInt256, 8)
-  of base2:  value = parse(z, UInt256, 2)
+    case base
+    of base10: value = parse(z, UInt256, 10)
+    of base16: value = parse(z, UInt256, 16)
+    of base8:  value = parse(z, UInt256, 8)
+    of base2:  value = parse(z, UInt256, 2)
+  except ValueError as ex:
+    raiseUnexpectedValue(r.lex, ex.msg)
 
 proc readValue*(r: var TomlReader, value: var HoldDateTime) =
   value.dt = r.parseDateTime()

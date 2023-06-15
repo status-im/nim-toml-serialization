@@ -15,7 +15,7 @@ type
     numRead: int,
     fieldName: string,
     reader: proc (rec: var RecordType, reader: var Reader, idx: int)
-                 {.gcsafe, nimcall, raises: [SerializationError, Defect].}
+                 {.gcsafe, nimcall, raises: [SerializationError].}
   ]
 
   ArrayReadersTable*[RecordType, Reader] = openArray[ArrayReader[RecordType, Reader]]
@@ -39,7 +39,7 @@ proc makeArrayReadersTable(RecordType, Reader: distinct type, L: static[int]):
   enumAllSerializedFields(RecordType):
     when isArrayLike(FieldType):
       proc readArrayFieldImpl(obj: var RecordType, reader: var Reader, idx: int)
-                             {.gcsafe, nimcall, raises: [SerializationError, Defect].} =
+                             {.gcsafe, nimcall, raises: [SerializationError].} =
         mixin readValue
 
         when RecordType is tuple:
