@@ -6,7 +6,7 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  std/[os, options, strutils, tables],
+  std/[os, options, strutils, tables, typetraits],
   unittest2,
   ../toml_serialization,
   ../toml_serialization/[lexer, value_ops]
@@ -98,6 +98,58 @@ EnumTestO.configureTomlDeserialization(
   stringNormalizer = nimIdentNormalize)
 
 {.warning[HoleEnumConv]:on.}
+
+type CaseObject = object
+  case kind: Fruits
+  of Apple: appleVal: int
+  of Banana: bananaVal: string
+
+proc readValue(
+    r: var TomlReader, value: var CaseObject)
+    {.raises: [IOError, SerializationError].} =
+  var
+    kindSpecified = false
+    paramsSpecified = false
+
+  parseTable(r, key):
+    case key
+    of "kind":
+      value = CaseObject(kind: r.readValue(Fruits))
+      kindSpecified = true
+
+    of "appleVal":
+      if kindSpecified:
+        case value.kind
+        of Apple:
+          r.readValue(value.appleVal)
+        else:
+          r.lex.raiseTomlErr(
+            "The '" & key & "' field is not allowed for '" & $value.kind & "'")
+      else:
+        r.lex.raiseTomlErr(
+          "The '" & key & "' field must be specified after the 'kind' field")
+      paramsSpecified = true
+
+    of "bananaVal":
+      if kindSpecified:
+        case value.kind
+        of Banana:
+          r.readValue(value.bananaVal)
+        else:
+          r.lex.raiseTomlErr(
+            "The 'bananaVal' field is not allowed for '" & $value.kind & "'")
+      else:
+        r.lex.raiseTomlErr(
+          "The '" & key & "' field must be specified after the 'kind' field")
+      paramsSpecified = true
+
+    else:
+      r.lex.raiseUnexpectedField(key, typeof(value).name)
+
+  if not (kindSpecified and paramsSpecified):
+    r.lex.raiseTomlErr(
+      "The CaseObject value should have sub-fields named " &
+      "'kind', and 'appleVal' or 'bananaVal' depending on 'kind'")
 
 suite "test decoder":
   let rawToml = readFile("tests" / "tomls" / "example.toml")
@@ -259,12 +311,6 @@ suite "test decoder":
     check r.s == "ok"
 
   test "case object":
-    type
-      CaseObject = object
-        case kind: Fruits
-        of Apple: appleVal: int
-        of Banana: bananaVal: string
-
     let toml = """
     [apple]
       kind = "apple"
@@ -278,9 +324,8 @@ suite "test decoder":
     let apple = Toml.decode(toml, CaseObject, "apple")
     check apple.appleVal == 123
 
-    # TODO: this still fails
-    #let banana = Toml.decode(toml, CaseObject, "banana")
-    #check banana.bananaVal == "Hello Banana"
+    let banana = Toml.decode(toml, CaseObject, "banana")
+    check banana.bananaVal == "Hello Banana"
 
   test "enums":
     check:
