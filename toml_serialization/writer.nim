@@ -66,7 +66,7 @@ proc writeIterable*(w: var TomlWriter, collection: auto) =
 template writeArray*[T](w: var TomlWriter, elements: openArray[T]) =
   writeIterable(w, elements)
 
-proc writeValue*(w: var TomlWriter, time: TomlTime) =
+proc writeValue*(w: var TomlWriter, time: TomlTime) {.raises: [IOError].} =
   append(time.hour, 2)
   append ':'
   append(time.minute, 2)
@@ -80,14 +80,14 @@ proc writeValue*(w: var TomlWriter, time: TomlTime) =
     append '.'
     w.stream.writeText time.subsecond
 
-proc writeValue*(w: var TomlWriter, date: TomlDate) =
+proc writeValue*(w: var TomlWriter, date: TomlDate) {.raises: [IOError].} =
   append(date.year, 4)
   append '-'
   append(date.month, 2)
   append '-'
   append(date.day, 2)
 
-proc writeValue*(w: var TomlWriter, x: TomlDateTime) =
+proc writeValue*(w: var TomlWriter, x: TomlDateTime) {.raises: [IOError].} =
   if x.date.isSome:
     let date = x.date.get()
     writeValue(w, date)
@@ -114,7 +114,7 @@ proc writeValue*(w: var TomlWriter, x: TomlDateTime) =
     append ':'
     append(zone.minuteShift, 2)
 
-proc writeValue*(w: var TomlWriter, s: string) =
+proc writeValue*(w: var TomlWriter, s: string) {.raises: [IOError].} =
   const
     lowEscape = {'\0'..'\31'} - {'\b', '\n', '\t', '\f', '\r'}
     highEscape = {'\127'..'\255'}
@@ -325,7 +325,7 @@ template writeArrayOfTable*[T](w: var TomlWriter, fieldName: string, list: openA
     dec w.level
   w.state = prevState
 
-proc writeValue*(w: var TomlWriter, value: auto) =
+proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
   mixin enumInstanceSerializedFields, writeValue, writeFieldIMPL
 
   when value is TomlValueRef:

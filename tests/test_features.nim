@@ -347,7 +347,7 @@ type
 proc readValue*(r: var TomlReader, value: var Fruits) =
   value = r.parseEnum(type value, allowNumericRepr = true)
 
-proc writeValue*(w: var TomlWriter, val: Fruits) =
+proc writeValue*(w: var TomlWriter, val: Fruits) {.raises: [IOError].} =
   w.writeValue $val
 
 suite "enums examples":
