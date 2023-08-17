@@ -182,7 +182,7 @@ proc writeToml(w: var TomlWriter,
                value: TomlValueRef,
                keyList: var seq[string],
                emptyTable: var seq[string],
-               noKey: bool = false)
+               noKey: bool = false) {.raises: [IOError].}
 
 proc writeInlineTable(w: var TomlWriter,
                       value: TomlValueRef,
@@ -220,7 +220,7 @@ proc writeToml(w: var TomlWriter, value:
                TomlValueRef,
                keyList: var seq[string],
                emptyTable: var seq[string],
-               noKey: bool = false) =
+               noKey: bool = false) {.raises: [IOError].} =
   case value.kind
   of TomlKind.Int:
     writeKeyValue:
