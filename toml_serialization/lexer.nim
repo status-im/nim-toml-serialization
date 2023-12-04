@@ -647,7 +647,6 @@ proc scanInt*[T](lex: var TomlLexer, value: var T): (Sign, NumberBase) =
       continue
     else:
       raiseIllegalChar(lex, next)
-    break
 
   result = (sign, base10)
 
@@ -940,7 +939,6 @@ proc scanFloat*[T](lex: var TomlLexer, value: var T): Sign =
       break
     else:
       raiseIllegalChar(lex, next)
-    break
 
   when T is SomeFloat:
     var intPart = 0'u64
@@ -1488,7 +1486,6 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
           when T is TomlValueRef:
             value = toIntVal(lex, curSum, sign)
           return
-        break
 
     of '+':
       advance
