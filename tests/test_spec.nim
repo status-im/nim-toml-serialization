@@ -6,13 +6,14 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  unittest2, os, options, tables,
+  std/[os, options, tables],
+  unittest2,
   ../toml_serialization
 
 template validInputTest(inputFolder: string) =
   suite inputFolder & " valid":
     var failed = 0
-    for fileName in walkDirRec("tests" / "tomls" / inputFolder / "valid"):
+    for fileName in walkDirRec("tests/tomls/" & inputFolder & "/valid"):
       test fileName:
         try:
           discard Toml.loadFile(fileName, TomlValueRef)
@@ -27,7 +28,7 @@ template validInputTest(inputFolder: string) =
 template invalidInputTest(inputFolder: string) =
   suite inputFolder & " invalid":
     var failed = 0
-    for fileName in walkDirRec("tests" / "tomls" / inputFolder / "invalid"):
+    for fileName in walkDirRec("tests/tomls/" & inputFolder & "/invalid"):
       test fileName:
         try:
           discard Toml.loadFile(fileName, TomlValueRef)
@@ -38,18 +39,18 @@ template invalidInputTest(inputFolder: string) =
     if failed > 0:
       debugEcho "failed: ", failed
 
-template roundTrip(fileName: string, params: varargs[untyped]): untyped =
+proc roundTrip(fileName: string, flags: set[TomlFlag] = {}): bool =
   let
-    toml = Toml.loadFile(fileName, TomlValueRef, params)
-    tomlBytes = Toml.encode(toml, params)
-    tomlVal = Toml.decode(tomlBytes, TomlValueRef, params)
+    toml = Toml.loadFile(fileName, TomlValueRef, flags)
+    tomlBytes = Toml.encode(toml, flags)
+    tomlVal = Toml.decode(tomlBytes, TomlValueRef, flags)
 
   toml == tomlVal
 
 template roundTripTest(inputFolder: string) =
   suite inputFolder & " valid roundtrip":
     var failed = 0
-    for fileName in walkDirRec("tests" / "tomls" / inputFolder / "valid"):
+    for fileName in walkDirRec("tests/tomls/" & inputFolder & "/valid"):
       test fileName:
         try:
           check roundTrip(fileName)
@@ -76,19 +77,19 @@ when not tomlOrderedTable:
 
   suite "toml-serialization test suite":
     test "case.toml":
-      check roundTrip("tests" / "tomls" / "case.toml")
+      check roundTrip("tests/tomls/case.toml")
 
     test "example.toml":
-      check roundTrip("tests" / "tomls" / "example.toml")
+      check roundTrip("tests/tomls/example.toml")
 
     test "nested_object.toml":
-      check roundTrip("tests" / "tomls" / "nested_object.toml")
+      check roundTrip("tests/tomls/nested_object.toml")
 
     when not (defined(macosx) and defined(cpp)):
       # TODO: duplicate empty key exception raised when
       # macosx and cpp defined
       test "spec.toml":
-        check roundTrip("tests" / "tomls" / "spec.toml")
+        check roundTrip("tests/tomls/spec.toml")
 
     test "inline-table-newline.toml":
-      check roundTrip("tests" / "tomls" / "inline-table-newline.toml", flags = {TomlInlineTableNewline})
+      check roundTrip("tests/tomls/inline-table-newline.toml", flags = {TomlInlineTableNewline})
