@@ -135,7 +135,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: NimBinaries
-          key: '${{ matrix.test_lang }}-${{ matrix.target.os }}-${{ matrix.target.cpu }}-${{ steps.versions.outputs.nimbus_build_system }}'
+          key: '${{ matrix.test_lang }}-${{ matrix.target.os }}-${{ matrix.target.cpu }}-${{ steps.versions.outputs.nimbus_build_system }}-${{ matrix.branch }}'
 
       - name: Build Nim and associated tools
         shell: bash
@@ -160,6 +160,7 @@ jobs:
         shell: bash
         working-directory: nim-toml-serialization
         run: |
+          nim -v
           nimble install -y --depsOnly
           nimble install -y stint
           nimble install -y unittest2
