@@ -14,22 +14,22 @@ nim-toml-serialization is a member of [nim-serialization](https://github.com/sta
 family and provides several operation modes:
 
   - Decode into Nim data types without any intermediate steps using only a **subset** of TOML.
-    - Unlike typical lexer based parser, nim-toml-serialization is very efficient because
-      the parser convert text directly into Nim data types and using no intermediate `token`.
+    - Unlike typical lexer-based parser, nim-toml-serialization is very efficient because
+      the parser converts text directly into Nim data types and uses no intermediate `token`.
   - Decode into Nim data types mixed with `TomlValueRef` to parse any valid TOML value.
     - Using `TomlValueRef` can offer more flexibility but also require more memory.
-      If you can avoid using dotted key, there is no reason to use `TomlValueRef`.
+      If you can avoid using a dotted key, there is no reason to use `TomlValueRef`.
   - Decode into `TomlValueRef` from any valid TOML.
   - Encode Nim data types into a **subset** of TOML.
   - Encode `TomlValueRef` into full spec TOML.
   - Both encoder and decoder support `keyed` mode.
-  - Allow skipping unknown fields using `TomlUnknownFields` flag.
-    - Skipping unknown fields also done efficiently, no token produced.
-      But skipped fields should contains valid TOML value or the parser will raise exception.
+  - Allow skipping unknown fields using the `TomlUnknownFields` flag.
+    - Skipping unknown fields is also done efficiently, with no token produced.
+      But skipped fields should contain valid TOML values or the parser will raise an exception.
   - Since v0.2.1 you can choose to use `OrderedTable` instead of `Table` when parsing into `TomlValueRef`
     using `-d:tomlOrderedTable` compile time switch.
-  - Since v0.2.3, compile time decode/loadFile are allowed. It means you can initialize const value using
-    `decode` or `loadFile`. It also ok to use it inside static block or other nim VM code.
+  - Since v0.2.3, compile time decode/loadFile is allowed. It means you can initialize a const value using
+    `decode` or `loadFile`. It is also ok to use it inside a static block or other nim VM code.
 
 ## Spec compliance
 nim-toml-serialization implements [v1.0.0](https://github.com/toml-lang/toml/releases/tag/1.0.0)
@@ -38,31 +38,31 @@ TOML spec and pass these test suites:
   - [iarna toml test suite](https://github.com/iarna/toml-spec-tests)
   - [burntsushi toml test suite](https://github.com/BurntSushi/toml-test)
 
-## Non standard features
+## Nonstandard features
 - TOML key comparison according to the spec is case sensitive and this is the default mode
-  for both encoder/decoder. But nim-toml-serialization also support:
+  for both encoder/decoder. But nim-toml-serialization also supports:
 
   - Case insensitive key comparison.
   - Nim ident sensitivity key comparison mode (only the first char is case sensitive).
 
-  TOML key supports Unicode chars but the comparison mentioned above only applied to ASCII chars.
+  TOML key supports Unicode chars but the comparison mentioned above only applies to ASCII chars.
 
-- TOML inline table disallow newline inside the table.
-  nim-toml-serialization provide a switch to enable newline in inline table via `TomlInlineTableNewline`.
+- TOML inline table disallows newline inside the table.
+  nim-toml-serialization provides a switch to enable newline in an inline table via `TomlInlineTableNewline`.
 
 - TOML standard does not support xHH escape sequence, only uHHHH or UHHHHHHHH.
-  Use `TomlHexEscape` to enable this feature, otherwise it will raise exception.
+  Use `TomlHexEscape` to enable this feature otherwise it will raise an exception.
 
 - TOML standard requires time in HH:MM:SS format, `TomlHourMinute` flags will allow HH:MM format.
 
 ## Keyed mode
-When decoding, only object, tuple or `TomlValueRef` allowed at top level.
-All others Nim basic datatypes such as floats, ints, array, boolean must
+When decoding, only objects, tuples or `TomlValueRef` are allowed at top level.
+All other Nim basic datatypes such as floats, ints, arrays, and booleans must
 be a value of a key.
 
 nim-toml-serialization offers `keyed` mode decoding to overcome this limitation.
 The parser can skip any non-matching key-value pair efficiently because
-the parser produce no token but at the same time can validate the syntax correctly.
+the parser produces no token but at the same time can validate the syntax correctly.
 
 ```toml
 [server]
@@ -84,7 +84,7 @@ where `caseSensitivity` is one of:
   - TomlCaseInsensitive
   - TomlCaseNim
 
-Key must be valid Toml basic-key, quoted-key, or dotted-key.
+The key must be a valid Toml basic key, quoted key, or dotted key.
 
 Gotcha:
 
@@ -92,12 +92,12 @@ Gotcha:
 server = { ip = "127.0.0.1", port = 8005, name = "TOML Server" }
 ```
 
-It maybe tempting to use keyed mode for above example like this:
+It may be tempting to use keyed mode for the above example like this:
 ```nim
 var x = Toml.decode(rawToml, string, "server.name")
 ```
-But it won't work because the grammar of TOML make it very difficult
-to `exit` from inline-table-parser in a clean way.
+But it won't work because the grammar of TOML makes it very difficult
+to `exit` from the inline table parser in a clean way.
 
 ## Decoder
 ```nim
@@ -129,7 +129,7 @@ to `exit` from inline-table-parser in a clean way.
 
 ## Parse inline table with newline
 ```toml
-# this is a non standard toml
+# This is a nonstandard toml
 
 server = {
   ip = "127.0.0.1",
@@ -165,34 +165,34 @@ server = {
   You can parse TOML time using `string`, `TomlTime`, `TomlDateTime`, or `TomlValueRef`.
 
 - Heterogenous array.
-  When parsing heterogenous array, use `string` or `TomlValueRef`.
+  When parsing a heterogenous array, use `string` or `TomlValueRef`.
 
 - Floats.
   Floats should be implemented as IEEE 754 binary64 values.
-  Standard TOML float are float64.
+  The standard TOML float is float64.
   When parsing floats, use `string` or `TomlValueRef` or `SomeFloat`.
 
 - Integers.
-  TOML integer is an 64 bit (signed long) range expected (−9,223,372,036,854,775,808 to 9,223,372,036,854,775,807).
+  TOML integer is a 64-bit (signed long) range expected (−9,223,372,036,854,775,808 to 9,223,372,036,854,775,807).
   When parsing integers, use `string` or `SomeInteger`, or `TomlValueRef`.
 
 - Array of tables.
-  Array of tables can be parsed via `TomlValueRef` or parsed as a field of object.
+  An array of tables can be parsed via `TomlValueRef` or parsed as a field of object.
   Parsing with keyed mode also works.
 
 - Dotted key.
-  When parse into nim object, key must not a dotted key.
-  Dotted key is supported via `keyed` decoding or `TomlValueRef`.
+  When parsing into a nim object, the key must not be dotted.
+  The dotted key is supported via `keyed` decoding or `TomlValueRef`.
 
 ## Option[T]
   Option[T] works as usual.
 
 ## Bignum
 TOML integer maxed at int64. But nim-toml-serialization can extend this to arbitrary precision bignum.
-Parsing bignum is achieved via helper function `parseNumber`.
+Parsing bignum is achieved via the helper function `parseNumber`.
 
 ```Nim
-# this is an example how to parse bignum with `parseNumber` and `stint`.
+# This is an example of how to parse bignum with `parseNumber` and `stint`.
 
 import stint, toml_serialization
 
@@ -217,15 +217,14 @@ assert $z == "12345678901234567890"
 ```
 
 ## Table
-Decoding a table can be achieved via `parseTable` template.
+Decoding a table can be achieved via the `parseTable` template.
 To parse the value, you can use one of the helper functions or use `readValue`.
 
-Table can be used to parse top level value, regular table, and inline table
-in a manner similar to object.
+The table can be used to parse the top-level value, regular table, and inline table like an object.
 
-No builtin `readValue` for table provided, you must overload it yourself depends on your need.
+No built-in `readValue` for the table provided, you must overload it yourself depending on your need.
 
-`Table` can be stdlib table, ordered table, table ref, or any table like data types.
+`Table` can be stdlib table, ordered table, table ref, or any table-like data type.
 
 ```Nim
 proc readValue*(r: var TomlReader, table: var Table[string, int]) =
@@ -234,11 +233,11 @@ proc readValue*(r: var TomlReader, table: var Table[string, int]) =
 ```
 
 ## Sets and list-like
-Similar to `Table`, sets and list or array like data structure can be parsed using
-`parseList` template. It come with two flavors, indexed and non indexed.
+Similar to `Table`, sets and list or array-like data structure can be parsed using
+`parseList` template. It comes in two flavors, indexed and non-indexed.
 
-Builtin `readValue` for regular `seq` and `array` are implemented for you.
-No builtin `readValue` for `set` or `set-like` provided, you must overload it yourself depends on your need.
+Built-in `readValue` for regular `seq` and `array` is implemented for you.
+No built-in `readValue` for `set` or `set-like` is provided, you must overload it yourself depending on your need.
 
 ```nim
 type
@@ -275,15 +274,15 @@ proc readValue*(r: var TomlReader, value: var Welder) =
 ```
 
 ## Enums
-There is no enums in TOML specification. The reader/decoder is able to parse both
-`ordinal` or `string` representation of an enum. While on the other hand, the
-writer/encoder only have `ordinal` builtin writer. But that is not a limitation,
+There are no enums in TOML specification. The reader/decoder can parse both
+the `ordinal` or `string` representation of an enum. While on the other hand,
+the writer/encoder only has an `ordinal` built-in writer. But that is not a limitation,
 you can always overload the `writeValue` to produce whatever representation of
-enum you need.
+the enum you need.
 
-`Ordinal` representation of an enum is TOML integer, and `string` representation
-is TOML `basic string` or `literal string`. Both multi-line basic string(e.g. """TOML""") or
-multi-line literal string(e.g. '''TOML''') are not allowed for enum value.
+The `ordinal` representation of an enum is TOML integer. The `string` representation
+is TOML `basic string` or `literal string`. Both multi-line basic strings(e.g. """TOML""") and
+multi-line literal strings(e.g. '''TOML''') are not allowed for enum value.
 
 ```toml
 # fruits.toml
@@ -309,7 +308,7 @@ assert x.fruit1 == Apple
 assert x.fruit2 == Banana
 assert x.fruit3 == Orange
 
-# write enum output as string
+# write enum output as a string
 proc writeValue*(w: var TomlWriter, val: Fruits) =
   w.writeValue $val
 
@@ -330,12 +329,12 @@ assert res == "fruit1 = \"Apple\"\nfruit2 = \"Banana\"\nfruit3 = \"Orange\"\n"
   - `parseEnum(r: var TomlReader, T: type enum): T`
   - `parseInt(r: var TomlReader, T: type SomeInteger): T`
 
-`parseAsString` can parse any valid TOML value into Nim string including mixed array or inline table.
+`parseAsString` can parse any valid TOML value into a Nim string including a mixed array or inline table.
 
-`parseString` return a tuple:
+`parseString` returns a tuple:
   - field 0:
     - false: is a single line string.
-    - true: is a multi line string.
+    - true: is a multi-line string.
   - field 1:
     - false: is a basic string.
     - true: is a literal string.
@@ -346,7 +345,7 @@ assert res == "fruit1 = \"Apple\"\nfruit2 = \"Banana\"\nfruit3 = \"Orange\"\n"
   - `Sign.Neg`
 
 ## Implementation specifics
-TomlTime contains subsecond field. The spec says the precision is implementation specific.
+TomlTime contains a subsecond field. The spec says the precision is implementation-specific.
 
 In nim-toml-serialization the default is 6 digits precision.
 Longer precision will be truncated by the parser.
@@ -355,12 +354,12 @@ You can override this using compiler switch `-d:tomlSubsecondPrecision=numDigits
 
 ## Installation
 
-You can install the developement version of the library through nimble with the following command
+You can install the development version of the library through Nimble with the following command
 ```
 nimble install https://github.com/status-im/nim-toml-serialization@#master
 ```
 
-or install latest release version
+or install the latest release version
 ```
 nimble install toml_serialization
 ```
@@ -379,4 +378,4 @@ at your option. This file may not be copied, modified, or distributed except acc
 
 ## Credits
 
-A portion of toml decoder was taken from PMunch's [`parsetoml`](https://github.com/NimParsers/parsetoml)
+A portion of the toml decoder was taken from PMunch's [`parsetoml`](https://github.com/NimParsers/parsetoml)
