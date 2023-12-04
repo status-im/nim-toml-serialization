@@ -31,6 +31,11 @@ family and provides several operation modes:
   - Since v0.2.3, compile time decode/loadFile is allowed. It means you can initialize a const value using
     `decode` or `loadFile`. It is also ok to use it inside a static block or other nim VM code.
 
+> **Note**<br>
+On Windows, you might need to increase the stack size as nim-toml-serialization uses the stack to pass the object around.
+Example: add `--passL:"-Wl,--stack,8388608"` to your command line when running the compiler.
+But you only need to do this if the object you serializing can produce deep recursion.
+
 ## Spec compliance
 nim-toml-serialization implements [v1.0.0](https://github.com/toml-lang/toml/releases/tag/1.0.0)
 TOML spec and pass these test suites:
