@@ -9,6 +9,26 @@
 
 Flexible TOML serialization [not] relying on run-time type information.
 
+# Table of Contents
+- [Overview](#overview)
+  - [Spec compliance](#spec-compliance)
+  - [Nonstandard features](#nonstandard-features)
+  - [Keyed mode](#keyed-mode)
+- [Decoder](#decoder)
+  - [Parse inline table with newline](#parse-inline-table-with-newline)
+  - [Load and save](#load-and-save)
+  - [TOML we can\['t\] do](#toml-we-cant-do)
+  - [Option[T]](#optiont)
+  - [Bignum](#bignum)
+  - [Table](#table)
+  - [Sets and list-like](#sets-and-list-like)
+  - [Enums](#enums)
+  - [Helper functions](#helper-functions)
+- [Implementation specifics](#implementation-specifics)
+- [Installation](#installation)
+- [License](#license)
+- [Credits](#credits)
+
 ## Overview
 nim-toml-serialization is a member of [nim-serialization](https://github.com/status-im/nim-serialization)
 family and provides several operation modes:
