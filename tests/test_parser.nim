@@ -250,3 +250,19 @@ suite "test misc parser":
   test "bugfix 6":
     var x = TomlValueRef(kind: TomlKind.Float, floatVal: 0.0)
     testNumOrDate("+0e0", x)
+
+  test "parseArray no comma":
+    expect TomlError:
+      testParseValue("[true false]", "[truefalse]")
+
+  test "parseArray double comma":
+    expect TomlError:
+      testParseValue("[true , , false]", "[truefalse]")
+
+  test "parseInlineTable no comma":
+    expect TomlError:
+      testParseValue("{a = 1 b = 2}", "{a=1")
+
+  test "parseInlineTable double comma":
+    expect TomlError:
+      testParseValue("{a = 1, , b = 2}", "{a=1,")

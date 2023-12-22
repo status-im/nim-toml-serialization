@@ -54,6 +54,8 @@ type
     errKeyNotFound        = "key not found: "
     errInvalidHex         = "invalid hex escape, "
     errExpectDoubleBracket= "expect table array for given key"
+    errValueExpected      = "json value expected, got comma"
+    errCommaExpected      = "',' expected"
 
 const
   CR   = '\r'
@@ -1534,7 +1536,10 @@ proc parseArray[T](lex: var TomlLexer, value: var T) =
   ## This procedure assumes that "lex" has already consumed the '['
   ## character
 
-  var numElem = 0
+  var
+    numElem = 0
+    prevComma = false
+
   while true:
     var next = lex.nonws(skipLf)
     case next
@@ -1546,6 +1551,11 @@ proc parseArray[T](lex: var TomlLexer, value: var T) =
     of EOF:
       raiseTomlErr(lex, errUnterminatedArray)
     of ',':
+      if prevComma:
+        raiseTomlErr(lex, errValueExpected)
+
+      prevComma = true
+
       advance
       if numElem == 0:
         # This happens with "[, 1, 2]", for instance
@@ -1563,6 +1573,11 @@ proc parseArray[T](lex: var TomlLexer, value: var T) =
         when T is string:
           value.add ','
     else:
+      if numElem >= 1 and not prevComma:
+        raiseTomlErr(lex, errCommaExpected)
+
+      prevComma = false
+
       when T is (string or TomlVoid):
         parseValue(lex, value)
       else:
@@ -1578,7 +1593,10 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
   ## This procedure assumes that "lex" has already consumed the '{'
   ## character
 
-  var firstComma = true
+  var
+    prevComma = false
+    numElem = 0
+
   while true:
     var next = lex.nonws(skipNoLf)
     case next
@@ -1590,10 +1608,14 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
     of EOF:
       raiseTomlErr(lex, errUnterminatedTable)
     of ',':
-      advance
-      if firstComma:
+      if prevComma:
+        raiseTomlErr(lex, errValueExpected)
+
+      if numElem == 0:
         raiseTomlErr(lex, errMissingFirstElement)
 
+      prevComma = true
+      advance
       next = lex.nonws(skipNoLf)
       if next == '}':
         if TomlInlineTableTrailingComma in lex.flags:
@@ -1613,7 +1635,11 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
       else:
         raiseIllegalChar(lex, next)
     else:
-      firstComma = false
+      if numElem >= 1 and not prevComma:
+        raiseTomlErr(lex, errCommaExpected)
+
+      prevComma = false
+      inc numElem
       when T is (string or TomlVoid):
         scanKey(lex, value)
       else:

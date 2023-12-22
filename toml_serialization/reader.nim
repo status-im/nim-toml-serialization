@@ -152,7 +152,9 @@ proc parseValue*(r: var TomlReader): TomlValueRef =
 
 template parseInlineTable(r: var TomlReader, key: untyped, body: untyped) =
   let prevState = r.state
-  var firstComma = true
+  var
+    prevComma = false
+    numElem = 0
   expectChar('{')
 
   while true:
@@ -164,10 +166,14 @@ template parseInlineTable(r: var TomlReader, key: untyped, body: untyped) =
     of EOF:
       raiseTomlErr(r.lex, errUnterminatedTable)
     of ',':
-      eatChar
-      if firstComma:
+      if prevComma:
+        raiseTomlErr(r.lex, errValueExpected)
+
+      if numElem == 0:
         raiseTomlErr(r.lex, errMissingFirstElement)
 
+      prevComma = true
+      eatChar
       next = nonws(r.lex, skipNoLf)
       if next == '}':
         if TomlInlineTableTrailingComma in r.lex.flags:
@@ -182,13 +188,18 @@ template parseInlineTable(r: var TomlReader, key: untyped, body: untyped) =
       else:
         raiseIllegalChar(r.lex, next)
     else:
+      if numElem >= 1 and not prevComma:
+        raiseTomlErr(r.lex, errCommaExpected)
+
+      prevComma = false
+      inc numElem
+
       key.setLen(0)
       scanKey(r.lex, key)
       expectChar('=')
       r.state = ExpectValue
       body
       r.state = prevState
-      firstComma = false
 
 template parseRecord(r: var TomlReader, key: untyped, body: untyped) =
   let prevState = r.state
@@ -215,6 +226,7 @@ template parseTable*(r: var TomlReader, key: untyped, body: untyped) =
     parseRecord(r, `key`, body)
 
 template parseListImpl*(r: var TomlReader, index, body: untyped) =
+  var prevComma = false
   expectChar('[')
   while true:
     var next = nonws(r.lex, skipLf)
@@ -225,6 +237,11 @@ template parseListImpl*(r: var TomlReader, index, body: untyped) =
     of EOF:
       raiseTomlErr(r.lex, errUnterminatedArray)
     of ',':
+      if prevComma:
+        raiseTomlErr(r.lex, errValueExpected)
+
+      prevComma = true
+
       eatChar
       if index == 0:
         # This happens with "[, 1, 2]", for instance
@@ -237,6 +254,11 @@ template parseListImpl*(r: var TomlReader, index, body: untyped) =
         eatChar
         break
     else:
+      if index >= 1 and not prevComma:
+        raiseTomlErr(r.lex, errCommaExpected)
+
+      prevComma = false
+
       body
       inc index
 
@@ -378,7 +400,8 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
     var
       expectedFieldPos = 0
       fieldName = newStringOfCap(defaultStringCapacity)
-      firstComma = true
+      prevComma = false
+      numElem = 0
       next: char
 
     expectChar('{', skipNoLf)
@@ -393,10 +416,14 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
       of EOF:
         raiseTomlErr(r.lex, errUnterminatedTable)
       of ',':
-        eatChar
-        if firstComma:
+        if prevComma:
+          raiseTomlErr(r.lex, errValueExpected)
+
+        if numElem == 0:
           raiseTomlErr(r.lex, errMissingFirstElement)
 
+        prevComma = true
+        eatChar
         next = nonws(r.lex, skipNoLf)
         if next == '}':
           if TomlInlineTableTrailingComma in r.lex.flags:
@@ -411,7 +438,11 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
         else:
           raiseIllegalChar(r.lex, next)
       else:
-        firstComma = false
+        if numElem >= 1 and not prevComma:
+          raiseTomlErr(r.lex, errCommaExpected)
+
+        prevComma = false
+        inc numElem
         scanKey(r.lex, fieldName)
         expectChar('=', skipNoLf)
 
