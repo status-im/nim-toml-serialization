@@ -80,6 +80,10 @@ TOML spec and pass these test suites:
 
 - TOML standard requires time in HH:MM:SS format, `TomlHourMinute` flags will allow HH:MM format.
 
+- TOML standard requires array elements be separated by a comma. Whitespaces are ignored.
+  But due to a bug, the array/inline table elements can be separated by both comma and whitespace.
+  Set `TomlStrictComma` flag on to parse in strict mode, by default the strict mode is off.
+
 ## Keyed mode
 When decoding, only objects, tuples or `TomlValueRef` are allowed at top level.
 All other Nim basic datatypes such as floats, ints, arrays, and booleans must

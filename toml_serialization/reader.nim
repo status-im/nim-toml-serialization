@@ -166,7 +166,7 @@ template parseInlineTable(r: var TomlReader, key: untyped, body: untyped) =
     of EOF:
       raiseTomlErr(r.lex, errUnterminatedTable)
     of ',':
-      if prevComma:
+      if TomlStrictComma in r.lex.flags and prevComma:
         raiseTomlErr(r.lex, errValueExpected)
 
       if numElem == 0:
@@ -188,7 +188,7 @@ template parseInlineTable(r: var TomlReader, key: untyped, body: untyped) =
       else:
         raiseIllegalChar(r.lex, next)
     else:
-      if numElem >= 1 and not prevComma:
+      if TomlStrictComma in r.lex.flags and numElem >= 1 and not prevComma:
         raiseTomlErr(r.lex, errCommaExpected)
 
       prevComma = false
@@ -237,7 +237,7 @@ template parseListImpl*(r: var TomlReader, index, body: untyped) =
     of EOF:
       raiseTomlErr(r.lex, errUnterminatedArray)
     of ',':
-      if prevComma:
+      if TomlStrictComma in r.lex.flags and prevComma:
         raiseTomlErr(r.lex, errValueExpected)
 
       prevComma = true
@@ -254,7 +254,7 @@ template parseListImpl*(r: var TomlReader, index, body: untyped) =
         eatChar
         break
     else:
-      if index >= 1 and not prevComma:
+      if TomlStrictComma in r.lex.flags and index >= 1 and not prevComma:
         raiseTomlErr(r.lex, errCommaExpected)
 
       prevComma = false
@@ -416,7 +416,7 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
       of EOF:
         raiseTomlErr(r.lex, errUnterminatedTable)
       of ',':
-        if prevComma:
+        if TomlStrictComma in r.lex.flags and prevComma:
           raiseTomlErr(r.lex, errValueExpected)
 
         if numElem == 0:
@@ -438,7 +438,7 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
         else:
           raiseIllegalChar(r.lex, next)
       else:
-        if numElem >= 1 and not prevComma:
+        if TomlStrictComma in r.lex.flags and numElem >= 1 and not prevComma:
           raiseTomlErr(r.lex, errCommaExpected)
 
         prevComma = false

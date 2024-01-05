@@ -26,6 +26,14 @@ template testParseValue(input: string, expectedOutput: untyped) =
   check:
     value == expectedOutput
 
+template testParseValue(input: string, expectedOutput: untyped, flags: untyped) =
+  var stream = unsafeMemoryInput(input)
+  var lex = init(TomlLexer, stream, flags)
+  var value: type expectedOutput
+  lex.parseValue(value)
+  check:
+    value == expectedOutput
+
 suite "test num or date parse to string":
   test "parseNumOrDate string":
     testNumOrDate("0xABCD", "ABCD")
@@ -253,16 +261,22 @@ suite "test misc parser":
 
   test "parseArray no comma":
     expect TomlError:
-      testParseValue("[true false]", "[truefalse]")
+      testParseValue("[true false]", "[truefalse]", {TomlStrictComma})
 
   test "parseArray double comma":
     expect TomlError:
-      testParseValue("[true , , false]", "[truefalse]")
+      testParseValue("[true , , false]", "[truefalse]", {TomlStrictComma})
 
   test "parseInlineTable no comma":
     expect TomlError:
-      testParseValue("{a = 1 b = 2}", "{a=1")
+      testParseValue("{a = 1 b = 2}", "{a=1", {TomlStrictComma})
 
   test "parseInlineTable double comma":
     expect TomlError:
-      testParseValue("{a = 1, , b = 2}", "{a=1,")
+      testParseValue("{a = 1, , b = 2}", "{a=1,", {TomlStrictComma})
+
+  test "TomlStrictComma turned off":
+    testParseValue("[true false]", "[truefalse]")
+    testParseValue("[true , , false]", "[true,,false]")
+    testParseValue("{a = 1 b = 2}", "{a=1b=2}")
+    testParseValue("{a = 1, , b = 2}", "{a=1,,b=2}")

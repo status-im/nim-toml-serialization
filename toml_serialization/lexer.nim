@@ -1551,7 +1551,7 @@ proc parseArray[T](lex: var TomlLexer, value: var T) =
     of EOF:
       raiseTomlErr(lex, errUnterminatedArray)
     of ',':
-      if prevComma:
+      if TomlStrictComma in lex.flags and prevComma:
         raiseTomlErr(lex, errValueExpected)
 
       prevComma = true
@@ -1573,7 +1573,7 @@ proc parseArray[T](lex: var TomlLexer, value: var T) =
         when T is string:
           value.add ','
     else:
-      if numElem >= 1 and not prevComma:
+      if TomlStrictComma in lex.flags and numElem >= 1 and not prevComma:
         raiseTomlErr(lex, errCommaExpected)
 
       prevComma = false
@@ -1608,7 +1608,7 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
     of EOF:
       raiseTomlErr(lex, errUnterminatedTable)
     of ',':
-      if prevComma:
+      if TomlStrictComma in lex.flags and prevComma:
         raiseTomlErr(lex, errValueExpected)
 
       if numElem == 0:
@@ -1635,7 +1635,7 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
       else:
         raiseIllegalChar(lex, next)
     else:
-      if numElem >= 1 and not prevComma:
+      if TomlStrictComma in lex.flags and numElem >= 1 and not prevComma:
         raiseTomlErr(lex, errCommaExpected)
 
       prevComma = false

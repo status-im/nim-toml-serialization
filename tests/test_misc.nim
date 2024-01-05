@@ -84,32 +84,61 @@ suite "test misc":
     # if it can echo without crash, then it's ok
     check true
 
+  # guarded array comma bug
   test "parseList doubleComma":
     expect TomlError:
-      let t = Toml.decode(arrayDoubleComma, Bools, "bools")
+      let t = Toml.decode(arrayDoubleComma, Bools, "bools", flags = {TomlStrictComma})
       discard t
 
   test "parseList no comma":
     expect TomlError:
-      let t = Toml.decode(arrayNoComma, Bools, "bools")
+      let t = Toml.decode(arrayNoComma, Bools, "bools", flags = {TomlStrictComma})
       discard t
 
   test "parseTable doubleComma":
     expect TomlError:
-      let t = Toml.decode(mapDoubleComma, Maps, "maps")
+      let t = Toml.decode(mapDoubleComma, Maps, "maps", flags = {TomlStrictComma})
       discard t
 
   test "parseTable noComma":
     expect TomlError:
-      let t = Toml.decode(mapNoComma, Maps, "maps")
+      let t = Toml.decode(mapNoComma, Maps, "maps", flags = {TomlStrictComma})
       discard t
 
   test "parseRecord doubleComma":
     expect TomlError:
-      let t = Toml.decode(mapDoubleComma, MapAb)
+      let t = Toml.decode(mapDoubleComma, MapAb, flags = {TomlStrictComma})
       discard t
 
   test "parseRecord noComma":
     expect TomlError:
-      let t = Toml.decode(mapNoComma, MapAb)
+      let t = Toml.decode(mapNoComma, MapAb, flags = {TomlStrictComma})
       discard t
+
+  # exploiting unguarded array comma bug
+  test "TomlStrictComma turned off":
+    let t1 = Toml.decode(arrayDoubleComma, Bools, "bools")
+    check t1 == @[1, 0]
+
+    let t2 = Toml.decode(arrayNoComma, Bools, "bools")
+    check t2 == @[1, 0]
+
+    let t3 = Toml.decode(mapDoubleComma, Maps, "maps")
+    check t3.data[0].id == "a"
+    check t3.data[0].txt == "1"
+    check t3.data[1].id == "b"
+    check t3.data[1].txt == "1"
+
+    let t4 = Toml.decode(mapNoComma, Maps, "maps")
+    check t4.data[0].id == "a"
+    check t4.data[0].txt == "1"
+    check t4.data[1].id == "b"
+    check t4.data[1].txt == "1"
+
+    let t5 = Toml.decode(mapDoubleComma, MapAb)
+    check t5.maps.a == 1
+    check t5.maps.b == 1
+
+    let t6 = Toml.decode(mapNoComma, MapAb)
+    check t6.maps.a == 1
+    check t6.maps.b == 1
