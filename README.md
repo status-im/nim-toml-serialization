@@ -342,6 +342,14 @@ let res = Toml.encode(z)
 assert res == "fruit1 = \"Apple\"\nfruit2 = \"Banana\"\nfruit3 = \"Orange\"\n"
 ```
 
+You can control the reader behavior when deserializing specific enum using `configureTomlDeserialization`.
+
+``Nim
+configureTomlDeserialization(
+    T: type[enum], allowNumericRepr: static[bool] = false,
+    stringNormalizer: static[proc(s: string): string] = strictNormalize)
+```
+
 ## Helper functions
   - `parseNumber(r: var TomlReader, value: var string): (Sign, NumberBase)`
   - `parseDateTime(r: var TomlReader): TomlDateTime`
