@@ -178,15 +178,15 @@ proc next*(lex: var TomlLexer): char =
   elif result != CR:
     inc(lex.col)
 
-template peek(): char =
+template peek(lex: var TomlLexer): char =
   if not lex.readable(): EOF else: lex.peekChar()
 
-template advance() =
+template advance(lex: var TomlLexer) =
   discard lex.next
 
-template advancePeek(): untyped =
-  advance()
-  peek()
+template advancePeek(lex: var TomlLexer): untyped =
+  advance(lex)
+  peek(lex)
 
 type
   LfSkipMode* = enum
@@ -204,12 +204,12 @@ proc nonws*(lex: var TomlLexer, skip: static[LfSkipMode]): char =
                         {SPC, TAB, CR}
   var next: char
   while true:
-    next = peek
+    next = peek(lex)
     if next == '#':
       # Skip the comment up to the newline, but do not jump over it
       while next != LF:
         if next == CR:
-          next = advancePeek
+          next = advancePeek(lex)
           if next != LF:
             raiseIllegalChar(lex, next)
           else:
@@ -217,14 +217,14 @@ proc nonws*(lex: var TomlLexer, skip: static[LfSkipMode]): char =
         elif next in invalidCommentChar:
           raiseIllegalChar(lex, next)
 
-        next = advancePeek
+        next = advancePeek(lex)
 
         if not lex.readable:
           # rase case
           break
 
     if next notin whitespaces: break
-    advance
+    advance(lex)
 
   result = next
 
@@ -281,11 +281,11 @@ proc scanUint[T](lex: var TomlLexer, value: var T, base: NumberBase,
 
   while true:
     wasUnderscore = next == '_'
-    next = peek
+    next = peek(lex)
     if next == '_':
       if firstPos or wasUnderscore:
         raiseTomlErr(lex, errUnderscoreDigit)
-      advance
+      advance(lex)
       continue
 
     if next notin digits:
@@ -293,12 +293,12 @@ proc scanUint[T](lex: var TomlLexer, value: var T, base: NumberBase,
         raiseTomlErr(lex, errUnderscoreDigit)
       break
 
-    advance
+    advance(lex)
 
     if leading == Leading.DenyZero:
       if next == '0' and firstPos:
         # TOML specifications forbid this
-        let secondChar = peek
+        let secondChar = peek(lex)
         if secondChar in Digits:
           raiseTomlErr(lex, errForbidLeadingZero)
 
@@ -335,13 +335,13 @@ proc scanDigits*[T](lex: var TomlLexer, value: var T,
   let digits  = baseToDigits(base)
 
   while true:
-    next = peek
+    next = peek(lex)
 
     if next notin digits:
       return
 
     inc result
-    advance
+    advance(lex)
 
     when T is string:
       value.add next
@@ -355,10 +355,10 @@ proc scanDigits*[T](lex: var TomlLexer, value: var T,
     if result == maxDigits:
       # consume the rest of digits
       while true:
-        next = peek
+        next = peek(lex)
         if next notin digits:
           break
-        advance
+        advance(lex)
       return
 
 proc scanEncoding[T](lex: var TomlLexer, value: var T): NumberBase =
@@ -460,32 +460,32 @@ proc scanMultiLineString[T](lex: var TomlLexer, res: var T, kind: static[StringT
     next: char
 
   while true:
-    next = peek
+    next = peek(lex)
 
     # Skip the first newline, if it comes immediately after the
     # quotation marks
     if isFirstChar and (next == CR):
       isFirstChar = false
-      next = advancePeek
+      next = advancePeek(lex)
       if next == LF:
-        advance
+        advance(lex)
       continue
 
     if isFirstChar and (next == LF):
       isFirstChar = false
-      advance
+      advance(lex)
       continue
 
     if next == delimiter:
       # Are we done?
-      next = advancePeek
+      next = advancePeek(lex)
       if next == delimiter:
-        next = advancePeek
+        next = advancePeek(lex)
         if next == delimiter:
-          next = advancePeek
+          next = advancePeek(lex)
           # Done with this string
           if next == delimiter:
-            advance
+            advance(lex)
             when T is string:
               res.add delimiter
           return
@@ -505,7 +505,7 @@ proc scanMultiLineString[T](lex: var TomlLexer, res: var T, kind: static[StringT
     when kind == StringType.Basic:
       if next == '\\':
         # This can either be an escape sequence or a end-of-line char
-        next = advancePeek
+        next = advancePeek(lex)
         if next in {LF, CR, SPC}:
           # We're at the end of a line: skip everything till the
           # next non-whitespace character
@@ -518,10 +518,10 @@ proc scanMultiLineString[T](lex: var TomlLexer, res: var T, kind: static[StringT
               raiseIllegalChar(lex, next)
 
           while true:
-            next = peek
+            next = peek(lex)
             if next notin {CR, LF, SPC, TAB}:
               break
-            advance
+            advance(lex)
 
           continue
         else:
@@ -537,7 +537,7 @@ proc scanMultiLineString[T](lex: var TomlLexer, res: var T, kind: static[StringT
 
     when T is string:
       res.add(next)
-    advance
+    advance(lex)
 
 proc scanSingleLineString[T](lex: var TomlLexer, res: var T, kind: static[StringType]) =
   when T isnot (string or TomlVoid):
@@ -580,14 +580,14 @@ proc scanString*[T](lex: var TomlLexer, res: var T, kind: static[StringType]): b
   ## returns true if multi line string
 
   const delimiter = stringDelimiter(kind)
-  var next = peek
+  var next = peek(lex)
   if next == delimiter:
-    next = advancePeek
+    next = advancePeek(lex)
 
     # We have two possibilities here:
     if next == delimiter:
       # (1) "long" multi-line strings.
-      advance
+      advance(lex)
       scanMultiLineString(lex, res, kind)
       return true
 
@@ -613,10 +613,10 @@ proc scanInt*[T](lex: var TomlLexer, value: var T): (Sign, NumberBase) =
     (sign, base10)
 
   while true:
-    next = peek
+    next = peek(lex)
     case next:
     of '0':
-      next = advancePeek
+      next = advancePeek(lex)
       if sign == Sign.None:
         if next in {'b', 'x', 'o'}:
           return (Sign.None, scanEncoding(lex, value))
@@ -640,11 +640,11 @@ proc scanInt*[T](lex: var TomlLexer, value: var T): (Sign, NumberBase) =
       scanUint(lex, value, base10, Leading.DenyZero)
       break
     of '+':
-      advance
+      advance(lex)
       sign = Sign.Pos
       continue
     of '-':
-      advance
+      advance(lex)
       sign = Sign.Neg
       continue
     else:
@@ -660,13 +660,13 @@ proc scanName*[T](lex: var TomlLexer, res: var T) =
 
   var next = lex.nonws(skipNoLf)
   if next == '\"':
-    advance
+    advance(lex)
     if lex.scanString(res, StringType.Basic):
       raiseTomlErr(lex, errMLStringName)
     return
 
   elif next == '\'':
-    advance
+    advance(lex)
     if lex.scanString(res, StringType.Literal):
       raiseTomlErr(lex, errMLStringName)
     return
@@ -680,7 +680,7 @@ proc scanName*[T](lex: var TomlLexer, res: var T) =
     else:
       when T is string:
         res.add(next)
-    next = advancePeek
+    next = advancePeek(lex)
 
 proc scanKey*[T](lex: var TomlLexer, res: var T) =
   when T isnot (string or seq[string] or TomlVoid):
@@ -700,7 +700,7 @@ proc scanKey*[T](lex: var TomlLexer, res: var T) =
 
     next = lex.nonws(skipNoLf)
     if next == '.':
-      advance
+      advance(lex)
       next = lex.nonws(skipNoLf)
       if next in {'\'', '\"', '-', '_', 'a'..'z', 'A'..'Z', '0'..'9'}:
         when T is string:
@@ -721,9 +721,9 @@ proc scanTableName*[T](lex: var TomlLexer, res: var T): BracketType =
 
   ## This code assumes that '[' has already been consumed
 
-  var next = peek
+  var next = peek(lex)
   if next == '[':
-    advance
+    advance(lex)
     result = BracketType.double
   else:
     result = BracketType.single
@@ -733,17 +733,17 @@ proc scanTableName*[T](lex: var TomlLexer, res: var T): BracketType =
   case lex.nonws(skipNoLf)
   of ']':
     if result == BracketType.double:
-      next = advancePeek
+      next = advancePeek(lex)
       if next != ']':
         raiseTomlErr(lex, errNoDoubleBracket)
 
     # We must check that there is nothing else in this line
-    advance
+    advance(lex)
     next = lex.nonws(skipNoLf)
     if next notin {LF, EOF}:
       raiseIllegalChar(lex, next)
 
-    advance
+    advance(lex)
   else:
     raiseTomlErr(lex, errNoSingleBracket)
 
@@ -753,7 +753,7 @@ proc scanBool*(lex: var TomlLexer): bool =
 
   case next
   of 't':
-    advance
+    advance(lex)
     # Is this "true"?
     if lex.next != 'r' or
        lex.next != 'u' or
@@ -762,7 +762,7 @@ proc scanBool*(lex: var TomlLexer): bool =
     result = true
 
   of 'f':
-    advance
+    advance(lex)
     # Is this "false"?
     if lex.next != 'a' or
        lex.next != 'l' or
@@ -789,11 +789,11 @@ proc scanDecimalPart[T](lex: var TomlLexer, value: var T, sign: Sign) =
 
   while true:
     wasUnderscore = next == '_'
-    next = peek
+    next = peek(lex)
     if next == '_':
       if firstPos or wasUnderscore:
         raiseTomlErr(lex, errUnderscoreDigit)
-      advance
+      advance(lex)
       continue
     if next notin strutils.Digits:
       if wasUnderscore:
@@ -813,7 +813,7 @@ proc scanDecimalPart[T](lex: var TomlLexer, value: var T, sign: Sign) =
       {.fatal: "`scanDecimalPart` only accepts `float` or `string` or `TomlVoid`".}
 
     firstPos = false
-    advance
+    advance(lex)
 
   when T is SomeFloat:
     if sign == Sign.Neg:
@@ -830,14 +830,14 @@ proc scanExponent[T](lex: var TomlLexer, value: var T) =
       exponent = 0'u64
       sign = Sign.None
 
-  var next = peek
+  var next = peek(lex)
   case next
   of '-':
     when T is string:
       value.add next
     elif T is SomeFloat:
       sign = Sign.Neg
-    next = advancePeek
+    next = advancePeek(lex)
     if next notin strutils.Digits:
       raiseIllegalChar(lex, next)
   of '+':
@@ -845,7 +845,7 @@ proc scanExponent[T](lex: var TomlLexer, value: var T) =
       value.add next
     elif T is SomeFloat:
       sign = Sign.Pos
-    next = advancePeek
+    next = advancePeek(lex)
     if next notin strutils.Digits:
       raiseIllegalChar(lex, next)
   of strutils.Digits:
@@ -872,9 +872,9 @@ proc scanFrac[T](lex: var TomlLexer, value: var T, sign: Sign) =
     {.fatal: "`scanFrac` only accepts `float` or `string` or `TomlVoid`".}
 
   scanDecimalPart(lex, value, sign)
-  var next = peek
+  var next = peek(lex)
   if next in {'e', 'E'}:
-    advance
+    advance(lex)
     when T is string:
       value.add next
     scanExponent(lex, value)
@@ -899,23 +899,23 @@ proc scanFloat*[T](lex: var TomlLexer, value: var T): Sign =
     next: char
 
   while true:
-    next = peek
+    next = peek(lex)
     case next
     of '-':
-      advance
+      advance(lex)
       when T is string:
         value.add next
       sign = Sign.Neg
       continue
     of '+':
-      advance
+      advance(lex)
       when T is string:
         value.add next
       sign = Sign.Pos
       continue
     of 'i':
       let li = lex.lineInfo
-      advance
+      advance(lex)
       if lex.next != 'n' or
          lex.next != 'f':
          raiseTomlErr(li, errUnknownIdent)
@@ -927,7 +927,7 @@ proc scanFloat*[T](lex: var TomlLexer, value: var T): Sign =
       return sign
     of 'n':
       let li = lex.lineInfo
-      advance
+      advance(lex)
       if lex.next != 'a' or
          lex.next != 'n':
          raiseTomlErr(li, errUnknownIdent)
@@ -950,13 +950,13 @@ proc scanFloat*[T](lex: var TomlLexer, value: var T): Sign =
   else:
     scanUint(lex, value, base10, Leading.DenyZero)
 
-  next = peek
+  next = peek(lex)
   case next
   of '.':
-    advance
+    advance(lex)
     lex.addFrac(value, sign)
   of 'e', 'E':
-    advance
+    advance(lex)
     when T is string:
       value.add next
     lex.scanExponent(value)
@@ -1009,7 +1009,7 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
   when T is TomlTime:
     value.minute = num
 
-  next = peek
+  next = peek(lex)
   if next != ':':
     if TomlHourMinute in lex.flags:
       return
@@ -1019,7 +1019,7 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
   if lex.line != line:
     raiseTomlErr(lex, errDateTimeML)
 
-  advance
+  advance(lex)
   when T is string:
     value.add next
 
@@ -1030,7 +1030,7 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
   when T is TomlTime:
     value.second = num
 
-  next = peek
+  next = peek(lex)
   if next == '.':
     if lex.line != line:
       raiseTomlErr(lex, errDateTimeML)
@@ -1038,7 +1038,7 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) =
     when T is string:
       value.add next
 
-    next = advancePeek
+    next = advancePeek(lex)
     if next notin strutils.Digits:
       raiseIllegalChar(lex, next)
 
@@ -1134,7 +1134,7 @@ proc scanTimeZone*[T](lex: var TomlLexer, value: var T): bool =
 
   var
     line = lex.line
-    next = peek
+    next = peek(lex)
 
   when T is (string or TomlVoid):
     template num: untyped = value
@@ -1143,7 +1143,7 @@ proc scanTimeZone*[T](lex: var TomlLexer, value: var T): bool =
 
   case next
   of 'z', 'Z':
-    advance
+    advance(lex)
     when T is string:
       value.add next
     elif T is TomlTimeZone:
@@ -1152,7 +1152,7 @@ proc scanTimeZone*[T](lex: var TomlLexer, value: var T): bool =
       value.minuteShift = 0
     result = true
   of '-', '+':
-    advance
+    advance(lex)
     when T is string:
       value.add next
     elif T is TomlTimeZone:
@@ -1197,11 +1197,11 @@ proc scanLongDate*[T](lex: var TomlLexer, year: int, value: var T) =
     # only date part without time
     return
 
-  let delim = peek
+  let delim = peek(lex)
   if delim notin {'t', 'T', ' '}:
     return
 
-  advance
+  advance(lex)
   when T is string:
     value.add delim
     scanTime(lex, value)
@@ -1292,10 +1292,10 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
     var uintVal: uint64
 
   while true:
-    next = peek
+    next = peek(lex)
     case next:
     of '0':
-      next = advancePeek
+      next = advancePeek(lex)
       if sign == Sign.None:
         if next in {'b', 'x', 'o'}:
           when T is (string or TomlVoid):
@@ -1308,7 +1308,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
           # This must now be a float or a date/time, or a sole 0
           case next:
           of '.':
-            advance
+            advance(lex)
             when T is string:
               value.add '0'
               addFrac(lex, value, sign)
@@ -1336,7 +1336,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
               scanDateTime(lex, value.dateTime, zeroLead = true)
             return
           of 'e', 'E':
-            advance
+            advance(lex)
             when T is string:
               value.add '0'
               value.add next
@@ -1358,7 +1358,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
         # This must now be a float, or a sole 0
         case next:
         of '.':
-          advance
+          advance(lex)
           when T is string:
             value.add '0'
             addFrac(lex, value, sign)
@@ -1377,7 +1377,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             value = TomlValueRef(kind: TomlKind.Int, intVal: 0)
           return
         of 'e', 'E':
-          advance
+          advance(lex)
           when T is string:
             value.add '0'
             value.add next
@@ -1398,7 +1398,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             value = TomlValueRef(kind: TomlKind.Int, intVal: 0)
           return
     of strutils.Digits - {'0'}:
-      advance
+      advance(lex)
       # This might be a date/time, or an int or a float
       var
         digits = 1
@@ -1410,7 +1410,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
         var curSum = uint64(next) - uint64('0')
 
       while true:
-        next = peek
+        next = peek(lex)
         if wasUnderscore and next notin strutils.Digits:
           raiseTomlErr(lex, errUnderscoreDigit)
 
@@ -1436,7 +1436,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             scanLongDate(lex, curSum.int, value.dateTime)
           return
         of '.':
-          advance
+          advance(lex)
           when T is (string or TomlVoid):
             addFrac(lex, value, sign)
           else:
@@ -1446,7 +1446,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
             addFrac(lex, value.floatVal, sign)
           return
         of 'e', 'E':
-          advance
+          advance(lex)
           when T is string:
             value.add next
             scanExponent(lex, value)
@@ -1459,7 +1459,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
               value.floatVal = -value.floatVal
           return
         of strutils.Digits:
-          advance
+          advance(lex)
           when T is string:
             value.add next
             inc digits
@@ -1477,7 +1477,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
           wasUnderscore = false
           continue
         of '_':
-          advance
+          advance(lex)
           wasUnderscore = true
           continue
         of strutils.Whitespace:
@@ -1490,19 +1490,19 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
           return
 
     of '+':
-      advance
+      advance(lex)
       sign = Sign.Pos
       when T is string:
         value.add '+'
       continue
     of '-':
-      advance
+      advance(lex)
       sign = Sign.Neg
       when T is string:
         value.add '-'
       continue
     of 'i':
-      advance
+      advance(lex)
       let li = lex.lineInfo
       if lex.next != 'n' or
          lex.next != 'f':
@@ -1513,7 +1513,7 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
         value = TomlValueRef(kind: TomlKind.Float, floatVal: Inf)
       return
     of 'n':
-      advance
+      advance(lex)
       let li = lex.lineInfo
       if lex.next != 'a' or
          lex.next != 'n':
@@ -1529,24 +1529,25 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) =
 
 proc parseValue*[T](lex: var TomlLexer, value: var T) {.gcsafe, raises: [IOError, TomlError].}
 
-proc parseArray[T](lex: var TomlLexer, value: var T) =
-  when T isnot (seq[TomlValueRef] or string or TomlVoid):
-    {.fatal: "`parseArray` only accepts `TomlValueRef' or string or `TomlVoid`".}
+template parseArrayImpl*(lex: TomlLexer,
+                        numElem: untyped,
+                        actionInitial: untyped,
+                        actionClosing: untyped,
+                        actionComma: untyped,
+                        actionValue: untyped) =
 
-  ## This procedure assumes that "lex" has already consumed the '['
-  ## character
+  actionInitial
 
   var
-    numElem = 0
+    numElem {.inject.} = 0
     prevComma = false
 
   while true:
     var next = lex.nonws(skipLf)
     case next
     of ']':
-      advance
-      when T is string:
-        value.add next
+      advance(lex)
+      actionClosing
       return
     of EOF:
       raiseTomlErr(lex, errUnterminatedArray)
@@ -1556,7 +1557,7 @@ proc parseArray[T](lex: var TomlLexer, value: var T) =
 
       prevComma = true
 
-      advance
+      advance(lex)
       if numElem == 0:
         # This happens with "[, 1, 2]", for instance
         raiseTomlErr(lex, errMissingFirstElement)
@@ -1565,34 +1566,53 @@ proc parseArray[T](lex: var TomlLexer, value: var T) =
       #  "[b,]")
       next = lex.nonws(skipLf)
       if next == ']':
-        advance
-        when T is string:
-          value.add next
+        advance(lex)
+        actionClosing
         return
       else:
-        when T is string:
-          value.add ','
+        actionComma
     else:
       if TomlStrictComma in lex.flags and numElem >= 1 and not prevComma:
         raiseTomlErr(lex, errCommaExpected)
 
       prevComma = false
-
-      when T is (string or TomlVoid):
-        parseValue(lex, value)
-      else:
-        value.setLen(numElem + 1)
-        parseValue(lex, value[numElem])
-
+      actionValue
       inc numElem
 
-proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
-  when T isnot (TomlTableRef or string or TomlVoid):
-    {.fatal: "`parseInlineTable` only accepts `TomlTableRef' or string or `TomlVoid`".}
+proc parseArray[T](lex: var TomlLexer, value: var T) =
+  when T isnot (seq[TomlValueRef] or string or TomlVoid):
+    {.fatal: "`parseArray` only accepts `seq[TomlValueRef]' or string or `TomlVoid`".}
 
-  ## This procedure assumes that "lex" has already consumed the '{'
+  ## This procedure assumes that "lex" has already consumed the '['
   ## character
 
+  parseArrayImpl(lex, numElem):
+    # initial action
+    when T is string:
+      value.add '['
+  do:
+    # closing action
+    when T is string:
+      value.add ']'
+  do:
+    # comma action
+    when T is string:
+      value.add ','
+  do:
+    when T is (string or TomlVoid):
+      parseValue(lex, value)
+    else:
+      value.setLen(numElem + 1)
+      parseValue(lex, value[numElem])
+
+template parseInlineTableImpl*(lex: TomlLexer,
+                               actionInitial: untyped,
+                               actionClosing: untyped,
+                               actionComma: untyped,
+                               actionKey: untyped,
+                               actionValue: untyped) =
+
+  actionInitial
   var
     prevComma = false
     numElem = 0
@@ -1601,9 +1621,8 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
     var next = lex.nonws(skipNoLf)
     case next
     of '}':
-      advance
-      when T is string:
-        value.add next
+      advance(lex)
+      actionClosing
       return
     of EOF:
       raiseTomlErr(lex, errUnterminatedTable)
@@ -1615,22 +1634,20 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
         raiseTomlErr(lex, errMissingFirstElement)
 
       prevComma = true
-      advance
+      advance(lex)
       next = lex.nonws(skipNoLf)
       if next == '}':
         if TomlInlineTableTrailingComma in lex.flags:
-          advance
-          when T is string:
-            value.add '}'
+          advance(lex)
+          actionClosing
           return
         else:
           raiseIllegalChar(lex, '}')
       else:
-        when T is string:
-          value.add ','
+        actionComma
     of '\n':
       if TomlInlineTableNewline in lex.flags:
-        advance
+        advance(lex)
         continue
       else:
         raiseIllegalChar(lex, next)
@@ -1640,39 +1657,65 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
 
       prevComma = false
       inc numElem
-      when T is (string or TomlVoid):
-        scanKey(lex, value)
-      else:
-        var keys: seq[string]
-        scanKey(lex, keys)
-        if keys.len == 0:
-          raiseTomlErr(lex, errRequireKey)
+      actionKey
 
       next = lex.nonws(skipNoLf)
       if next != '=':
         raiseExpectChar(lex, '=')
 
-      advance
-      when T is string:
-        value.add next
-        parseValue(lex, value)
-      elif T is TomlVoid:
-        parseValue(lex, value)
-      else:
-        var curTable = value
+      advance(lex)
+      actionValue
 
-        for i in 1 ..< keys.len:
-          let key = keys[i]
-          let deepestTable = TomlTableRef.new
-          curTable[key] = TomlValueRef(
-            kind: TomlKind.InlineTable,
-            tableVal: deepestTable
-            )
-          curTable = deepestTable
+proc parseInlineTable[T](lex: var TomlLexer, value: var T) =
+  when T isnot (TomlTableRef or string or TomlVoid):
+    {.fatal: "`parseInlineTable` only accepts `TomlTableRef' or string or `TomlVoid`".}
 
-        var val: TomlValueRef
-        parseValue(lex, val)
-        curTable[keys[^1]] = val
+  ## This procedure assumes that "lex" has already consumed the '{'
+  ## character
+
+  parseInlineTableImpl(lex):
+    # initial action
+    when T is string:
+      value.add '{'
+  do:
+    # closing action
+    when T is string:
+      value.add '}'
+  do:
+    # comma action
+    when T is string:
+      value.add ','
+  do:
+    # key action
+    when T is (string or TomlVoid):
+      scanKey(lex, value)
+    else:
+      var keys: seq[string]
+      scanKey(lex, keys)
+      if keys.len == 0:
+        raiseTomlErr(lex, errRequireKey)
+  do:
+    # value action
+    when T is string:
+      value.add '='
+      parseValue(lex, value)
+    elif T is TomlVoid:
+      parseValue(lex, value)
+    else:
+      var curTable = value
+
+      for i in 1 ..< keys.len:
+        let key = keys[i]
+        let deepestTable = TomlTableRef.new
+        curTable[key] = TomlValueRef(
+          kind: TomlKind.InlineTable,
+          tableVal: deepestTable
+          )
+        curTable = deepestTable
+
+      var val: TomlValueRef
+      parseValue(lex, val)
+      curTable[keys[^1]] = val
 
 proc parseValue[T](lex: var TomlLexer, value: var T) =
   when T isnot (TomlValueRef or string or TomlVoid):
@@ -1692,41 +1735,35 @@ proc parseValue[T](lex: var TomlLexer, value: var T) =
       let val = lex.scanBool
       value = TomlValueRef(kind: TomlKind.Bool, boolVal: val)
   of '\"':
-    advance
+    advance(lex)
     when T is (string or TomlVoid):
       discard scanString(lex, value, StringType.Basic)
     else:
       value = TomlValueRef(kind: TomlKind.String)
       discard scanString(lex, value.stringVal, StringType.Basic)
   of '\'':
-    advance
+    advance(lex)
     when T is (string or TomlVoid):
       discard scanString(lex, value, StringType.Literal)
     else:
       value = TomlValueRef(kind: TomlKind.String)
       discard scanString(lex, value.stringVal, StringType.Literal)
   of '[':
-    advance
+    advance(lex)
     # An array
-    when T is string:
-      value.add next
-      parseArray(lex, value)
-    elif T is TomlVoid:
-      parseArray(lex, value)
-    else:
+    when T is TomlValueRef:
       value = TomlValueRef(kind: TomlKind.Array)
       parseArray(lex, value.arrayVal)
-  of '{':
-    advance
-    # An inline table
-    when T is string:
-      value.add next
-      parseInlineTable(lex, value)
-    elif T is TomlVoid:
-      parseInlineTable(lex, value)
     else:
+      parseArray(lex, value)
+  of '{':
+    advance(lex)
+    # An inline table
+    when T is TomlValueRef:
       value = TomlValueRef(kind: TomlKind.InlineTable, tableVal: TomlTableRef.new)
       parseInlineTable(lex, value.tableVal)
+    else:
+      parseInlineTable(lex, value)
   else:
     raiseIllegalChar(lex, next)
 
@@ -1850,7 +1887,7 @@ proc parseToml*(lex: var TomlLexer): TomlValueRef =
     next = lex.nonws(skipLf)
     case next
     of '[':
-      advance
+      advance(lex)
       var names: seq[string]
       let bracket = scanTableName(lex, names)
 
@@ -1909,7 +1946,7 @@ proc parseToml*(lex: var TomlLexer, key: string, tomlCase: TomlCase): CodecState
     next = lex.nonws(skipLf)
     case next
     of '[':
-      advance
+      advance(lex)
       names.setLen(0)
       let bracket = scanTableName(lex, names)
       if bracket == BracketType.double:

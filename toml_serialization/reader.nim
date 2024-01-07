@@ -76,10 +76,6 @@ template expectChars(c: set[char], skip = skipLf) =
   if next notin c:
     raiseIllegalChar(r.lex, next)
 
-template maybeChar(c: char, skip = skipLf) =
-  if nonws(r.lex, skipLf) == c:
-    eatChar
-
 proc scanInt[T](r: var TomlReader, value: var T) =
   var x: uint64
   let (sign, _) = scanInt(r.lex, x)
@@ -151,55 +147,21 @@ proc parseValue*(r: var TomlReader): TomlValueRef =
     raiseUnexpectedValue(r.lex, typeName)
 
 template parseInlineTable(r: var TomlReader, key: untyped, body: untyped) =
-  let prevState = r.state
-  var
-    prevComma = false
-    numElem = 0
-  expectChar('{')
-
-  while true:
-    var next = nonws(r.lex, skipLf)
-    case next
-    of '}':
-      eatChar
-      break
-    of EOF:
-      raiseTomlErr(r.lex, errUnterminatedTable)
-    of ',':
-      if TomlStrictComma in r.lex.flags and prevComma:
-        raiseTomlErr(r.lex, errValueExpected)
-
-      if numElem == 0:
-        raiseTomlErr(r.lex, errMissingFirstElement)
-
-      prevComma = true
-      eatChar
-      next = nonws(r.lex, skipNoLf)
-      if next == '}':
-        if TomlInlineTableTrailingComma in r.lex.flags:
-          eatChar
-          break
-        else:
-          raiseIllegalChar(r.lex, ',')
-    of '\n':
-      if TomlInlineTableNewline in r.lex.flags:
-        eatChar
-        continue
-      else:
-        raiseIllegalChar(r.lex, next)
-    else:
-      if TomlStrictComma in r.lex.flags and numElem >= 1 and not prevComma:
-        raiseTomlErr(r.lex, errCommaExpected)
-
-      prevComma = false
-      inc numElem
-
-      key.setLen(0)
-      scanKey(r.lex, key)
-      expectChar('=')
-      r.state = ExpectValue
-      body
-      r.state = prevState
+  parseInlineTableImpl(r.lex):
+    # initial action
+    let prevState = r.state
+    expectChar('{')
+  do: discard # closing action
+  do: discard # comma action
+  do:
+    # key action
+    key.setLen(0)
+    scanKey(r.lex, key)
+  do:
+    # value action
+    r.state = ExpectValue
+    body
+    r.state = prevState
 
 template parseRecord(r: var TomlReader, key: untyped, body: untyped) =
   let prevState = r.state
@@ -225,50 +187,21 @@ template parseTable*(r: var TomlReader, key: untyped, body: untyped) =
   else:
     parseRecord(r, `key`, body)
 
-template parseListImpl*(r: var TomlReader, index, body: untyped) =
-  var prevComma = false
-  expectChar('[')
-  while true:
-    var next = nonws(r.lex, skipLf)
-    case next
-    of ']':
-      eatChar
-      break
-    of EOF:
-      raiseTomlErr(r.lex, errUnterminatedArray)
-    of ',':
-      if TomlStrictComma in r.lex.flags and prevComma:
-        raiseTomlErr(r.lex, errValueExpected)
-
-      prevComma = true
-
-      eatChar
-      if index == 0:
-        # This happens with "[, 1, 2]", for instance
-        raiseTomlErr(r.lex, errMissingFirstElement)
-
-      # Check that this is not a terminating comma (like in
-      #  "[b,]")
-      next = nonws(r.lex, skipLf)
-      if next == ']':
-        eatChar
-        break
-    else:
-      if TomlStrictComma in r.lex.flags and index >= 1 and not prevComma:
-        raiseTomlErr(r.lex, errCommaExpected)
-
-      prevComma = false
-
-      body
-      inc index
-
 template parseList*(r: var TomlReader, body: untyped) =
-  var idx = 0
-  parseListImpl(r, idx, body)
+  parseArrayImpl(r.lex, idx):
+    # initial action
+    expectChar('[')
+  do: discard # closing action
+  do: discard # comma action
+  do: body    # value action
 
-template parseList*(r: var TomlReader, i, body: untyped) =
-  var `i` {.inject.} = 0
-  parseListImpl(r, `i`, body)
+template parseList*(r: var TomlReader, idx, body: untyped) =
+  parseArrayImpl(r.lex, idx):
+    # initial action
+    expectChar('[')
+  do: discard # closing action
+  do: discard # comma action
+  do: body    # value action
 
 proc skipTableBody(r: var TomlReader) =
   var skipValue: TomlVoid
@@ -396,72 +329,37 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
 
   const totalFields = T.totalSerializedFields
   when  totalFields > 0:
-    let fields = T.fieldReadersTable(TomlReader)
-    var
-      expectedFieldPos = 0
-      fieldName = newStringOfCap(defaultStringCapacity)
-      prevComma = false
-      numElem = 0
-      next: char
-
-    expectChar('{', skipNoLf)
-
-    while true:
+    parseInlineTableImpl(r.lex):
+      # initial action
+      let fields = T.fieldReadersTable(TomlReader)
+      var
+        expectedFieldPos = 0
+        fieldName = newStringOfCap(defaultStringCapacity)
+      expectChar('{', skipNoLf)
+    do: discard # closing action
+    do: discard # comma action
+    do:
+      # key action
       fieldName.setLen(0)
-      next = nonws(r.lex, skipNoLf)
-      case next
-      of '}':
-        eatChar
-        break
-      of EOF:
-        raiseTomlErr(r.lex, errUnterminatedTable)
-      of ',':
-        if TomlStrictComma in r.lex.flags and prevComma:
-          raiseTomlErr(r.lex, errValueExpected)
-
-        if numElem == 0:
-          raiseTomlErr(r.lex, errMissingFirstElement)
-
-        prevComma = true
-        eatChar
-        next = nonws(r.lex, skipNoLf)
-        if next == '}':
-          if TomlInlineTableTrailingComma in r.lex.flags:
-            eatChar
-            break
-          else:
-            raiseIllegalChar(r.lex, ',')
-      of '\n':
-        if TomlInlineTableNewline in r.lex.flags:
-          eatChar
-          continue
-        else:
-          raiseIllegalChar(r.lex, next)
+      scanKey(r.lex, fieldName)
+    do:
+      # value action
+      when value is tuple:
+        var reader = fields[][expectedFieldPos].reader
+        expectedFieldPos += 1
       else:
-        if TomlStrictComma in r.lex.flags and numElem >= 1 and not prevComma:
-          raiseTomlErr(r.lex, errCommaExpected)
+        var reader = findFieldReader(fields[],
+                      fieldName, expectedFieldPos, r.tomlCase)
 
-        prevComma = false
-        inc numElem
-        scanKey(r.lex, fieldName)
-        expectChar('=', skipNoLf)
-
-        when value is tuple:
-          var reader = fields[][expectedFieldPos].reader
-          expectedFieldPos += 1
-        else:
-          var reader = findFieldReader(fields[],
-                        fieldName, expectedFieldPos, r.tomlCase)
-
-        if reader != nil:
-          reader(value, r)
-        elif TomlUnknownFields in r.lex.flags:
-          # efficient skip, it doesn't produce any tokens
-          var skipValue: TomlVoid
-          parseValue(r.lex, skipValue)
-        else:
-          const typeName = typetraits.name(T)
-          raiseUnexpectedField(r.lex, fieldName, typeName)
+      if reader != nil:
+        reader(value, r)
+      elif TomlUnknownFields in r.lex.flags:
+        # efficient skip, it doesn't produce any tokens
+        var skipValue: TomlVoid
+        parseValue(r.lex, skipValue)
+      else:
+        const typeName = typetraits.name(T)
+        raiseUnexpectedField(r.lex, fieldName, typeName)
 
 template getUnderlyingType*[T](_: Option[T]): untyped = T
 
@@ -515,15 +413,11 @@ proc readValue*[T](r: var TomlReader, value: var T)
       readValue(r, value[lastPos])
 
   elif value is array:
-    expectChar('[')
-
-    for i in low(value) ..< high(value):
-      readValue(r, value[i])
-      expectChar(',')
-
-    readValue(r, value[high(value)])
-    maybeChar(',')
-    expectChar(']')
+    type IDX = typeof low(value)
+    r.parseList(idx):
+      let i = IDX(idx + low(value).int)
+      if i <= high(value):
+        readValue(r, value[i])
 
   elif value is (object or tuple):
     if r.state == ExpectValue:
