@@ -348,7 +348,7 @@ assert res == "fruit1 = \"Apple\"\nfruit2 = \"Banana\"\nfruit3 = \"Orange\"\n"
 
 You can control the reader behavior when deserializing specific enum using `configureTomlDeserialization`.
 
-``Nim
+```Nim
 configureTomlDeserialization(
     T: type[enum], allowNumericRepr: static[bool] = false,
     stringNormalizer: static[proc(s: string): string] = strictNormalize)
