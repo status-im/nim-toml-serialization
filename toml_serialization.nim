@@ -139,15 +139,14 @@ template tomlLoadImpl*(filename: string,
                        RecordType: distinct type,
                        key: string, tomlCase: TomlCase,
                        params: varargs[untyped]): auto =
-
   mixin init, ReaderType, readValue
   var stream: InputStream
+  when nimvm:
+    let input = staticRead(filename)
+    stream = VMInputStream(pos: 0, data: toVMString(input))
+  else:
+    stream = memFileInput(filename)
   try:
-    when nimvm:
-      let input = staticRead(filename)
-      stream = VMInputStream(pos: 0, data: toVMString(input))
-    else:
-      stream = memFileInput(filename)
     var reader = unpackArgs(init, [TomlReader, stream, params])
     when RecordType is (seq or array) and uTypeIsRecord(RecordType):
       reader.readTableArray(RecordType, key, tomlCase)
