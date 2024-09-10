@@ -8,25 +8,35 @@ jobs:
       max-parallel: 20
       matrix:
         test_lang: [c, cpp]
-        branch: [version-1-6, version-2-0]
         target:
           - os: linux
+            cpu: amd64
+          - os: linux-gcc-14 # This is to use ubuntu 24 and install gcc 14. Should be removed when ubuntu-latest is 26.04
             cpu: amd64
           - os: linux
             cpu: i386
           - os: macos
             cpu: amd64
+          - os: macos
+            cpu: arm64
           - os: windows
             cpu: amd64
-          #- os: windows
-          #  cpu: i386
+        branch: [version-2-0, version-2-2, devel]
         include:
           - target:
               os: linux
-            builder: ubuntu-20.04
+            builder: ubuntu-latest
+          - target:
+              os: linux-gcc-14 # This is to use ubuntu 24 and install gcc 14. Should be removed when ubuntu-latest is 26.04
+            builder: ubuntu-24.04
           - target:
               os: macos
-            builder: macos-12
+              cpu: amd64
+            builder: macos-13
+          - target:
+              os: macos
+              cpu: arm64
+            builder: macos-latest
           - target:
               os: windows
             builder: windows-latest
@@ -135,6 +145,8 @@ jobs:
           curl -O -L -s -S https://raw.githubusercontent.com/status-im/nimbus-build-system/master/scripts/build_nim.sh
           if [[ '${{ matrix.target.cpu }}' == 'amd64' ]]; then
             PLATFORM=x64
+          elif [[ '${{ matrix.target.cpu }}' == 'arm64' ]]; then
+            PLATFORM=arm64
           else
             PLATFORM=x86
           fi
@@ -148,10 +160,20 @@ jobs:
             bash build_nim.sh nim csources dist/nimble NimBinaries
           echo '${{ github.workspace }}/nim/bin' >> $GITHUB_PATH
 
+      - name: Use gcc 14
+        # Should be removed when ubuntu-latest is 26.04
+        if : ${{ matrix.target.os == 'linux-gcc-14' }}
+        run: |
+          # Add GCC-14 to alternatives
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14
+          # Set GCC-14 as the default
+          sudo update-alternatives --set gcc /usr/bin/gcc-14
+
       - name: Run nim-toml-serialization tests
         working-directory: nim-toml-serialization
         run: |
           nim -v
+          gcc --version
           nimble install -y --depsOnly
           nimble install -y stint
           nimble install -y unittest2
