@@ -12,7 +12,6 @@ import
 
 type
   ArrayReader*[RecordType, Reader] = tuple[
-    numRead: int,
     fieldName: string,
     reader: proc (rec: var RecordType, reader: var Reader, idx: int)
                  {.gcsafe, nimcall, raises: [SerializationError].}
@@ -60,7 +59,7 @@ proc makeArrayReadersTable(RecordType, Reader: distinct type, L: static[int]):
             when RecordType is tuple: obj[i] else: field(obj, realFieldName),
             err)
 
-      result[fieldPos] = (0, fieldName, readArrayFieldImpl)
+      result[fieldPos] = (fieldName, readArrayFieldImpl)
       inc fieldPos
 
 template arrayReadersTable*(RecordType, Reader: distinct type): auto =
@@ -77,6 +76,6 @@ proc findArrayReader*(fieldsTable: ArrayReadersTable,
 
   result = BadArrayReader
 
-template readArray*[T, Y](idx: int, fieldsTable: var ArrayReadersTable, rec: var T, r: var Y) =
-  fieldsTable[idx].reader(rec, r, fieldsTable[idx].numRead)
-  inc fieldsTable[idx].numRead
+template readArray*[T, Y](idx: int, fieldsTable: ArrayReadersTable, numRead: var openArray[int], rec: var T, r: var Y) =
+  fieldsTable[idx].reader(rec, r, numRead[idx])
+  inc numRead[idx]
