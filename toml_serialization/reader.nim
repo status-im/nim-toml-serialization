@@ -231,13 +231,15 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
 
   const
     totalFields = T.totalSerializedFields
-    arrayFields = T.totalArrayFields
 
   when  totalFields > 0:
-    let fields = T.fieldReadersTable(TomlReader)
+    const
+      fields = T.fieldReadersTable(TomlReader)
+      arrayFields = T.totalArrayFields
 
     when arrayFields > 0:
-      var arrayReaders = T.arrayReadersTable(TomlReader)
+      const arrayReaders = T.arrayReadersTable(TomlReader)
+      var numRead: array[arrayReaders.len, int]
 
     var
       expectedFieldPos = 0
@@ -287,7 +289,7 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
         if r.state == ArrayOfTable:
           let reader = findArrayReader(arrayReaders, fieldName, r.tomlCase)
           if reader != BadArrayReader:
-            reader.readArray(arrayReaders, value, r)
+            reader.readArray(arrayReaders, numRead, value, r)
           elif TomlUnknownFields in r.lex.flags:
             r.skipTableBody
           else:
@@ -297,10 +299,10 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
           continue
 
       when value is tuple:
-        var reader = fields[][expectedFieldPos].reader
+        var reader = fields[expectedFieldPos].reader
         expectedFieldPos += 1
       else:
-        var reader = findFieldReader(fields[],
+        var reader = findFieldReader(fields,
                       fieldName, expectedFieldPos, r.tomlCase)
 
       if reader != nil:
@@ -331,7 +333,7 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
   when  totalFields > 0:
     parseInlineTableImpl(r.lex):
       # initial action
-      let fields = T.fieldReadersTable(TomlReader)
+      const fields = T.fieldReadersTable(TomlReader)
       var
         expectedFieldPos = 0
         fieldName = newStringOfCap(defaultStringCapacity)
@@ -345,10 +347,10 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) =
     do:
       # value action
       when value is tuple:
-        var reader = fields[][expectedFieldPos].reader
+        var reader = fields[expectedFieldPos].reader
         expectedFieldPos += 1
       else:
-        var reader = findFieldReader(fields[],
+        var reader = findFieldReader(fields,
                       fieldName, expectedFieldPos, r.tomlCase)
 
       if reader != nil:
