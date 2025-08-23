@@ -30,7 +30,9 @@ type
     floatField: float64
     arrayField: array[3, int]
     seqField: seq[int]
-    rangeField: range[10..20]
+
+    # TODO https://github.com/status-im/nim-serialization/issues/104
+    # rangeField: range[10..20]
 
   ChildObject = object
     name: string
@@ -85,7 +87,7 @@ proc main() =
     floatField: -123.9,
     arrayField: [7, 5, 3],
     seqField: @[9,4,1],
-    rangeField: 11
+    # rangeField: 11
   )
 
   suite "encoder test suite":
