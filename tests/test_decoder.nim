@@ -590,11 +590,18 @@ proc readValue(r: var TomlReader, value: var ValidIpAddress) =
 
 suite "optional fields test suite":
   test "optional field with requiresInit pragma":
-    {.warning[UnsafeDefault]:off.} # ValidIpAddress dont have default value
-    var x = Toml.decode("address = '1.2.3.4'", TestObject)
-    check x.address.isSome
-    check x.address.get().value == "1.2.3.4"
-    {.warning[UnsafeDefault]:on.}
+    when true:
+      # Deserialization of `requiresInit` types worked only due to bugs:
+      # https://github.com/status-im/nim-serialization/issues/104
+      # A better solution needs to be found if toml is to support `requiresInit`
+      # types.
+      skip()
+    else:
+      {.warning[UnsafeDefault]:off.} # ValidIpAddress dont have default value
+      var x = Toml.decode("address = '1.2.3.4'", TestObject)
+      check x.address.isSome
+      check x.address.get().value == "1.2.3.4"
+      {.warning[UnsafeDefault]:on.}
 
 type
   KV = object
