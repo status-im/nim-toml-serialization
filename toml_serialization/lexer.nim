@@ -65,8 +65,14 @@ const
   SPC  = ' '
   invalidCommentChar = {'\x00'..'\x08', '\x0A'..'\x1F', '\x7F'}
 
-template readChar(s: InputStream): char =
-  char inputs.read(s)
+template readChar*(lex: TomlLexer): char =
+  char inputs.read(lex.stream)
+
+template readable*(lex: TomlLexer): bool =
+  lex.stream.readable()
+
+template peekChar*(lex: TomlLexer): char =
+  lex.stream.peek().char
 
 proc lineInfo(lex: TomlLexer): (int, int) {.inline.} =
   (lex.line, lex.col)
@@ -151,10 +157,10 @@ proc init*(T: type TomlLexer, stream: InputStream, flags: TomlFlags = {}): T =
 proc next*(lex: var TomlLexer): char =
   ## Return the next available char from the stream associate with
   ## the parser lex, or EOF if there are no characters left.
-  if not lex.stream.readable():
+  if not lex.readable():
     return EOF
 
-  result = lex.stream.readChar()
+  result = lex.readChar()
 
   # Update the line and col number
   if result == LF:
@@ -164,7 +170,7 @@ proc next*(lex: var TomlLexer): char =
     inc(lex.col)
 
 template peek(lex: var TomlLexer): char =
-  if not lex.stream.readable(): EOF else: lex.stream.peek().char
+  if not lex.readable(): EOF else: lex.peekChar()
 
 template advance(lex: var TomlLexer) =
   discard lex.next
@@ -204,7 +210,7 @@ proc nonws*(lex: var TomlLexer, skip: static[LfSkipMode]): char =
 
         next = advancePeek(lex)
 
-        if not lex.stream.readable:
+        if not lex.readable:
           # rase case
           break
 
