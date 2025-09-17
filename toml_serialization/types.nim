@@ -244,34 +244,3 @@ proc toUgly(result: var string, p: TomlValueRef) =
 
 proc `$`*(p: TomlValueRef): string =
   toUgly(result, p)
-
-type
-  VMInputStream* = ref object of InputStream
-    pos*: int
-    data*: string
-
-proc read*(s: VMInputStream): char =
-  result = s.data[s.pos]
-  inc s.pos
-
-proc readable*(s: VMInputStream): bool =
-  s.pos < s.data.len
-
-proc peekChar*(s: VMInputStream): char =
-  s.data[s.pos]
-
-template toVMString*(x: openArray[byte]): string =
-  var z = newString(x.len)
-  for i, c in x: z[i] = char(c)
-  z
-
-template toVMString*(x: string): string =
-  x
-
-template memInputStream*(input: untyped): auto =
-  var stream: InputStream
-  when nimvm:
-    stream = VMInputStream(pos: 0, data: toVMString(input))
-  else:
-    stream = unsafeMemoryInput(input)
-  stream

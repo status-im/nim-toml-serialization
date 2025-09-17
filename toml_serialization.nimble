@@ -10,6 +10,7 @@ skipDirs      = @["tests", "assets"]
 requires "nim >= 1.6.0",
          "serialization",
          "stew"
+requires "https://github.com/nitely/nim-faststreams#b8737b832ac7a7bb44beffe6a56500ed85e9a93c"
 
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
