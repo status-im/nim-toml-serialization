@@ -244,3 +244,17 @@ proc toUgly(result: var string, p: TomlValueRef) =
 
 proc `$`*(p: TomlValueRef): string =
   toUgly(result, p)
+
+proc peekChar*(s: InputStream): char {.deprecated: "use s.peek().char".} =
+  s.peek().char
+
+template toVMString*(x: openArray[byte]): string {.deprecated.} =
+  var z = newString(x.len)
+  for i, c in x: z[i] = char(c)
+  z
+
+template toVMString*(x: string): string {.deprecated.} =
+  x
+
+template memInputStream*(input: untyped): auto {.deprecated: "use unsafeMemoryInput".} =
+  unsafeMemoryInput(input)
