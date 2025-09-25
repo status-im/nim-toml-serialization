@@ -7,8 +7,8 @@ description   = "Flexible TOML serialization [not] relying on run-time type info
 license       = "Apache License 2.0"
 skipDirs      = @["tests", "assets"]
 
-requires "https://github.com/nitely/nim-faststreams#768bbbdc7db4125afbd5d7da07e067903f29942b"
 requires "nim >= 1.6.0",
+         "faststreams >= 0.5.0",
          "serialization",
          "stew"
 
