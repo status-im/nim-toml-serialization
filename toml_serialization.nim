@@ -91,7 +91,7 @@ template tomlDecodeImpl*(input: untyped,
     # from the fact that the dynamic dispatch mechanisms used in
     # faststreams may be reading from a file or a network device.
     try:
-      let stream = memInputStream(input)
+      let stream = unsafeMemoryInput(input)
       var reader = unpackArgs(init, [TomlReader, stream, tomlCase, params])
       when RecordType is (seq or array) and uTypeIsRecord(RecordType):
         reader.readTableArray(RecordType, key, tomlCase)
@@ -143,7 +143,7 @@ template tomlLoadImpl*(filename: string,
   var stream: InputStream
   when nimvm:
     let input = staticRead(filename)
-    stream = VMInputStream(pos: 0, data: toVMString(input))
+    stream = unsafeMemoryInput(input)
   else:
     stream = memFileInput(filename)
   try:

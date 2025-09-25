@@ -66,22 +66,13 @@ const
   invalidCommentChar = {'\x00'..'\x08', '\x0A'..'\x1F', '\x7F'}
 
 template readChar*(lex: TomlLexer): char =
-  when nimvm:
-    read(VMInputStream(lex.stream))
-  else:
-    char inputs.read(lex.stream)
+  char inputs.read(lex.stream)
 
 template readable*(lex: TomlLexer): bool =
-  when nimvm:
-    readable(VMInputStream(lex.stream))
-  else:
-    lex.stream.readable()
+  lex.stream.readable()
 
 template peekChar*(lex: TomlLexer): char =
-  when nimvm:
-    peekChar(VMInputStream(lex.stream))
-  else:
-    lex.stream.peek().char
+  lex.stream.peek().char
 
 proc lineInfo(lex: TomlLexer): (int, int) {.inline.} =
   (lex.line, lex.col)
@@ -1930,7 +1921,7 @@ proc parseKeyValue*(lex: var TomlLexer,
   checkEol(lex, line)
 
 proc parseKey*(key: string, tomlCase: TomlCase): seq[string] =
-  let stream = memInputStream(key)
+  let stream = unsafeMemoryInput(key)
   var lex = init(TomlLexer, stream)
   lex.scanKey(result)
 

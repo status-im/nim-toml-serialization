@@ -8,6 +8,7 @@ license       = "Apache License 2.0"
 skipDirs      = @["tests", "assets"]
 
 requires "nim >= 1.6.0",
+         "faststreams >= 0.5.0",
          "serialization",
          "stew"
 
