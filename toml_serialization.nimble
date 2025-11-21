@@ -33,3 +33,6 @@ proc run(args, path: string) =
 task test, "Run all tests":
   for threads in ["--threads:off", "--threads:on"]:
     run threads & " -d:release ", "tests/test_all"
+
+task features, "Install all features":
+  exec "nimble install results -y"
