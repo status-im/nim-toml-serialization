@@ -12,7 +12,7 @@ import
   types, lexer, private/[utils, array_reader]
 
 export
-  TomlReaderError, TomlFieldReadingError
+  errors, TomlReaderError, TomlFieldReadingError
 
 type
   TomlReader* = object
@@ -218,7 +218,7 @@ proc readValue*[T](r: var TomlReader, value: var T, numRead: int)
     readValue(r, value[numRead])
   elif T is array:
     readValue(r, value[numRead])
-  elif isOptionalInToml(T):
+  elif T is Option:
     if value.isNone:
       value = some default(typeof(value.get))
     readValue(r, value.get, numRead)

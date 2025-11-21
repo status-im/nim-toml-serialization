@@ -6,3 +6,4 @@ nimble.develop
 nimble.paths
 vendor
 tests/test_all
+build

@@ -122,6 +122,9 @@ template isOptionalInToml*[X](T: type Option[X]): bool = true
 
 template BaseType*[X](T: type Option[X]): type = X
 
+template shouldWriteField*[T](field: Option[T]): bool =
+  field.isSome
+
 template isArrayLike*(T: type): bool =
   mixin isOptionalInToml, BaseType
 

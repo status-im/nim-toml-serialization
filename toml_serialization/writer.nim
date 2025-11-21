@@ -325,8 +325,12 @@ template writeArrayOfTable*[T](w: var TomlWriter, fieldName: string, list: openA
     dec w.level
   w.state = prevState
 
+template shouldWriteField*[FieldType](field: FieldType): bool =
+  ## Template to determine if a field should be written.
+  true
+
 proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
-  mixin enumInstanceSerializedFields, writeValue, writeFieldIMPL
+  mixin enumInstanceSerializedFields, writeValue, writeFieldIMPL, shouldWriteField
 
   when value is TomlValueRef:
     doAssert(value.kind == TomlKind.Table)
@@ -379,12 +383,12 @@ proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
         dec w.level
         w.state = prevState
 
-        when FieldType isnot (object or tuple) or FieldType is (TomlSpecial or Option):
+        when FieldType isnot (object or tuple) or FieldType is TomlSpecial or isOptionalInToml(FieldType):
           append '\n'
 
       case w.state
       of TopLevel:
-        when FieldType is (object or tuple) and FieldType isnot (TomlSpecial or Option):
+        when FieldType is (object or tuple) and FieldType isnot TomlSpecial and not isOptionalInToml(FieldType):
           append '['
           append fieldName
           append ']'
@@ -394,16 +398,10 @@ proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
         elif (FieldType is (seq or array)) and (FieldType isnot (TomlSpecial)) and uTypeIsRecord(FieldType):
           writeArrayOfTable(w, fieldName, field)
         else:
-          template shouldWriteField() =
+          if shouldWriteField(field):
             w.writeFieldName(fieldName)
             w.state = ExpectValue
             regularFieldWriter()
-
-          when FieldType is Option:
-            if field.isSome:
-              shouldWriteField()
-          else:
-            shouldWriteField()
 
       of ExpectValue:
         if not firstField:
