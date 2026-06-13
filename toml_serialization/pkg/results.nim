@@ -1,5 +1,5 @@
 # toml-serialization
-# Copyright (c) 2019-2025 Status Research & Development GmbH
+# Copyright (c) 2019-2026 Status Research & Development GmbH
 # Licensed under either of
 #  * Apache License, version 2.0, ([LICENSE-APACHE](LICENSE-APACHE))
 #  * MIT license ([LICENSE-MIT](LICENSE-MIT))
@@ -13,10 +13,10 @@ import pkg/results, ../../toml_serialization/[reader, writer]
 
 export results
 
-template isOptionalInToml*[T](U: type Opt[T]): bool = true
-template BaseType*[T](U: type Opt[T]): type = T
+template isOptionalInToml*[T](_: type Toml, U: distinct type Opt[T]): bool = true
+template BaseType*[T](_: type Toml, U: distinct type Opt[T]): type = T
 
-template shouldWriteField*[T](field: Opt[T]): bool =
+template shouldWriteField*[T](_: type Toml, field: Opt[T]): bool =
   field.isOk
 
 proc writeValue*[T](w: var TomlWriter, value: Opt[T]) {.raises: [IOError].} =
