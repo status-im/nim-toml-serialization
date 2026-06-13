@@ -1,14 +1,15 @@
 # toml-serialization
-# Copyright (c) 2020-2023 Status Research & Development GmbH
+# Copyright (c) 2020-2026 Status Research & Development GmbH
 # Licensed and distributed under either of
 #   * MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  tables, options, math,
+  std/[tables, options, math],
   serialization/errors,
-  faststreams/inputs
+  faststreams/inputs,
+  ./desc
 
 export
   errors
@@ -117,18 +118,32 @@ type
     of TomlKind.Table, TomlKind.InlineTable:
       tableVal*: TomlTableRef
 
-template isOptionalInToml*(T: type): bool = false
-template isOptionalInToml*[X](T: type Option[X]): bool = true
+template isOptional*(_: type Toml, T: distinct type): bool = false
+template isOptional*[X](_: type Toml, T: distinct type Option[X]): bool = true
 
-template BaseType*[X](T: type Option[X]): type = X
+template BaseType*[X](_: type Toml, T: distinct type Option[X]): type = X
+
+template shouldWriteField*[T](_: type Toml, field: Option[T]): bool =
+  field.isSome
+
+func isFieldExpected*(_: type Toml, T: distinct type): bool {.compileTime.} = true
+func isFieldExpected*[X](_: type Toml, T: distinct type Option[X]): bool {.compileTime.} = false
+
+func totalExpectedFields*(T: type): int {.compileTime.} =
+  mixin isFieldExpected,
+        enumAllSerializedFields
+
+  enumAllSerializedFields(T):
+    if isFieldExpected(Toml, FieldType):
+      inc result
 
 template isArrayLike*(T: type): bool =
-  mixin isOptionalInToml, BaseType
+  mixin isOptional, BaseType
 
   when T is seq|array:
     true
-  elif isOptionalInToml(T):
-    BaseType(T) is seq|array
+  elif isOptional(Toml, T):
+    BaseType(Toml, T) is seq|array
   else:
     false
 

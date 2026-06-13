@@ -1,19 +1,16 @@
 # toml-serialization
-# Copyright (c) 2020 Status Research & Development GmbH
+# Copyright (c) 2020-2026 Status Research & Development GmbH
 # Licensed and distributed under either of
 #   * MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  serialization, toml_serialization/[reader, writer, types],
+  toml_serialization/[reader, writer, types, desc],
   toml_serialization/private/utils
 
 export
-  serialization, reader, writer, types
-
-serializationFormat Toml,
-                    mimeType = "application/toml"
+  desc, reader, writer, types
 
 Toml.setReader TomlReader
 Toml.setWriter TomlWriter, PreferredOutput = string
@@ -93,7 +90,7 @@ template tomlDecodeImpl*(input: untyped,
     try:
       let stream = unsafeMemoryInput(input)
       var reader = unpackArgs(init, [TomlReader, stream, tomlCase, params])
-      when RecordType is (seq or array) and uTypeIsRecord(RecordType):
+      when RecordType is (seq or array) and isRecord(Toml, RecordType):
         reader.readTableArray(RecordType, key, tomlCase)
       else:
         reader.moveToKey(key, tomlCase)
@@ -148,7 +145,7 @@ template tomlLoadImpl*(filename: string,
     stream = memFileInput(filename)
   try:
     var reader = unpackArgs(init, [TomlReader, stream, params])
-    when RecordType is (seq or array) and uTypeIsRecord(RecordType):
+    when RecordType is (seq or array) and isRecord(Toml, RecordType):
       reader.readTableArray(RecordType, key, tomlCase)
     else:
       reader.moveToKey(key, tomlCase)

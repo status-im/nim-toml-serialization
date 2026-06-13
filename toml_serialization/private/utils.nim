@@ -1,13 +1,14 @@
 # toml-serialization
-# Copyright (c) 2020 Status Research & Development GmbH
+# Copyright (c) 2020-2026 Status Research & Development GmbH
 # Licensed and distributed under either of
 #   * MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  strutils,
+  std/strutils,
   ../types,
+  ../desc,
   serialization/object_serialization,
   faststreams/outputs
 
@@ -151,16 +152,16 @@ proc emptyTable*(): TomlValueRef =
     tableVal: TomlTableRef.new
   )
 
-template uTypeIsRecord*(_: typed): bool =
+template isRecord*(_: type Toml, _: distinct type): bool =
   false
 
-template uTypeIsRecord*[T](_: type seq[T]): bool =
+template isRecord*[T](_: type Toml, _: distinct type seq[T]): bool =
   when T is (object or tuple):
     true
   else:
     false
 
-template uTypeIsRecord*[N, T](_: type array[N, T]): bool =
+template isRecord*[N, T](_: type Toml, _: distinct type array[N, T]): bool =
   when T is (object or tuple):
     true
   else:

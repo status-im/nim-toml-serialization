@@ -1,14 +1,20 @@
 # toml-serialization
-# Copyright (c) 2020 Status Research & Development GmbH
+# Copyright (c) 2020-2026 Status Research & Development GmbH
 # Licensed and distributed under either of
 #   * MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  typetraits, options, strutils, tables, unicode,
-  faststreams/[outputs, textio], serialization,
-  types, private/utils
+  std/[typetraits, options, strutils, tables, unicode],
+  faststreams/[outputs, textio],
+  serialization,
+  ./private/utils,
+  ./types,
+  ./desc
+
+export
+  desc
 
 type
   TomlWriter* = object
@@ -325,8 +331,12 @@ template writeArrayOfTable*[T](w: var TomlWriter, fieldName: string, list: openA
     dec w.level
   w.state = prevState
 
+template shouldWriteField*[FieldType](_: type Toml, field: FieldType): bool =
+  ## Template to determine if a field should be written.
+  true
+
 proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
-  mixin enumInstanceSerializedFields, writeValue, writeFieldIMPL
+  mixin enumInstanceSerializedFields, writeValue, writeFieldIMPL, shouldWriteField
 
   when value is TomlValueRef:
     doAssert(value.kind == TomlKind.Table)
@@ -379,31 +389,25 @@ proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
         dec w.level
         w.state = prevState
 
-        when FieldType isnot (object or tuple) or FieldType is (TomlSpecial or Option):
+        when FieldType isnot (object or tuple) or FieldType is TomlSpecial or isOptional(Toml, FieldType):
           append '\n'
 
       case w.state
       of TopLevel:
-        when FieldType is (object or tuple) and FieldType isnot (TomlSpecial or Option):
+        when FieldType is (object or tuple) and FieldType isnot TomlSpecial and not isOptional(Toml, FieldType):
           append '['
           append fieldName
           append ']'
           append '\n'
           w.state = InsideRecord
           regularFieldWriter()
-        elif (FieldType is (seq or array)) and (FieldType isnot (TomlSpecial)) and uTypeIsRecord(FieldType):
+        elif (FieldType is (seq or array)) and (FieldType isnot (TomlSpecial)) and isRecord(Toml, FieldType):
           writeArrayOfTable(w, fieldName, field)
         else:
-          template shouldWriteField() =
+          if shouldWriteField(Toml, field):
             w.writeFieldName(fieldName)
             w.state = ExpectValue
             regularFieldWriter()
-
-          when FieldType is Option:
-            if field.isSome:
-              shouldWriteField()
-          else:
-            shouldWriteField()
 
       of ExpectValue:
         if not firstField:
