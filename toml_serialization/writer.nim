@@ -389,19 +389,19 @@ proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
         dec w.level
         w.state = prevState
 
-        when FieldType isnot (object or tuple) or FieldType is TomlSpecial or isOptionalInToml(Toml, FieldType):
+        when FieldType isnot (object or tuple) or FieldType is TomlSpecial or isOptional(Toml, FieldType):
           append '\n'
 
       case w.state
       of TopLevel:
-        when FieldType is (object or tuple) and FieldType isnot TomlSpecial and not isOptionalInToml(Toml, FieldType):
+        when FieldType is (object or tuple) and FieldType isnot TomlSpecial and not isOptional(Toml, FieldType):
           append '['
           append fieldName
           append ']'
           append '\n'
           w.state = InsideRecord
           regularFieldWriter()
-        elif (FieldType is (seq or array)) and (FieldType isnot (TomlSpecial)) and uTypeIsRecord(FieldType):
+        elif (FieldType is (seq or array)) and (FieldType isnot (TomlSpecial)) and isRecord(Toml, FieldType):
           writeArrayOfTable(w, fieldName, field)
         else:
           if shouldWriteField(Toml, field):

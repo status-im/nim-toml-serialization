@@ -90,7 +90,7 @@ template tomlDecodeImpl*(input: untyped,
     try:
       let stream = unsafeMemoryInput(input)
       var reader = unpackArgs(init, [TomlReader, stream, tomlCase, params])
-      when RecordType is (seq or array) and uTypeIsRecord(RecordType):
+      when RecordType is (seq or array) and isRecord(Toml, RecordType):
         reader.readTableArray(RecordType, key, tomlCase)
       else:
         reader.moveToKey(key, tomlCase)
@@ -145,7 +145,7 @@ template tomlLoadImpl*(filename: string,
     stream = memFileInput(filename)
   try:
     var reader = unpackArgs(init, [TomlReader, stream, params])
-    when RecordType is (seq or array) and uTypeIsRecord(RecordType):
+    when RecordType is (seq or array) and isRecord(Toml, RecordType):
       reader.readTableArray(RecordType, key, tomlCase)
     else:
       reader.moveToKey(key, tomlCase)

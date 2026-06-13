@@ -13,16 +13,18 @@ import pkg/results, ../../toml_serialization/[reader, writer]
 
 export results
 
-template isOptionalInToml*[T](_: type Toml, U: distinct type Opt[T]): bool = true
+template isOptional*[T](_: type Toml, U: distinct type Opt[T]): bool = true
 template BaseType*[T](_: type Toml, U: distinct type Opt[T]): type = T
 
 template shouldWriteField*[T](_: type Toml, field: Opt[T]): bool =
-  field.isOk
+  field.isSome
+
+func isFieldExpected*[X](_: type Toml, T: distinct type Opt[X]): bool {.compileTime.} = false
 
 proc writeValue*[T](w: var TomlWriter, value: Opt[T]) {.raises: [IOError].} =
   mixin writeValue
 
-  if value.isOk:
+  if value.isSome:
     w.writeValue(value.get)
 
 proc readValue*[T](
