@@ -1,13 +1,15 @@
 # toml-serialization
-# Copyright (c) 2020-2023 Status Research & Development GmbH
+# Copyright (c) 2020-2026 Status Research & Development GmbH
 # Licensed and distributed under either of
 #   * MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
+{.push raises: [], gcsafe.}
+
 import
-  tables, typetraits, strutils,
-  types, private/utils
+  std/[tables, typetraits, strutils],
+  ./types, ./private/utils
 
 proc innerValue(n: TomlValueRef, T: type): T =
   when T is (SomeInteger or SomeFloat):
@@ -79,9 +81,9 @@ proc `[]`*(node: TomlValueRef, name: string): TomlValueRef {.inline.} =
   ## If the value at `name` does not exist, raises KeyError.
   assert(not isNil(node))
   assert(node.kind == TomlKind.Table)
-  node.tableVal[name]
+  node.tableVal.getOrDefault(name)
 
-proc `[]`*(node: TomlValueRef, name: string, T: type): T {.inline.} =
+proc `[]`*(node: TomlValueRef, name: string, T: type): T {.inline, raises: [KeyError].} =
   node[name].innerValue(T)
 
 proc `[]`*(node: TomlValueRef, index: int): TomlValueRef {.inline.} =

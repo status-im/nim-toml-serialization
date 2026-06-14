@@ -5,6 +5,8 @@
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
+{.push raises: [], gcsafe.}
+
 import
   std/[enumutils, tables, strutils, typetraits, options],
   stew/[enums, objects],
@@ -33,7 +35,7 @@ proc handleReadException*(r: TomlReader,
                           Record: type,
                           fieldName: string,
                           field: auto,
-                          err: ref CatchableError) =
+                          err: ref CatchableError) {.raises: [TomlError].} =
   var ex = new GenericTomlReaderError
   ex.assignLineNumber(r)
   ex.deserializedField = fieldName
@@ -53,7 +55,7 @@ proc init*(T: type TomlReader,
            flags: TomlFlags = {}): T =
   TomlReader.init(stream, TomlCaseSensitive, flags)
 
-proc moveToKey*(r: var TomlReader, key: string, tomlCase: TomlCase) =
+proc moveToKey*(r: var TomlReader, key: string, tomlCase: TomlCase) {.raises: [IOError, TomlError].} =
   if key.len > 0:
     r.state = r.lex.parseToml(key, tomlCase)
 
@@ -77,7 +79,7 @@ template expectChars(c: set[char], skip = skipLf) =
   if next notin c:
     raiseIllegalChar(r.lex, next)
 
-proc scanInt[T](r: var TomlReader, value: var T) =
+proc scanInt[T](r: var TomlReader, value: var T) {.raises: [IOError, TomlError].} =
   var x: uint64
   let (sign, _) = scanInt(r.lex, x)
   if sign == Neg:
@@ -90,7 +92,7 @@ proc scanInt[T](r: var TomlReader, value: var T) =
 
 proc parseStringEnum(
     r: var TomlReader, T: type enum, next: char,
-    stringNormalizer: static[proc(s: string): string]): T =
+    stringNormalizer: static[proc(s: string): string]): T {.raises: [IOError, TomlError].} =
   eatChar
   var s: string
   case next
@@ -115,7 +117,7 @@ func strictNormalize(s: string): string =  # Match enum value exactly
 
 proc parseEnum*(
     r: var TomlReader, T: type enum, allowNumericRepr: static[bool] = false,
-    stringNormalizer: static[proc(s: string): string] = strictNormalize): T =
+    stringNormalizer: static[proc(s: string): string] = strictNormalize): T {.raises: [IOError, TomlError].} =
   var next = nonws(r.lex, skipLf)
   case next
   of '\"', '\'':
@@ -137,7 +139,7 @@ proc parseEnum*(
   else:
     raiseIllegalChar(r.lex, next)
 
-proc parseValue*(r: var TomlReader): TomlValueRef =
+proc parseValue*(r: var TomlReader): TomlValueRef {.raises: [IOError, TomlError].} =
   try:
     if r.state == TopLevel:
       result = parseToml(r.lex)
@@ -204,7 +206,7 @@ template parseList*(r: var TomlReader, idx, body: untyped) =
   do: discard # comma action
   do: body    # value action
 
-proc skipTableBody(r: var TomlReader) =
+proc skipTableBody(r: var TomlReader) {.raises: [IOError, TomlError].} =
   var skipValue: TomlVoid
   r.parseTable(key):
     discard key
@@ -227,7 +229,7 @@ proc readValue*[T](r: var TomlReader, value: var T, numRead: int)
     const typeName = typetraits.name(T)
     {.error: "Failed to convert from TOML an unsupported type: " & typeName.}
 
-proc decodeRecord[T](r: var TomlReader, value: var T) =
+proc decodeRecord[T](r: var TomlReader, value: var T) {.raises: [IOError, SerializationError].} =
   mixin readValue
 
   const
@@ -327,7 +329,7 @@ proc decodeRecord[T](r: var TomlReader, value: var T) =
       if fieldsDone >= totalFields:
         break
 
-proc decodeInlineTable[T](r: var TomlReader, value: var T) =
+proc decodeInlineTable[T](r: var TomlReader, value: var T) {.raises: [IOError, SerializationError].} =
   mixin readValue
 
   const totalFields = T.totalSerializedFields
@@ -488,27 +490,27 @@ proc readTableArray*(r: var TomlReader, T: type, key: string, tomlCase: TomlCase
 
 # these are helpers functions
 
-proc parseNumber*(r: var TomlReader, value: var string): (Sign, NumberBase) =
+proc parseNumber*(r: var TomlReader, value: var string): (Sign, NumberBase) {.raises: [IOError, TomlError].} =
   expectChars(signedDigits)
   scanInt(r.lex, value)
 
-proc parseInt*(r: var TomlReader, T: type SomeInteger): T =
+proc parseInt*(r: var TomlReader, T: type SomeInteger): T {.raises: [IOError, TomlError].} =
   expectChars(signedDigits)
   r.scanInt(result)
 
-proc parseDateTime*(r: var TomlReader): TomlDateTime =
+proc parseDateTime*(r: var TomlReader): TomlDateTime {.raises: [IOError, TomlError].} =
   expectChars(strutils.Digits, errInvalidDateTime)
   scanDateTime(r.lex, result)
 
-proc parseTime*(r: var TomlReader): TomlTime =
+proc parseTime*(r: var TomlReader): TomlTime {.raises: [IOError, TomlError].} =
   expectChars(strutils.Digits, errInvalidDateTime)
   scanTime(r.lex, result)
 
-proc parseDate*(r: var TomlReader): TomlDate =
+proc parseDate*(r: var TomlReader): TomlDate {.raises: [IOError, TomlError].} =
   expectChars(strutils.Digits, errInvalidDateTime)
   scanDate(r.lex, result)
 
-proc parseString*(r: var TomlReader, value: var string): (bool, bool) =
+proc parseString*(r: var TomlReader, value: var string): (bool, bool) {.raises: [IOError, TomlError].} =
   var next = nonws(r.lex, skipLf)
   if next == '\"':
     eatChar
@@ -521,14 +523,14 @@ proc parseString*(r: var TomlReader, value: var string): (bool, bool) =
   else:
     raiseIllegalChar(r.lex, next)
 
-proc parseAsString*(r: var TomlReader): string =
+proc parseAsString*(r: var TomlReader): string {.raises: [IOError, TomlError].} =
   parseValue(r.lex, result)
 
-proc parseFloat*(r: var TomlReader, value: var string): Sign =
+proc parseFloat*(r: var TomlReader, value: var string): Sign {.raises: [IOError, TomlError].} =
   expectChars(signedDigits)
   scanFloat(r.lex, value)
 
-proc parseBool*(r: var TomlReader): bool =
+proc parseBool*(r: var TomlReader): bool {.raises: [IOError, TomlError].} =
   scanBool(r.lex)
 
 template configureTomlDeserialization*(
