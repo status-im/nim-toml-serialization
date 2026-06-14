@@ -528,6 +528,9 @@ proc parseFloat*(r: var TomlReader, value: var string): Sign =
   expectChars(signedDigits)
   scanFloat(r.lex, value)
 
+proc parseBool*(r: var TomlReader): bool =
+  scanBool(r.lex)
+
 template configureTomlDeserialization*(
     T: type[enum], allowNumericRepr: static[bool] = false,
     stringNormalizer: static[proc(s: string): string] = strictNormalize) =

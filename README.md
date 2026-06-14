@@ -365,6 +365,7 @@ configureTomlDeserialization(
   - `parseValue(r: var TomlReader): TomlValueRef`
   - `parseEnum(r: var TomlReader, T: type enum): T`
   - `parseInt(r: var TomlReader, T: type SomeInteger): T`
+  - `parseBool(r: var TomlReader): bool`
 
 `parseAsString` can parse any valid TOML value into a Nim string including a mixed array or inline table.
 
