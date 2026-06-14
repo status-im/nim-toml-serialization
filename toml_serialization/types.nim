@@ -57,16 +57,23 @@ type
   TomlFlags* = set[TomlFlag]
 
   TomlKind* {.pure.} = enum
-    Int,
-    Float,
-    Bool,
-    DateTime,
-    String,
-    Array,
-    Tables, # Array of Tables
-    Table,
+    Int
+    Float
+    Bool
+    DateTime
+    String
+    Array
+    Tables # Array of Tables
+    Table
     InlineTable
 
+  TomlTokKind* {.pure.} = enum
+    NumberOrDate
+    Bool
+    String
+    Array
+    Table
+    
   TomlDate* = object
     year*: int
     month*: int

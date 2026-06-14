@@ -312,6 +312,7 @@ proc decodeRecord[T](r: var TomlReader, value: var T) {.raises: [IOError, Serial
         try:
           reader(value, r)
         except TomlError as err:
+          debugEcho "ERR: ", err.msg
           raise (ref TomlFieldReadingError)(field: fieldName, error: err)
         checkEol(r.lex, line)
         r.state = prevState
@@ -540,3 +541,19 @@ template configureTomlDeserialization*(
       raises: [IOError, SerializationError].} =
     static: doAssert not allowNumericRepr or enumStyle(T) == EnumStyle.Numeric
     value = r.parseEnum(T, allowNumericRepr, stringNormalizer)
+
+proc tokKind*(r: var TomlReader): TomlTokKind {.raises: [IOError, TomlError].} =
+  let next = r.lex.nonws(skipNoLf)
+  case next
+  of strutils.Digits, '+', '-', 'i', 'n':
+    return TomlTokKind.NumberOrDate
+  of 't', 'f':
+    return TomlTokKind.Bool
+  of '\"', '\'':
+    return TomlTokKind.String
+  of '[':
+    return TomlTokKind.Array
+  of '{':
+    return TomlTokKind.Table
+  else:
+    raiseIllegalChar(r.lex, next)
