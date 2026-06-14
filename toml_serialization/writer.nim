@@ -5,6 +5,8 @@
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
+{.push raises: [], gcsafe.}
+
 import
   std/[typetraits, options, strutils, tables, unicode],
   faststreams/[outputs, textio],
@@ -41,7 +43,7 @@ template indent =
   for i in 0 ..< w.level:
     append ' '
 
-proc writeIterable*(w: var TomlWriter, collection: auto) =
+proc writeIterable*(w: var TomlWriter, collection: auto) {.raises: [IOError].} =
   mixin writeValue
 
   append '['
@@ -154,7 +156,7 @@ proc writeValue*(w: var TomlWriter, s: string) {.raises: [IOError].} =
         w.stream.toHex(c.int, 8)
   append '\"'
 
-proc writeKey(w: var TomlWriter, s: string) =
+proc writeKey(w: var TomlWriter, s: string) {.raises: [IOError].}  =
   const
     shouldEscape = {'\0'..'\32', '.', '\"', '\'', '#', '\127'..'\255'}
   for c in runes(s):
@@ -170,13 +172,13 @@ proc writeKey(w: var TomlWriter, s: string) =
   else:
     append s
 
-proc writeKey(w: var TomlWriter, s: openArray[string]) =
+proc writeKey(w: var TomlWriter, s: openArray[string]) {.raises: [IOError].} =
   for i, k in s:
     writeKey(w, k)
     if i < s.high:
       append '.'
 
-proc writeKey(emptyTable: var seq[string], s: openArray[string]) =
+proc writeKey(emptyTable: var seq[string], s: openArray[string]) {.raises: [IOError].} =
   var o = memoryOutput()
   var w = TomlWriter.init(o)
   append '['
@@ -194,7 +196,7 @@ proc writeInlineTable(w: var TomlWriter,
                       value: TomlValueRef,
                       keyList: var seq[string],
                       emptyTable: var seq[string],
-                      noKey: bool) =
+                      noKey: bool) {.raises: [IOError].} =
   append '{'
   inc w.level
   let len = value.tableVal.len - 1
@@ -312,7 +314,7 @@ proc writeToml(w: var TomlWriter, value:
         writeToml(w, v, keyList, emptyTable, noKey)
         discard keyList.pop
 
-proc writeFieldName(w: var TomlWriter, s: string) =
+proc writeFieldName(w: var TomlWriter, s: string) {.raises: [IOError].} =
   w.writeKey s
   append " = "
 

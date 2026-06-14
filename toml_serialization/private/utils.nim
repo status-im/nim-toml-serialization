@@ -5,6 +5,8 @@
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
+{.push raises: [], gcsafe.}
+
 import
   std/strutils,
   ../types,
@@ -94,7 +96,7 @@ const
 
   maxLen = ($BiggestInt.high).len
 
-proc writeInt*(s: OutputStream, x: BiggestInt, len: Positive) =
+proc writeInt*(s: OutputStream, x: BiggestInt, len: Positive) {.raises: [IOError].} =
   var
     num: array[maxLen, char]
     pos = num.len
@@ -126,7 +128,7 @@ proc writeInt*(s: OutputStream, x: BiggestInt, len: Positive) =
 
   write s, num.toOpenArray(pos, static(num.len - 1))
 
-proc toHex*(s: OutputStream, x: BiggestInt, len: Positive) =
+proc toHex*(s: OutputStream, x: BiggestInt, len: Positive) {.raises: [IOError].} =
   const
     hexChars  = "0123456789ABCDEF"
     maxDigits = sizeof(x) * 2

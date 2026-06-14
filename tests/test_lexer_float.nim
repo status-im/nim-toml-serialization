@@ -1,9 +1,11 @@
 # toml-serialization
-# Copyright (c) 2020 Status Research & Development GmbH
+# Copyright (c) 2020-2026 Status Research & Development GmbH
 # Licensed and distributed under either of
 #   * MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
+
+{.push raises: [], gcsafe.}
 
 import
   faststreams, unittest2
@@ -12,7 +14,7 @@ import
 include
   ../toml_serialization/lexer
 
-proc scanDecimalPart[T](input: string): T =
+proc scanDecimalPart[T](input: string): T {.raises: [IOError, TomlError].} =
   var stream = unsafeMemoryInput(input)
   var lex = init(TomlLexer, stream)
   lex.scanDecimalPart(result, Sign.None)
@@ -25,7 +27,7 @@ template testDecimalPart(input: string, expectedOutput: untyped) =
     else:
       abs(value - expectedOutput) < 1E-7
 
-proc scanFrac[T](input: string): T =
+proc scanFrac[T](input: string): T {.raises: [IOError, TomlError].} =
   var stream = unsafeMemoryInput(input)
   var lex = init(TomlLexer, stream)
   lex.scanFrac(result, Sign.None)
@@ -38,7 +40,7 @@ template testScanFrac(input: string, expectedOutput: untyped) =
     else:
       abs(value - expectedOutput) < 1E-7
 
-proc scanFloat[T](input: string): T =
+proc scanFloat[T](input: string): T {.raises: [IOError, TomlError].} =
   var stream = unsafeMemoryInput(input)
   var lex = init(TomlLexer, stream)
   discard lex.scanFloat(result)
