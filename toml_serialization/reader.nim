@@ -540,3 +540,19 @@ template configureTomlDeserialization*(
       raises: [IOError, SerializationError].} =
     static: doAssert not allowNumericRepr or enumStyle(T) == EnumStyle.Numeric
     value = r.parseEnum(T, allowNumericRepr, stringNormalizer)
+
+proc tokKind*(r: var TomlReader): TomlTokKind {.raises: [IOError, TomlError].} =
+  let next = r.lex.nonws(skipNoLf)
+  case next
+  of strutils.Digits, '+', '-', 'i', 'n':
+    return TomlTokKind.NumberOrDate
+  of 't', 'f':
+    return TomlTokKind.Bool
+  of '\"', '\'':
+    return TomlTokKind.String
+  of '[':
+    return TomlTokKind.Array
+  of '{':
+    return TomlTokKind.Table
+  else:
+    raiseIllegalChar(r.lex, next)

@@ -171,7 +171,7 @@ proc next*(lex: var TomlLexer): char {.raises: [IOError].} =
   elif result != CR:
     inc(lex.col)
 
-template peek(lex: var TomlLexer): char =
+template peek(lex: TomlLexer): char =
   if not lex.readable(): EOF else: lex.peekChar()
 
 template advance(lex: var TomlLexer) =
