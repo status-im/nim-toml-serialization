@@ -71,7 +71,11 @@ createTomlFlavor AutoToml,
 Banana.useDefaultSerializationIn AutoToml
 AutoToml.setAutoSerialization(string)
 AutoToml.setAutoSerialization(array)
-AutoToml.setAutoSerialization(SomeInteger)
+
+when (NimMajor, NimMinor) >= (2,2):
+  AutoToml.setAutoSerialization(SomeInteger)
+else:
+  AutoToml.setAutoSerialization(uint16)
 
 proc readValue*(r: var TomlReader[AutoToml], v: var TomlTime) =
   v = r.parseTime()
