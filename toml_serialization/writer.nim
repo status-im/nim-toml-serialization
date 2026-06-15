@@ -437,12 +437,13 @@ template writeValueObjectOrTuple(Flavor, w, value) =
 
   writeRecordValue(w, value)
 
-template checkAutoSerialization(Flavor: type, X: distinct type, body: typed) =
+template checkAutoSerialization(Flavor: type, TypeClass: distinct type, value: typed, body: typed) =
   mixin flavorUsesAutomaticPrimitivesSerialization, flavorAutoSerialization
 
   const
     autoSer = flavorUsesAutomaticPrimitivesSerialization(Toml, Flavor) or
-      flavorAutoSerialization(Toml, Flavor, X)
+      flavorAutoSerialization(Toml, Flavor, TypeClass) or
+      flavorAutoSerialization(Toml, Flavor, typeof(value))
 
   when not autoSer:
     const
@@ -459,8 +460,8 @@ proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
     Flavor = TomlWriter.Flavor
 
   when value is TomlValueRef:
-    checkAutoSerialization(Flavor, TomlValueRef):
-      doAssert(value.kind in {TomlKind.Table, TomlKind.InlineTable})
+    checkAutoSerialization(Flavor, TomlValueRef, value):
+      #doAssert(value.kind in {TomlKind.Table, TomlKind.InlineTable})
       var keyList = newSeqOfCap[string](5)
       var emptyTable = newSeqOfCap[string](5)
       writeToml(w, value, keyList, emptyTable)
@@ -468,20 +469,20 @@ proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
         append k
 
   elif value is Option:
-    checkAutoSerialization(Flavor, Option):
+    checkAutoSerialization(Flavor, typeof(value), value):
       if value.isSome:
         w.writeValue value.get
 
   elif value is bool:
-    checkAutoSerialization(Flavor, bool):
+    checkAutoSerialization(Flavor, bool, value):
       append if value: "true" else: "false"
 
   elif value is enum:
-    checkAutoSerialization(Flavor, enum):
+    checkAutoSerialization(Flavor, typeof(value), value):
       w.writeValue $value
 
   elif value is range:
-    checkAutoSerialization(Flavor, range):
+    checkAutoSerialization(Flavor, typeof(value), value):
       type TVAL = type value
       when low(TVAL) < 0:
         w.stream.writeText int64(value)
@@ -489,19 +490,19 @@ proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
         w.stream.writeText uint64(value)
 
   elif value is SomeInteger:
-    checkAutoSerialization(Flavor, SomeInteger):
+    checkAutoSerialization(Flavor, SomeInteger, value):
       w.stream.writeText value
 
   elif value is SomeFloat:
-    checkAutoSerialization(Flavor, SomeFloat):
+    checkAutoSerialization(Flavor, SomeFloat, value):
       w.stream.writeText value
 
   elif value is seq:
-    checkAutoSerialization(Flavor, seq):
+    checkAutoSerialization(Flavor, typeof(value), value):
       w.writeArray(value)
 
   elif value is (array or openArray):
-    checkAutoSerialization(Flavor, array):
+    checkAutoSerialization(Flavor, typeof(value), value):
       w.writeArray(value)
 
   elif value is (object or tuple):

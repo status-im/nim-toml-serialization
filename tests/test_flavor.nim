@@ -51,6 +51,8 @@ type
   Banana = object
     color: string
     time: TomlTime
+    list: array[2, string]
+    number: uint16
 
 Container.useDefaultSerializationIn StringyToml
 
@@ -68,6 +70,8 @@ createTomlFlavor AutoToml,
 
 Banana.useDefaultSerializationIn AutoToml
 AutoToml.setAutoSerialization(string)
+AutoToml.setAutoSerialization(array)
+AutoToml.setAutoSerialization(SomeInteger)
 
 proc readValue*(r: var TomlReader[AutoToml], v: var TomlTime) =
   v = r.parseTime()

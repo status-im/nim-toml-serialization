@@ -410,12 +410,13 @@ proc skipValue*(r: var TomlReader) {.raises: [IOError, TomlError].} =
   var val: TomlVoid
   parseValue(r.lex, val)
 
-template checkAutoSerialization(Flavor: type, X: distinct type, body: typed) =
+template checkAutoSerialization(Flavor: type, TypeClass: distinct type, value: typed, body: typed) =
   mixin flavorUsesAutomaticPrimitivesSerialization, flavorAutoSerialization
 
   const
     autoSer = flavorUsesAutomaticPrimitivesSerialization(Toml, Flavor) or
-      flavorAutoSerialization(Toml, Flavor, X)
+      flavorAutoSerialization(Toml, Flavor, TypeClass) or
+      flavorAutoSerialization(Toml, Flavor, typeof(value))
 
   when not autoSer:
     const
@@ -433,67 +434,67 @@ proc readValue*[T](r: var TomlReader, value: var T)
     Flavor = TomlReader.Flavor
 
   when value is Option:
-    checkAutoSerialization(Flavor, Option):
+    checkAutoSerialization(Flavor, typeof(value), value):
       # `readValue` from nim-serialization will suppress
       # compiler error when the underlying type
       # has `requiresInit` pragma.
       value = some(r.readValue(baseType(Toml, T)))
 
   elif value is TomlValueRef:
-    checkAutoSerialization(Flavor, TomlValueRef):
+    checkAutoSerialization(Flavor, TomlValueRef, value):
       value = r.parseValue
 
   elif value is string:
-    checkAutoSerialization(Flavor, string):
+    checkAutoSerialization(Flavor, string, value):
       # every value can be deserialized as string
       parseValue(r.lex, value)
 
   elif value is TomlVoid:
-    checkAutoSerialization(Flavor, TomlVoid):
+    checkAutoSerialization(Flavor, TomlVoid, value):
       r.skipValue()
 
   elif value is TomlTime:
-    checkAutoSerialization(Flavor, TomlTime):
+    checkAutoSerialization(Flavor, TomlTime, value):
       expectChars(strutils.Digits, errInvalidDateTime)
       scanTime(r.lex, value)
 
   elif value is TomlDate:
-    checkAutoSerialization(Flavor, TomlDate):
+    checkAutoSerialization(Flavor, TomlDate, value):
       expectChars(strutils.Digits, errInvalidDateTime)
       scanDate(r.lex, value)
 
   elif value is TomlDateTime:
-    checkAutoSerialization(Flavor, TomlDateTime):
+    checkAutoSerialization(Flavor, TomlDateTime, value):
       expectChars(strutils.Digits, errInvalidDateTime)
       scanDateTime(r.lex, value)
 
   elif value is SomeInteger:
-    checkAutoSerialization(Flavor, SomeInteger):
+    checkAutoSerialization(Flavor, SomeInteger, value):
       expectChars(signedDigits)
       r.scanInt(value)
 
   elif value is SomeFloat:
-    checkAutoSerialization(Flavor, SomeFloat):
+    checkAutoSerialization(Flavor, SomeFloat, value):
       expectChars(signedDigits)
       discard scanFloat(r.lex, value)
 
   elif value is bool:
-    checkAutoSerialization(Flavor, bool):
+    checkAutoSerialization(Flavor, bool, value):
       value = scanBool(r.lex)
 
   elif value is enum:
-    checkAutoSerialization(Flavor, enum):
+    checkAutoSerialization(Flavor, typeof(value), value):
       value = r.parseEnum(T)
 
   elif value is seq:
-    checkAutoSerialization(Flavor, seq):
+    checkAutoSerialization(Flavor, typeof(value), value):
       r.parseList:
         let lastPos = value.len
         value.setLen(lastPos + 1)
         readValue(r, value[lastPos])
 
   elif value is array:
-    checkAutoSerialization(Flavor, array):
+    checkAutoSerialization(Flavor, typeof(value), value):
       type IDX = typeof low(value)
       r.parseList(idx):
         let i = IDX(idx + low(value).int)
