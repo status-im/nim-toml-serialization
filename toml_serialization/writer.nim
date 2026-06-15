@@ -437,49 +437,78 @@ template writeValueObjectOrTuple(Flavor, w, value) =
 
   writeRecordValue(w, value)
 
+template checkAutoSerialization(Flavor: type, X: distinct type, body: typed) =
+  mixin flavorUsesAutomaticPrimitivesSerialization, flavorAutoSerialization
+
+  const
+    autoSer = flavorUsesAutomaticPrimitivesSerialization(Toml, Flavor) or
+      flavorAutoSerialization(Toml, Flavor, X)
+
+  when not autoSer:
+    const
+      typeName = typetraits.name(T)
+      flavorName = typetraits.name(Flavor)
+    {.error: flavorName & ": Please enable automatic serialization of: " & typeName.}
+  else:
+    body
+
 proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
   mixin enumInstanceSerializedFields, writeValue, writeFieldIMPL, shouldWriteField
 
+  type
+    Flavor = TomlWriter.Flavor
+
   when value is TomlValueRef:
-    doAssert(value.kind in {TomlKind.Table, TomlKind.InlineTable})
-    var keyList = newSeqOfCap[string](5)
-    var emptyTable = newSeqOfCap[string](5)
-    writeToml(w, value, keyList, emptyTable)
-    for k in emptyTable:
-      append k
+    checkAutoSerialization(Flavor, TomlValueRef):
+      doAssert(value.kind in {TomlKind.Table, TomlKind.InlineTable})
+      var keyList = newSeqOfCap[string](5)
+      var emptyTable = newSeqOfCap[string](5)
+      writeToml(w, value, keyList, emptyTable)
+      for k in emptyTable:
+        append k
 
   elif value is Option:
-    if value.isSome:
-      w.writeValue value.get
+    checkAutoSerialization(Flavor, Option):
+      if value.isSome:
+        w.writeValue value.get
 
   elif value is bool:
-    append if value: "true" else: "false"
+    checkAutoSerialization(Flavor, bool):
+      append if value: "true" else: "false"
 
   elif value is enum:
-    w.writeValue $value
+    checkAutoSerialization(Flavor, enum):
+      w.writeValue $value
 
   elif value is range:
-    type TVAL = type value
-    when low(TVAL) < 0:
-      w.stream.writeText int64(value)
-    else:
-      w.stream.writeText uint64(value)
+    checkAutoSerialization(Flavor, range):
+      type TVAL = type value
+      when low(TVAL) < 0:
+        w.stream.writeText int64(value)
+      else:
+        w.stream.writeText uint64(value)
 
   elif value is SomeInteger:
-    w.stream.writeText value
+    checkAutoSerialization(Flavor, SomeInteger):
+      w.stream.writeText value
 
   elif value is SomeFloat:
-    w.stream.writeText value
+    checkAutoSerialization(Flavor, SomeFloat):
+      w.stream.writeText value
 
-  elif value is (seq or array or openArray):
-    w.writeArray(value)
+  elif value is seq:
+    checkAutoSerialization(Flavor, seq):
+      w.writeArray(value)
+
+  elif value is (array or openArray):
+    checkAutoSerialization(Flavor, array):
+      w.writeArray(value)
 
   elif value is (object or tuple):
-    type Flavor = TomlWriter.Flavor
     writeValueObjectOrTuple(Flavor, w, value)
 
   else:
     const
       typeName = typetraits.name(value.type)
-      flavorName = typetraits.name(TomlWriter.Flavor)
+      flavorName = typetraits.name(Flavor)
     {.fatal: flavorName & ": Failed to convert to TOML an unsupported type: " & typeName.}
