@@ -364,11 +364,19 @@ suite "enums examples":
     check res == want
 
 type
+  BananaT = object
+    chip: int
+    v: bool
+
+  FourT = object
+    apple: seq[string]
+    banana: BananaT
+
   SpecialTypes = object
     one: TomlVoid
     two: TomlTime
     three: TomlDate
-    four: TomlValueRef
+    four: FourT
 
 suite "Additional tests":
   test "Write special types":
@@ -390,7 +398,8 @@ suite "Additional tests":
       vv = Toml.decode(tomlText, SpecialTypes, flags = {TomlInlineTableNewline})
       xx = Toml.encode(vv)
       ww = Toml.decode(xx, SpecialTypes)
+      yy = "two = 13:05:00\nthree = 1970-06-15\n[four]\n  apple = [\"1\", \"true\", \"three\"]\n  banana = {chip = 123, v = false}\n\n"
 
     check:
       ww == vv
-      xx == "two = 13:05:00\nthree = 1970-06-15\nfour = {apple = [1,true,\"three\"],banana = {chip = 123,v = false}}\n"
+      xx == yy
