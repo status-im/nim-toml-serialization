@@ -377,7 +377,7 @@ proc writeRecordValue*[T](w: var TomlWriter, value: T) {.raises: [IOError].} =
             w.writeFieldName(fieldName)
             w.state = ExpectValue
             regularFieldWriter()
-  
+
       of ExpectValue:
         if not firstField:
           append ','
@@ -385,17 +385,17 @@ proc writeRecordValue*[T](w: var TomlWriter, value: T) {.raises: [IOError].} =
             append'\n'
           else:
             append ' '
-  
+
         if TomlInlineTableNewline in w.flags:
           indent()
           indent()
-  
+
         w.writeFieldName(fieldName)
         inc w.level
         w.writeFieldIMPL(FieldTag[RecordType, fieldName], field, value)
         dec w.level
         firstField = false
-  
+
       of InsideRecord:
         indent()
         indent()
@@ -406,7 +406,7 @@ proc writeRecordValue*[T](w: var TomlWriter, value: T) {.raises: [IOError].} =
         dec w.level
         w.state = prevState
         append '\n'
-  
+
       else:
         discard
 
