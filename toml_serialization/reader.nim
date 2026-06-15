@@ -10,15 +10,20 @@
 import
   std/[enumutils, tables, strutils, typetraits, options],
   stew/[enums, objects],
-  faststreams/inputs, serialization/[object_serialization, errors],
-  ./types, ./lexer, ./private/[utils, array_reader],
-  ./desc
+  faststreams/inputs,
+  serialization/[object_serialization, errors],
+  ./private/[utils, array_reader],
+  ./types,
+  ./lexer,
+  ./desc,
+  ./format
 
 export
-  errors, TomlReaderError, TomlFieldReadingError, desc
+  errors, TomlReaderError, TomlFieldReadingError, desc,
+  format, DefaultFlavor
 
 type
-  TomlReader* = object
+  TomlReader*[Flavor = DefaultFlavor] = object
     lex*: TomlLexer
     state: CodecState
     tomlCase: TomlCase
@@ -42,18 +47,21 @@ proc handleReadException*(r: TomlReader,
   ex.innerException = err
   raise ex
 
+template raiseUnexpectedValue*(r: TomlReader, msg: string) =
+  raiseUnexpectedValue(r.lex, msg)
+
 proc init*(T: type TomlReader,
            stream: InputStream,
            tomlCase: TomlCase,
            flags: TomlFlags = {}): T =
-  result.lex = TomlLexer.init(stream, flags)
-  result.state = TopLevel
-  result.tomlCase = tomlCase
+  T(lex: TomlLexer.init(stream, flags),
+    state: TopLevel,
+    tomlCase: tomlCase)
 
 proc init*(T: type TomlReader,
            stream: InputStream,
            flags: TomlFlags = {}): T =
-  TomlReader.init(stream, TomlCaseSensitive, flags)
+  T.init(stream, TomlCaseSensitive, flags)
 
 proc moveToKey*(r: var TomlReader, key: string, tomlCase: TomlCase) {.raises: [IOError, TomlError].} =
   if key.len > 0:
@@ -213,7 +221,7 @@ proc skipTableBody(r: var TomlReader) {.raises: [IOError, TomlError].} =
     parseValue(r.lex, skipValue)
 
 proc readValue*[T](r: var TomlReader, value: var T, numRead: int)
-                  {.gcsafe, raises: [SerializationError, IOError].} =
+                  {.raises: [SerializationError, IOError].} =
   mixin readValue
 
   when T is seq:
@@ -312,6 +320,7 @@ proc decodeRecord[T](r: var TomlReader, value: var T) {.raises: [IOError, Serial
         try:
           reader(value, r)
         except TomlError as err:
+          debugEcho "EEE: ", err.msg
           raise (ref TomlFieldReadingError)(field: fieldName, error: err)
         checkEol(r.lex, line)
         r.state = prevState
@@ -366,17 +375,42 @@ proc decodeInlineTable[T](r: var TomlReader, value: var T) {.raises: [IOError, S
         const typeName = typetraits.name(T)
         raiseUnexpectedField(r.lex, fieldName, typeName)
 
-template getUnderlyingType*[T](_: Option[T]): untyped = T
+template readRecordValue*[T](r: var TomlReader, value: var T) =
+  if r.state == ExpectValue:
+    r.decodeInlineTable(value)
+  else:
+    r.decodeRecord(value)
+
+template readValueObjectOrTuple(Flavor, r, value) =
+  mixin flavorUsesAutomaticObjectSerialization
+
+  const isAutomatic =
+    flavorUsesAutomaticObjectSerialization(Toml, Flavor)
+
+  when not isAutomatic:
+    const
+      flavor =
+        "TomlReader[" & typetraits.name(typeof(r).Flavor) & "], " &
+        typetraits.name(T)
+    {.error:
+      "Missing TOML serialization import or implementation for readValue(" &
+      flavor & ")".}
+
+  readRecordValue(r, value)
+
+proc skipValue*(r: var TomlReader) {.raises: [IOError, TomlError].} =
+  var val: TomlVoid
+  parseValue(r.lex, val)
 
 proc readValue*[T](r: var TomlReader, value: var T)
-                  {.gcsafe, raises: [SerializationError, IOError].} =
+                  {.raises: [SerializationError, IOError].} =
   mixin readValue
 
   when value is Option:
     # `readValue` from nim-serialization will suppress
     # compiler error when the underlying type
     # has `requiresInit` pragma.
-    value = some(r.readValue(getUnderlyingType(value)))
+    value = some(r.readValue(baseType(Toml, T)))
 
   elif value is TomlValueRef:
     value = r.parseValue
@@ -384,6 +418,9 @@ proc readValue*[T](r: var TomlReader, value: var T)
   elif value is string:
     # every value can be deserialized as string
     parseValue(r.lex, value)
+
+  elif value is TomlVoid:
+    r.skipValue()
 
   elif value is TomlTime:
     expectChars(strutils.Digits, errInvalidDateTime)
@@ -425,14 +462,15 @@ proc readValue*[T](r: var TomlReader, value: var T)
         readValue(r, value[i])
 
   elif value is (object or tuple):
-    if r.state == ExpectValue:
-      r.decodeInlineTable(value)
-    else:
-      r.decodeRecord(value)
+    type Flavor = TomlReader.Flavor
+    readValueObjectOrTuple(Flavor, r, value)
 
   else:
-    const typeName = typetraits.name(T)
-    {.error: "Failed to convert from TOML an unsupported type: " & typeName.}
+    const
+      typeName = typetraits.name(T)
+      flavorName = typetraits.name(TomlReader.Flavor)
+    {.error: flavorName & ": Failed to convert from TOML an unsupported type: " &
+      typeName.}
 
 proc readTableArray*(r: var TomlReader, T: type, key: string, tomlCase: TomlCase): T
                         {.raises: [SerializationError, IOError].} =

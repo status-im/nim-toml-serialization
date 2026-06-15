@@ -73,7 +73,7 @@ type
     String
     Array
     Table
-    
+
   TomlDate* = object
     year*: int
     month*: int
@@ -130,7 +130,7 @@ type
 template isOptional*(_: type Toml, T: distinct type): bool = false
 template isOptional*[X](_: type Toml, T: distinct type Option[X]): bool = true
 
-template BaseType*[X](_: type Toml, T: distinct type Option[X]): type = X
+template baseType*[X](_: type Toml, T: distinct type Option[X]): type = X
 
 template shouldWriteField*[T](_: type Toml, field: Option[T]): bool =
   field.isSome
@@ -147,12 +147,12 @@ func totalExpectedFields*(T: type): int {.compileTime.} =
       inc result
 
 template isArrayLike*(T: type): bool =
-  mixin isOptional, BaseType
+  mixin isOptional, baseType
 
   when T is seq|array:
     true
   elif isOptional(Toml, T):
-    BaseType(Toml, T) is seq|array
+    baseType(Toml, T) is seq|array
   else:
     false
 

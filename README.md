@@ -46,10 +46,14 @@ family and provides several operation modes:
   - Allow skipping unknown fields using the `TomlUnknownFields` flag.
     - Skipping unknown fields is also done efficiently, with no token produced.
       But skipped fields should contain valid TOML values or the parser will raise an exception.
+    - Or use `TomlVoid` as a field type.
   - Since v0.2.1 you can choose to use `OrderedTable` instead of `Table` when parsing into `TomlValueRef`
     using `-d:tomlOrderedTable` compile time switch.
   - Since v0.2.3, compile time decode/loadFile is allowed. It means you can initialize a const value using
     `decode` or `loadFile`. It is also ok to use it inside a static block or other nim VM code.
+  - Since v0.3.0:
+    - `tokKind` parser for dynamic runtime parser selection.
+    - Flavors for defining multiple TOML serialization styles per Nim type.
 
 > **Note**<br>
 On Windows, you might need to increase the stack size as nim-toml-serialization uses the stack to pass the object around.
@@ -215,6 +219,9 @@ server = {
 
 ## Option[T]
   Option[T] works as usual.
+
+## results.Opt[T]
+  Please import `toml_serialization/pkg/results` to add support for `Opt[T]`.
 
 ## Bignum
 TOML integer maxed at int64. But nim-toml-serialization can extend this to arbitrary precision bignum.

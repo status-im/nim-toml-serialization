@@ -6,11 +6,11 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
-  toml_serialization/[reader, writer, types, desc],
+  toml_serialization/[reader, writer, types, desc, format],
   toml_serialization/private/utils
 
 export
-  desc, reader, writer, types
+  desc, reader, writer, types, format
 
 Toml.setReader TomlReader
 Toml.setWriter TomlWriter, PreferredOutput = string
@@ -75,7 +75,8 @@ template saveFile*(_: type Toml,
 import
   stew/shims/macros
 
-template tomlDecodeImpl*(input: untyped,
+template tomlDecodeImpl*(Format: type SerializationFormat,
+                         input: untyped,
                          RecordType: distinct type,
                          key: string,
                          tomlCase: TomlCase,
@@ -87,9 +88,12 @@ template tomlDecodeImpl*(input: untyped,
     # using a `memoryInput`. The computed side-effects are coming
     # from the fact that the dynamic dispatch mechanisms used in
     # faststreams may be reading from a file or a network device.
+    type
+      TomlReaderType = ReaderType(Format)
+
     try:
       let stream = unsafeMemoryInput(input)
-      var reader = unpackArgs(init, [TomlReader, stream, tomlCase, params])
+      var reader = unpackArgs(init, [TomlReaderType, stream, tomlCase, params])
       when RecordType is (seq or array) and isRecord(Toml, RecordType):
         reader.readTableArray(RecordType, key, tomlCase)
       else:
@@ -98,45 +102,49 @@ template tomlDecodeImpl*(input: untyped,
     except IOError:
       raise (ref Defect)() # memory inputs cannot raise an IOError
 
-template decode*(_: type Toml, input: string,
+template decode*(T: type Toml, input: string,
                  RecordType: distinct type,
                  key: string, tomlCase: TomlCase,
                  params: varargs[untyped]): auto =
-  tomlDecodeImpl(input, RecordType, key, tomlCase, params)
+  T.tomlDecodeImpl(input, RecordType, key, tomlCase, params)
 
-template decode*(_: type Toml, input: string,
+template decode*(T: type Toml, input: string,
                  RecordType: distinct type,
                  key: string, params: varargs[untyped]): auto =
-  tomlDecodeImpl(input, RecordType, key, TomlCaseSensitive, params)
+  T.tomlDecodeImpl(input, RecordType, key, TomlCaseSensitive, params)
 
-template decode*(_: type Toml, input: openArray[byte],
+template decode*(T: type Toml, input: openArray[byte],
                  RecordType: distinct type,
                  key: string, tomlCase: TomlCase,
                  params: varargs[untyped]): auto =
-  tomlDecodeImpl(input, RecordType, key, tomlCase, params)
+  T.tomlDecodeImpl(input, RecordType, key, tomlCase, params)
 
-template decode*(_: type Toml, input: openArray[byte],
+template decode*(T: type Toml, input: openArray[byte],
                  RecordType: distinct type,
                  key: string, params: varargs[untyped]): auto =
-  tomlDecodeImpl(input, RecordType, key, TomlCaseSensitive, params)
+  T.tomlDecodeImpl(input, RecordType, key, TomlCaseSensitive, params)
 
-template decode*(_: type Toml,
+template decode*(T: type Toml,
                  input: string,
                  RecordType: distinct type,
                  params: varargs[untyped]): auto =
-  tomlDecodeImpl(input, RecordType, "", TomlCaseSensitive, params)
+  T.tomlDecodeImpl(input, RecordType, "", TomlCaseSensitive, params)
 
-template decode*(_: type Toml,
+template decode*(T: type Toml,
                  input: openArray[byte],
                  RecordType: distinct type,
                  params: varargs[untyped]): auto =
-  tomlDecodeImpl(input, RecordType, "", TomlCaseSensitive, params)
+  T.tomlDecodeImpl(input, RecordType, "", TomlCaseSensitive, params)
 
-template tomlLoadImpl*(filename: string,
+template tomlLoadImpl*(Format: type SerializationFormat,
+                       filename: string,
                        RecordType: distinct type,
                        key: string, tomlCase: TomlCase,
                        params: varargs[untyped]): auto =
   mixin init, ReaderType, readValue
+  type
+      TomlReaderType = ReaderType(Format)
+
   var stream: InputStream
   when nimvm:
     let input = staticRead(filename)
@@ -144,7 +152,7 @@ template tomlLoadImpl*(filename: string,
   else:
     stream = memFileInput(filename)
   try:
-    var reader = unpackArgs(init, [TomlReader, stream, params])
+    var reader = unpackArgs(init, [TomlReaderType, stream, params])
     when RecordType is (seq or array) and isRecord(Toml, RecordType):
       reader.readTableArray(RecordType, key, tomlCase)
     else:
@@ -153,24 +161,24 @@ template tomlLoadImpl*(filename: string,
   finally:
     close stream
 
-template loadFile*(_: type Toml, filename: string,
+template loadFile*(T: type Toml, filename: string,
                    RecordType: distinct type,
                    key: string, tomlCase: TomlCase,
                    params: varargs[untyped]): auto =
-  tomlLoadImpl(filename, RecordType, key, tomlCase, params)
+  T.tomlLoadImpl(filename, RecordType, key, tomlCase, params)
 
-template loadFile*(_: type Toml, filename: string,
+template loadFile*(T: type Toml, filename: string,
                    RecordType: distinct type,
                    key: string, params: varargs[untyped]): auto =
-  tomlLoadImpl(filename, RecordType, key, TomlCaseSensitive, params)
+  T.tomlLoadImpl(filename, RecordType, key, TomlCaseSensitive, params)
 
-template loadFile*(_: type Toml, filename: string,
+template loadFile*(T: type Toml, filename: string,
                    RecordType: distinct type,
                    tomlCase: TomlCase,
                    params: varargs[untyped]): auto =
-  tomlLoadImpl(filename, RecordType, "", tomlCase, params)
+  T.tomlLoadImpl(filename, RecordType, "", tomlCase, params)
 
-template loadFile*(_: type Toml, filename: string,
+template loadFile*(T: type Toml, filename: string,
                    RecordType: distinct type,
                    params: varargs[untyped]): auto =
-  tomlLoadImpl(filename, RecordType, "", TomlCaseSensitive, params)
+  T.tomlLoadImpl(filename, RecordType, "", TomlCaseSensitive, params)
