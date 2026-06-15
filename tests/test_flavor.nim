@@ -48,10 +48,19 @@ type
     one: Opt[string]
     two: Option[int]
 
+  Banana = object
+    color: string
+    time: TomlTime
+
 Container.useDefaultSerializationIn StringyToml
 
 createTomlFlavor OptToml
 OptionalFields.useDefaultSerializationIn OptToml
+
+createTomlFlavor HexToml,
+  runtimeFlags = {TomlHexEscape, TomlHourMinute}
+
+Banana.useDefaultSerializationIn HexToml
 
 suite "Test TOML Flavor":
   test "basic test":
@@ -75,3 +84,11 @@ suite "Test TOML Flavor":
 
     let cc = OptToml.encode(c)
     check cc == "one = \"burn\"\ntwo = 333\n"
+
+  test "Flavor runtime flags":
+    let b = HexToml.decode("color = \"\\x61\"\n time = 13:12\n", Banana)
+    check:
+      b.color == "\x61"
+      b.color == "a"
+      b.time.hour == 13
+      b.time.minute == 12

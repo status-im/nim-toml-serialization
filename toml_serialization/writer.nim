@@ -30,8 +30,13 @@ type
 proc init*(T: type TomlWriter,
            stream: OutputStream,
            flags: TomlFlags = {}): T =
+  mixin flavorRuntimeFlags
+
+  type
+    Flavor = T.Flavor
+
   T(stream: stream,
-    flags: flags,
+    flags: flags + flavorRuntimeFlags(Toml, Flavor),
     state: TopLevel)
 
 template append(x: untyped) =
