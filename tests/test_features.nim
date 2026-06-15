@@ -1,5 +1,5 @@
 # toml-serialization
-# Copyright (c) 2020 Status Research & Development GmbH
+# Copyright (c) 2020-2026 Status Research & Development GmbH
 # Licensed and distributed under either of
 #   * MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
 #   * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
@@ -362,3 +362,35 @@ suite "enums examples":
     let res = Toml.encode(z)
     let want = "fruit1 = \"Apple\"\nfruit2 = \"Banana\"\nfruit3 = \"Orange\"\n"
     check res == want
+
+type
+  SpecialTypes = object
+    one: TomlVoid
+    two: TomlTime
+    three: TomlDate
+    four: TomlValueRef
+
+suite "Additional tests":
+  test "Write special types":
+    const
+      tomlText = """
+        one = "this text will gone"
+        two = 13:05:00
+        three = 1970-06-15
+        four = {
+          apple = [1, true, "three"],
+          banana = {
+            chip = 123,
+            v = false
+          }
+        }
+      """
+
+    let
+      vv = Toml.decode(tomlText, SpecialTypes, flags = {TomlInlineTableNewline})
+      xx = Toml.encode(vv)
+      ww = Toml.decode(xx, SpecialTypes)
+
+    check:
+      ww == vv
+      xx == "two = 13:05:00\nthree = 1970-06-15\nfour = {apple = [1,true,\"three\"],banana = {chip = 123,v = false}}\n"

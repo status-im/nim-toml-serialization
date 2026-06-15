@@ -13,13 +13,14 @@ import
   serialization,
   ./private/utils,
   ./types,
-  ./desc
+  ./desc,
+  ./format
 
 export
-  desc
+  desc, format, DefaultFlavor
 
 type
-  TomlWriter* = object
+  TomlWriter*[Flavor = DefaultFlavor] = object
     stream*: OutputStream
     level: int
     flags: TomlFlags
@@ -29,9 +30,9 @@ type
 proc init*(T: type TomlWriter,
            stream: OutputStream,
            flags: TomlFlags = {}): T =
-  result.stream = stream
-  result.flags = flags
-  result.state = TopLevel
+  T(stream: stream,
+    flags: flags,
+    state: TopLevel)
 
 template append(x: untyped) =
   write w.stream, x
@@ -180,7 +181,7 @@ proc writeKey(w: var TomlWriter, s: openArray[string]) {.raises: [IOError].} =
 
 proc writeKey(emptyTable: var seq[string], s: openArray[string]) {.raises: [IOError].} =
   var o = memoryOutput()
-  var w = TomlWriter.init(o)
+  var w = TomlWriter[DefaultFlavor].init(o)
   append '['
   writeKey(w, s)
   append "]\n"
@@ -280,11 +281,11 @@ proc writeToml(w: var TomlWriter, value:
       dec w.level
 
   of TomlKind.InlineTable:
-    if w.level == 1:
+    if w.level == 1 and w.state != ExpectValue:
       writeKey(w, keyList)
       append '='
     writeInlineTable(w, value, keyList, emptyTable, true)
-    if w.level == 1:
+    if w.level == 1 and w.state != ExpectValue:
       append'\n'
 
   of TomlKind.Table:
@@ -337,63 +338,29 @@ template shouldWriteField*[FieldType](_: type Toml, field: FieldType): bool =
   ## Template to determine if a field should be written.
   true
 
-proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
-  mixin enumInstanceSerializedFields, writeValue, writeFieldIMPL, shouldWriteField
+proc writeRecordValue*[T](w: var TomlWriter, value: T) {.raises: [IOError].} =
+  let prevState = w.state
+  var firstField = true
+  type RecordType = type value
 
-  when value is TomlValueRef:
-    doAssert(value.kind == TomlKind.Table)
-    var keyList = newSeqOfCap[string](5)
-    var emptyTable = newSeqOfCap[string](5)
-    writeToml(w, value, keyList, emptyTable)
-    for k in emptyTable:
-      append k
+  if w.state == ExpectValue:
+    append '{'
+    if TomlInlineTableNewline in w.flags:
+      append '\n'
 
-  elif value is Option:
-    if value.isSome:
-      w.writeValue value.get
+  value.enumInstanceSerializedFields(fieldName, field):
+    type FieldType = type field
 
-  elif value is bool:
-    append if value: "true" else: "false"
+    template regularFieldWriter() {.used.} =
+      inc w.level
+      w.writeFieldIMPL(FieldTag[RecordType, fieldName], field, value)
+      dec w.level
+      w.state = prevState
 
-  elif value is enum:
-    w.writeValue $value
-
-  elif value is range:
-    type TVAL = type value
-    when low(TVAL) < 0:
-      w.stream.writeText int64(value)
-    else:
-      w.stream.writeText uint64(value)
-
-  elif value is SomeInteger:
-    w.stream.writeText value
-
-  elif value is SomeFloat:
-    w.stream.writeText value
-
-  elif value is (seq or array or openArray):
-    w.writeArray(value)
-
-  elif value is (object or tuple):
-    let prevState = w.state
-    var firstField = true
-    type RecordType = type value
-    if w.state == ExpectValue:
-      append '{'
-      if TomlInlineTableNewline in w.flags:
+      when FieldType isnot (object or tuple) or FieldType is TomlSpecial or isOptional(Toml, FieldType):
         append '\n'
-    value.enumInstanceSerializedFields(fieldName, field):
-      type FieldType = type field
 
-      template regularFieldWriter() {.used.} =
-        inc w.level
-        w.writeFieldIMPL(FieldTag[RecordType, fieldName], field, value)
-        dec w.level
-        w.state = prevState
-
-        when FieldType isnot (object or tuple) or FieldType is TomlSpecial or isOptional(Toml, FieldType):
-          append '\n'
-
+    when FieldType isnot TomlVoid:
       case w.state
       of TopLevel:
         when FieldType is (object or tuple) and FieldType isnot TomlSpecial and not isOptional(Toml, FieldType):
@@ -443,14 +410,70 @@ proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
       else:
         discard
 
-    if w.state == ExpectValue:
-      if TomlInlineTableNewline in w.flags:
-        append'\n'
-        indent()
-      append '}'
-    elif w.state == InsideRecord:
-      append '\n'
+  if w.state == ExpectValue:
+    if TomlInlineTableNewline in w.flags:
+      append'\n'
+      indent()
+    append '}'
+  elif w.state == InsideRecord:
+    append '\n'
+
+template writeValueObjectOrTuple(Flavor, w, value) =
+  mixin flavorUsesAutomaticObjectSerialization
+
+  const isAutomatic =
+    flavorUsesAutomaticObjectSerialization(Toml, Flavor)
+
+  when not isAutomatic:
+    const typeName = typetraits.name(type value)
+    {.error: "Please override writeValue for the " & typeName &
+      " type (or import the module where the override is provided)".}
+
+  writeRecordValue(w, value)
+
+proc writeValue*(w: var TomlWriter, value: auto) {.raises: [IOError].} =
+  mixin enumInstanceSerializedFields, writeValue, writeFieldIMPL, shouldWriteField
+
+  when value is TomlValueRef:
+    doAssert(value.kind in {TomlKind.Table, TomlKind.InlineTable})
+    var keyList = newSeqOfCap[string](5)
+    var emptyTable = newSeqOfCap[string](5)
+    writeToml(w, value, keyList, emptyTable)
+    for k in emptyTable:
+      append k
+
+  elif value is Option:
+    if value.isSome:
+      w.writeValue value.get
+
+  elif value is bool:
+    append if value: "true" else: "false"
+
+  elif value is enum:
+    w.writeValue $value
+
+  elif value is range:
+    type TVAL = type value
+    when low(TVAL) < 0:
+      w.stream.writeText int64(value)
+    else:
+      w.stream.writeText uint64(value)
+
+  elif value is SomeInteger:
+    w.stream.writeText value
+
+  elif value is SomeFloat:
+    w.stream.writeText value
+
+  elif value is (seq or array or openArray):
+    w.writeArray(value)
+
+  elif value is (object or tuple):
+    type Flavor = TomlWriter.Flavor
+    writeValueObjectOrTuple(Flavor, w, value)
 
   else:
-    const typeName = typetraits.name(value.type)
-    {.fatal: "Failed to convert to TOML an unsupported type: " & typeName.}
+    const
+      typeName = typetraits.name(value.type)
+      flavorName = typetraits.name(TomlWriter.Flavor)
+    {.fatal: flavorName & ": Failed to convert to TOML an unsupported type: " & typeName.}

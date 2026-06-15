@@ -14,7 +14,7 @@ import pkg/results, ../../toml_serialization/[reader, writer]
 export results
 
 template isOptional*[T](_: type Toml, U: distinct type Opt[T]): bool = true
-template BaseType*[T](_: type Toml, U: distinct type Opt[T]): type = T
+template baseType*[T](_: type Toml, U: distinct type Opt[T]): type = T
 
 template shouldWriteField*[T](_: type Toml, field: Opt[T]): bool =
   field.isSome

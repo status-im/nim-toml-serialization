@@ -19,4 +19,5 @@ import
   test_compile_time,
   test_misc,
   test_results,
-  test_tokkind
+  test_tokkind,
+  test_flavor
