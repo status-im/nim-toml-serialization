@@ -410,73 +410,103 @@ proc skipValue*(r: var TomlReader) {.raises: [IOError, TomlError].} =
   var val: TomlVoid
   parseValue(r.lex, val)
 
+template checkAutoSerialization(Flavor: type, X: distinct type, body: typed) =
+  mixin flavorUsesAutomaticPrimitivesSerialization, flavorAutoSerialization
+
+  const
+    autoSer = flavorUsesAutomaticPrimitivesSerialization(Toml, Flavor) or
+      flavorAutoSerialization(Toml, Flavor, X)
+
+  when not autoSer:
+    const
+      typeName = typetraits.name(T)
+      flavorName = typetraits.name(Flavor)
+    {.error: flavorName & ": Please enable automatic serialization of: " & typeName.}
+  else:
+    body
+
 proc readValue*[T](r: var TomlReader, value: var T)
                   {.raises: [SerializationError, IOError].} =
   mixin readValue
 
+  type
+    Flavor = TomlReader.Flavor
+
   when value is Option:
-    # `readValue` from nim-serialization will suppress
-    # compiler error when the underlying type
-    # has `requiresInit` pragma.
-    value = some(r.readValue(baseType(Toml, T)))
+    checkAutoSerialization(Flavor, Option):
+      # `readValue` from nim-serialization will suppress
+      # compiler error when the underlying type
+      # has `requiresInit` pragma.
+      value = some(r.readValue(baseType(Toml, T)))
 
   elif value is TomlValueRef:
-    value = r.parseValue
+    checkAutoSerialization(Flavor, TomlValueRef):
+      value = r.parseValue
 
   elif value is string:
-    # every value can be deserialized as string
-    parseValue(r.lex, value)
+    checkAutoSerialization(Flavor, string):
+      # every value can be deserialized as string
+      parseValue(r.lex, value)
 
   elif value is TomlVoid:
-    r.skipValue()
+    checkAutoSerialization(Flavor, TomlVoid):
+      r.skipValue()
 
   elif value is TomlTime:
-    expectChars(strutils.Digits, errInvalidDateTime)
-    scanTime(r.lex, value)
+    checkAutoSerialization(Flavor, TomlTime):
+      expectChars(strutils.Digits, errInvalidDateTime)
+      scanTime(r.lex, value)
 
   elif value is TomlDate:
-    expectChars(strutils.Digits, errInvalidDateTime)
-    scanDate(r.lex, value)
+    checkAutoSerialization(Flavor, TomlDate):
+      expectChars(strutils.Digits, errInvalidDateTime)
+      scanDate(r.lex, value)
 
   elif value is TomlDateTime:
-    expectChars(strutils.Digits, errInvalidDateTime)
-    scanDateTime(r.lex, value)
+    checkAutoSerialization(Flavor, TomlDateTime):
+      expectChars(strutils.Digits, errInvalidDateTime)
+      scanDateTime(r.lex, value)
 
   elif value is SomeInteger:
-    expectChars(signedDigits)
-    r.scanInt(value)
+    checkAutoSerialization(Flavor, SomeInteger):
+      expectChars(signedDigits)
+      r.scanInt(value)
 
   elif value is SomeFloat:
-    expectChars(signedDigits)
-    discard scanFloat(r.lex, value)
+    checkAutoSerialization(Flavor, SomeFloat):
+      expectChars(signedDigits)
+      discard scanFloat(r.lex, value)
 
   elif value is bool:
-    value = scanBool(r.lex)
+    checkAutoSerialization(Flavor, bool):
+      value = scanBool(r.lex)
 
   elif value is enum:
-    value = r.parseEnum(T)
+    checkAutoSerialization(Flavor, enum):
+      value = r.parseEnum(T)
 
   elif value is seq:
-    r.parseList:
-      let lastPos = value.len
-      value.setLen(lastPos + 1)
-      readValue(r, value[lastPos])
+    checkAutoSerialization(Flavor, seq):
+      r.parseList:
+        let lastPos = value.len
+        value.setLen(lastPos + 1)
+        readValue(r, value[lastPos])
 
   elif value is array:
-    type IDX = typeof low(value)
-    r.parseList(idx):
-      let i = IDX(idx + low(value).int)
-      if i <= high(value):
-        readValue(r, value[i])
+    checkAutoSerialization(Flavor, array):
+      type IDX = typeof low(value)
+      r.parseList(idx):
+        let i = IDX(idx + low(value).int)
+        if i <= high(value):
+          readValue(r, value[i])
 
   elif value is (object or tuple):
-    type Flavor = TomlReader.Flavor
     readValueObjectOrTuple(Flavor, r, value)
 
   else:
     const
       typeName = typetraits.name(T)
-      flavorName = typetraits.name(TomlReader.Flavor)
+      flavorName = typetraits.name(Flavor)
     {.error: flavorName & ": Failed to convert from TOML an unsupported type: " &
       typeName.}
 

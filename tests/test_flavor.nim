@@ -62,6 +62,17 @@ createTomlFlavor HexToml,
 
 Banana.useDefaultSerializationIn HexToml
 
+createTomlFlavor AutoToml,
+  runtimeFlags = {TomlHexEscape, TomlHourMinute},
+  automaticPrimitivesSerialization = false
+
+Banana.useDefaultSerializationIn AutoToml
+AutoToml.setAutoSerialization(string)
+
+proc readValue*(r: var TomlReader[AutoToml], v: var TomlTime) =
+  v = r.parseTime()
+  v.second = 13
+
 suite "Test TOML Flavor":
   test "basic test":
     let c = Container(name: "c", x: -10, y: 20, list: @[1'i64, 2, 25])
@@ -92,3 +103,11 @@ suite "Test TOML Flavor":
       b.color == "a"
       b.time.hour == 13
       b.time.minute == 12
+
+  test "Automatic serialization":
+    let b = AutoToml.decode("color = \"\\x61\"\n time = 13:12\n", Banana)
+    check:
+      b.color == "a"
+      b.time.hour == 13
+      b.time.minute == 12
+      b.time.second == 13 # is overloading works? yes
