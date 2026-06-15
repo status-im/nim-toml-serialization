@@ -125,7 +125,7 @@ proc writeValue*(w: var TomlWriter, x: TomlDateTime) {.raises: [IOError].} =
 
 proc writeValue*(w: var TomlWriter, s: string) {.raises: [IOError].} =
   const
-    lowEscape = {'\0'..'\31'} - {'\b', '\n', '\t', '\f', '\r'}
+    lowEscape = {'\0'..'\31'} - {'\b', '\e', '\f', '\n', '\r', '\t'}
     highEscape = {'\127'..'\255'}
 
   append '\"'
@@ -140,10 +140,11 @@ proc writeValue*(w: var TomlWriter, s: string) {.raises: [IOError].} =
           append "\\u"
           w.stream.toHex(c.int, 4)
       of '\b': append "\\b"
-      of '\t': append "\\t"
-      of '\n': append "\\n"
+      of '\e': append "\\e"
       of '\f': append "\\f"
+      of '\n': append "\\n"
       of '\r': append "\\r"
+      of '\t': append "\\t"
       of '\'': append "\\\'"
       of '\"': append "\\\""
       of '\\': append "\\\\"

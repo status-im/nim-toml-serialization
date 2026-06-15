@@ -255,10 +255,10 @@ suite "string test suite":
 
     testBasicString("hello\\uD7FF\"", "hello\uD7FF")
     testBasicString("hello\\U0010FFFF\"", "hello\u{10FFFF}")
-    testBasicString("\\\"\\\\\\b\\f\\n\\r\\t\"", "\"\\\b\f\n\r\t")
+    testBasicString("\\\"\\\\\\b\\e\\f\\n\\r\\t\"", "\"\\\b\e\f\n\r\t")
 
     # 4 """" delimiter
-    testBasicString("\"\"\\\"\\\\\\b\\f\\n\\r\\thel\nlo\"\"\"\"", "\"\\\b\f\n\r\thel\nlo\"")
+    testBasicString("\"\"\\\"\\\\\\b\\e\\f\\n\\r\\thel\nlo\"\"\"\"", "\"\\\b\e\f\n\r\thel\nlo\"")
 
     testBasicString("\"\"\\t\nhel\nlo\"\"\"", "\t\nhel\nlo")
 
