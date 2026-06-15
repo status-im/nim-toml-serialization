@@ -54,7 +54,15 @@ proc init*(T: type TomlReader,
            stream: InputStream,
            tomlCase: TomlCase,
            flags: TomlFlags = {}): T =
-  T(lex: TomlLexer.init(stream, flags),
+  mixin flavorRuntimeFlags
+
+  type
+    Flavor = T.Flavor
+
+  T(lex: TomlLexer.init(
+      stream,
+      flags + flavorRuntimeFlags(Toml, Flavor)
+    ),
     state: TopLevel,
     tomlCase: tomlCase)
 
