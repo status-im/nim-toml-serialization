@@ -408,10 +408,11 @@ proc scanEscapeChar[T](lex: var TomlLexer, esc: char, res: var T) {.raises: [IOE
   when T is string:
     case esc
     of 'b': res.add "\b"
-    of 't': res.add "\t"
-    of 'n': res.add "\n"
+    of 'e': res.add "\e"
     of 'f': res.add "\f"
+    of 'n': res.add "\n"
     of 'r': res.add "\r"
+    of 't': res.add "\t"
     of '\'': res.add "\'"
     of '\"': res.add "\""
     of '\\': res.add "\\"
@@ -423,7 +424,7 @@ proc scanEscapeChar[T](lex: var TomlLexer, esc: char, res: var T) {.raises: [IOE
       raiseUnknownEscape(lex, esc)
   else:
     case esc
-    of 'b', 't', 'n', 'f', 'r', '\'', '\"', '\\':
+    of 'b', 'e', 'f', 'n', 'r', 't', '\'', '\"', '\\':
       discard
     of 'x':
       scanHexEscape(lex, res)
