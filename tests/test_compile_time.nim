@@ -6,8 +6,12 @@
 # at your option. This file may not be copied, modified, or distributed except according to those terms.
 
 import
+  std/[strutils, os],
   unittest2,
   ../toml_serialization
+
+const
+  currentPath  = currentSourcePath.rsplit({DirSep, AltSep}, 1)[0] & "/"
 
 type
   Fruits = object
@@ -22,7 +26,7 @@ proc toBlob(x: string): seq[byte] =
 const
   fruitFile = "tomls/fruits.toml"
   toml = staticRead fruitFile
-  xx = Toml.loadFile("tests/" & fruitFile, Fruits)
+  xx = Toml.loadFile(currentPath & fruitFile, Fruits)
   yy = Toml.decode(toml, Fruits)
   zz = Toml.decode(toml.toBlob, Fruits)
   kk = Toml.decode(toml, string, "fruit3")

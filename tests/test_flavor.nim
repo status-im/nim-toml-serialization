@@ -119,3 +119,10 @@ suite "Test TOML Flavor":
       b.time.hour == 13
       b.time.minute == 12
       b.time.second == 13 # is overloading works? yes
+
+  test "keyed mode":
+    # Is the overloaded `decode` with keyed mode available? yes
+    let b = AutoToml.decode("color = \"\\x61\"\n time = 13:12\n", TomlTime, key = "time")
+    check:
+      b.hour == 13
+      b.minute == 12

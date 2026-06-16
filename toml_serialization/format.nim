@@ -9,16 +9,21 @@
 
 import
   std/typetraits,
-  serialization/[formats, object_serialization],
+  serialization/formats,
   ./desc,
-  ./types
+  ./types,
+  ./decoder
 
-export formats
+export
+  formats,
+  TomlSpecial,
+  TomlNotTopLevel
 
-template flavorRuntimeFlags*(_: type Toml, F: distinct type DefaultFlavor): set[TomlFlag] = {}
-template flavorUsesAutomaticObjectSerialization*(_: type Toml, F: distinct type DefaultFlavor): bool = true
-template flavorUsesAutomaticPrimitivesSerialization*(_: type Toml, F: distinct type DefaultFlavor): bool = true
-template flavorAutoSerialization*(_: type Toml, F: distinct type DefaultFlavor, X: distinct type): bool = true
+template flavorRuntimeFlags*(_: type Toml, _: distinct type DefaultFlavor): set[TomlFlag] = {}
+template flavorUsesAutomaticObjectSerialization*(_: type Toml, _: distinct type DefaultFlavor): bool = true
+template flavorUsesAutomaticPrimitivesSerialization*(_: type Toml, _: distinct type DefaultFlavor): bool = true
+template flavorAutoSerializationRead*(_: type Toml, _: distinct type DefaultFlavor, _: distinct type): bool = true
+template flavorAutoSerializationWrite*(_: type Toml, _: distinct type DefaultFlavor, _: distinct type): bool = true
 
 template createTomlFlavor*(FlavorName: untyped,
                            mimeTypeValue = "application/toml",
@@ -28,16 +33,31 @@ template createTomlFlavor*(FlavorName: untyped,
 
   createFlavor(Toml, FlavorName, mimeTypeValue)
 
-  template flavorRuntimeFlags*(_: type Toml, F: distinct type FlavorName): set[TomlFlag] = runtimeFlags
-  template flavorUsesAutomaticObjectSerialization*(_: type Toml, F: distinct type FlavorName): bool = automaticObjectSerialization
-  template flavorUsesAutomaticPrimitivesSerialization*(_: type Toml, F: distinct type FlavorName): bool = automaticPrimitivesSerialization
-  template flavorAutoSerialization*(_: type Toml, F: distinct type FlavorName, X: distinct type): bool = automaticPrimitivesSerialization
+  template flavorRuntimeFlags*(_: type Toml, _: distinct type FlavorName): set[TomlFlag] = runtimeFlags
+  template flavorUsesAutomaticObjectSerialization*(_: type Toml, _: distinct type FlavorName): bool = automaticObjectSerialization
+  template flavorUsesAutomaticPrimitivesSerialization*(_: type Toml, _: distinct type FlavorName): bool = automaticPrimitivesSerialization
+  template flavorAutoSerializationRead*(_: type Toml, _: distinct type FlavorName, _: distinct type): bool = automaticPrimitivesSerialization
+  template flavorAutoSerializationWrite*(_: type Toml, _: distinct type FlavorName, _: distinct type): bool = automaticPrimitivesSerialization
+  Toml.setDecoder(FlavorName)
 
-template setAutoSerialization*(Flavor: type, X: distinct type) =
+template setAutoSerializationRead*(Flavor: type SerializationFormat, TargetType: distinct type) =
   mixin flavorUsesAutomaticPrimitivesSerialization
   when flavorUsesAutomaticPrimitivesSerialization(Toml, Flavor):
     const
       flavorName = typetraits.name(Flavor)
-      typeName = typetraits.name(X)
+      typeName = typetraits.name(TargetType)
     {.error: flavorName & ": please set automaticPrimitivesSerialization to false".}
-  template flavorAutoSerialization*(_: type Toml, F: distinct type Flavor, _: distinct type X): bool = true
+  template flavorAutoSerializationRead*(_: type Toml, _: type Flavor, _: distinct type TargetType): bool = true
+
+template setAutoSerializationWrite*(Flavor: type SerializationFormat, TargetType: distinct type) =
+  mixin flavorUsesAutomaticPrimitivesSerialization
+  when flavorUsesAutomaticPrimitivesSerialization(Toml, Flavor):
+    const
+      flavorName = typetraits.name(Flavor)
+      typeName = typetraits.name(TargetType)
+    {.error: flavorName & ": please set automaticPrimitivesSerialization to false".}
+  template flavorAutoSerializationWrite*(_: type Toml, _: type Flavor, _: distinct type TargetType): bool = true
+
+template setAutoSerialization*(Flavor: type SerializationFormat, TargetType: distinct type) =
+  setAutoSerializationRead(Flavor, TargetType)
+  setAutoSerializationWrite(Flavor, TargetType)

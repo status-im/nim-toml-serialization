@@ -61,7 +61,7 @@ proc init*(T: type TomlReader,
 
   T(lex: TomlLexer.init(
       stream,
-      flags + flavorRuntimeFlags(Toml, Flavor)
+      flags + Toml.flavorRuntimeFlags(Flavor)
     ),
     state: TopLevel,
     tomlCase: tomlCase)
@@ -393,7 +393,7 @@ template readValueObjectOrTuple(Flavor, r, value) =
   mixin flavorUsesAutomaticObjectSerialization
 
   const isAutomatic =
-    flavorUsesAutomaticObjectSerialization(Toml, Flavor)
+    Toml.flavorUsesAutomaticObjectSerialization(Flavor)
 
   when not isAutomatic:
     const
@@ -411,18 +411,18 @@ proc skipValue*(r: var TomlReader) {.raises: [IOError, TomlError].} =
   parseValue(r.lex, val)
 
 template checkAutoSerialization(Flavor: type, TypeClass: distinct type, value: typed, body: typed) =
-  mixin flavorUsesAutomaticPrimitivesSerialization, flavorAutoSerialization
+  mixin flavorUsesAutomaticPrimitivesSerialization, flavorAutoSerializationRead
 
   const
-    autoSer = flavorUsesAutomaticPrimitivesSerialization(Toml, Flavor) or
-      flavorAutoSerialization(Toml, Flavor, TypeClass) or
-      flavorAutoSerialization(Toml, Flavor, typeof(value))
+    autoSer = Toml.flavorUsesAutomaticPrimitivesSerialization(Flavor) or
+              Toml.flavorAutoSerializationRead(Flavor, TypeClass) or
+              Toml.flavorAutoSerializationRead(Flavor, typeof(value))
 
   when not autoSer:
     const
       typeName = typetraits.name(T)
       flavorName = typetraits.name(Flavor)
-    {.error: flavorName & ": Please enable automatic serialization of: " & typeName.}
+    {.error: flavorName & ": Please enable automatic serialization to read: " & typeName.}
   else:
     body
 
