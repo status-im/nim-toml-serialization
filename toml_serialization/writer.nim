@@ -17,10 +17,10 @@ import
   ./format
 
 export
-  desc, format, DefaultFlavor
+  desc, format
 
 type
-  TomlWriter*[Flavor = DefaultFlavor] = object
+  TomlWriter*[Flavor = Toml] = object
     stream*: OutputStream
     level: int
     flags: TomlFlags
@@ -36,7 +36,7 @@ proc init*(T: type TomlWriter,
     Flavor = T.Flavor
 
   T(stream: stream,
-    flags: flags + Toml.flavorRuntimeFlags(Flavor),
+    flags: flags + flavorRuntimeFlags(Flavor),
     state: TopLevel)
 
 template append(x: untyped) =
@@ -430,7 +430,7 @@ template writeValueObjectOrTuple(Flavor, w, value) =
   mixin flavorUsesAutomaticObjectSerialization
 
   const isAutomatic =
-    Toml.flavorUsesAutomaticObjectSerialization(Flavor)
+    flavorUsesAutomaticObjectSerialization(Flavor)
 
   when not isAutomatic:
     const typeName = typetraits.name(type value)
@@ -443,9 +443,9 @@ template checkAutoSerialization(Flavor: type, TypeClass: distinct type, value: t
   mixin flavorUsesAutomaticPrimitivesSerialization, flavorAutoSerializationWrite
 
   const
-    autoSer = Toml.flavorUsesAutomaticPrimitivesSerialization(Flavor) or
-              Toml.flavorAutoSerializationWrite(Flavor, TypeClass) or
-              Toml.flavorAutoSerializationWrite(Flavor, typeof(value))
+    autoSer = flavorUsesAutomaticPrimitivesSerialization(Flavor) or
+              flavorAutoSerializationWrite(Flavor, TypeClass) or
+              flavorAutoSerializationWrite(Flavor, typeof(value))
 
   when not autoSer:
     const

@@ -20,10 +20,10 @@ import
 
 export
   errors, TomlReaderError, TomlFieldReadingError, desc,
-  format, DefaultFlavor
+  format
 
 type
-  TomlReader*[Flavor = DefaultFlavor] = object
+  TomlReader*[Flavor = Toml] = object
     lex*: TomlLexer
     state: CodecState
     tomlCase: TomlCase
@@ -61,7 +61,7 @@ proc init*(T: type TomlReader,
 
   T(lex: TomlLexer.init(
       stream,
-      flags + Toml.flavorRuntimeFlags(Flavor)
+      flags + flavorRuntimeFlags(Flavor)
     ),
     state: TopLevel,
     tomlCase: tomlCase)
@@ -393,7 +393,7 @@ template readValueObjectOrTuple(Flavor, r, value) =
   mixin flavorUsesAutomaticObjectSerialization
 
   const isAutomatic =
-    Toml.flavorUsesAutomaticObjectSerialization(Flavor)
+    flavorUsesAutomaticObjectSerialization(Flavor)
 
   when not isAutomatic:
     const
@@ -414,9 +414,9 @@ template checkAutoSerialization(Flavor: type, TypeClass: distinct type, value: t
   mixin flavorUsesAutomaticPrimitivesSerialization, flavorAutoSerializationRead
 
   const
-    autoSer = Toml.flavorUsesAutomaticPrimitivesSerialization(Flavor) or
-              Toml.flavorAutoSerializationRead(Flavor, TypeClass) or
-              Toml.flavorAutoSerializationRead(Flavor, typeof(value))
+    autoSer = flavorUsesAutomaticPrimitivesSerialization(Flavor) or
+              flavorAutoSerializationRead(Flavor, TypeClass) or
+              flavorAutoSerializationRead(Flavor, typeof(value))
 
   when not autoSer:
     const
