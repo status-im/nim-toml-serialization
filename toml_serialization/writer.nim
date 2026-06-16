@@ -36,7 +36,7 @@ proc init*(T: type TomlWriter,
     Flavor = T.Flavor
 
   T(stream: stream,
-    flags: flags + flavorRuntimeFlags(Toml, Flavor),
+    flags: flags + Toml.flavorRuntimeFlags(Flavor),
     state: TopLevel)
 
 template append(x: untyped) =
@@ -185,9 +185,11 @@ proc writeKey(w: var TomlWriter, s: openArray[string]) {.raises: [IOError].} =
     if i < s.high:
       append '.'
 
-proc writeKey(emptyTable: var seq[string], s: openArray[string]) {.raises: [IOError].} =
+proc writeKey(T: type TomlWriter,
+              emptyTable: var seq[string],
+              s: openArray[string]) {.raises: [IOError].} =
   var o = memoryOutput()
-  var w = TomlWriter[DefaultFlavor].init(o)
+  var w = T.init(o)
   append '['
   writeKey(w, s)
   append "]\n"
@@ -297,7 +299,7 @@ proc writeToml(w: var TomlWriter, value:
   of TomlKind.Table:
     if value.tableVal.len == 0 and keyList.len > 0:
       # empty table
-      writeKey(emptyTable, keyList)
+      writeKey(typeof(w), emptyTable, keyList)
 
     for k, v in value.tableVal:
       if v.kind in {TomlKind.Table, TomlKind.Tables}:
@@ -428,7 +430,7 @@ template writeValueObjectOrTuple(Flavor, w, value) =
   mixin flavorUsesAutomaticObjectSerialization
 
   const isAutomatic =
-    flavorUsesAutomaticObjectSerialization(Toml, Flavor)
+    Toml.flavorUsesAutomaticObjectSerialization(Flavor)
 
   when not isAutomatic:
     const typeName = typetraits.name(type value)
@@ -438,18 +440,18 @@ template writeValueObjectOrTuple(Flavor, w, value) =
   writeRecordValue(w, value)
 
 template checkAutoSerialization(Flavor: type, TypeClass: distinct type, value: typed, body: typed) =
-  mixin flavorUsesAutomaticPrimitivesSerialization, flavorAutoSerialization
+  mixin flavorUsesAutomaticPrimitivesSerialization, flavorAutoSerializationWrite
 
   const
-    autoSer = flavorUsesAutomaticPrimitivesSerialization(Toml, Flavor) or
-      flavorAutoSerialization(Toml, Flavor, TypeClass) or
-      flavorAutoSerialization(Toml, Flavor, typeof(value))
+    autoSer = Toml.flavorUsesAutomaticPrimitivesSerialization(Flavor) or
+              Toml.flavorAutoSerializationWrite(Flavor, TypeClass) or
+              Toml.flavorAutoSerializationWrite(Flavor, typeof(value))
 
   when not autoSer:
     const
       typeName = typetraits.name(T)
       flavorName = typetraits.name(Flavor)
-    {.error: flavorName & ": Please enable automatic serialization of: " & typeName.}
+    {.error: flavorName & ": Please enable automatic serialization to write: " & typeName.}
   else:
     body
 
