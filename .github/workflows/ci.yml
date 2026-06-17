@@ -17,9 +17,6 @@ jobs:
       test-command: |
         nim -v
         gcc --version
-        nimble install -y --depsOnly
-        nimble install -y stint
-        nimble install -y unittest2
-        nimble install -y results
+        nimble install -y --depsOnly stint unittest2 results
         nimble list --installed --version
         env NIMLANG=c nimble test
