@@ -7,9 +7,9 @@ description   = "Flexible TOML serialization [not] relying on run-time type info
 license       = "Apache License 2.0"
 skipDirs      = @["tests", "assets"]
 
-requires "nim >= 1.6.0",
+requires "nim >= 2.0.0",
          "faststreams >= 0.5.0",
-         "serialization",
+         "serialization >= 0.5.3",
          "stew"
 
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
