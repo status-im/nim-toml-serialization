@@ -51,7 +51,7 @@ type
     TomlInlineTableTrailingComma
     TomlHexEscape     # allow \xHH escape sequence
     TomlHourMinute    # allow HH:MM format
-    TomlUnknownFields # allow unknow fields
+    TomlUnknownFields # allow unknown fields
     TomlStrictComma   # array/inline table elements must be separated by a comma
 
   TomlFlags* = set[TomlFlag]

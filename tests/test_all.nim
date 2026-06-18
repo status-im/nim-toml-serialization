@@ -20,4 +20,5 @@ import
   test_misc,
   test_results,
   test_tokkind,
-  test_flavor
+  test_flavor,
+  test_toml_v110
