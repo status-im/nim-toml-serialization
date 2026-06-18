@@ -1,20 +1,20 @@
-<svg width="90.4" height="20" viewBox="0 0 904 200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-label="TOML: v1.0.0">
-  <title>TOML: v1.0.0</title>
-  <linearGradient id="a" x2="0" y2="100%">
+<svg width="90.4" height="20" viewBox="0 0 904 200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-label="TOML: v1.1.0">
+  <title>TOML: v1.1.0</title>
+  <linearGradient id="hKSKs" x2="0" y2="100%">
     <stop offset="0" stop-opacity=".1" stop-color="#EEE"/>
     <stop offset="1" stop-opacity=".1"/>
   </linearGradient>
-  <mask id="m"><rect width="904" height="200" rx="30" fill="#FFF"/></mask>
-  <g mask="url(#m)">
+  <mask id="uzQmj"><rect width="904" height="200" rx="30" fill="#FFF"/></mask>
+  <g mask="url(#uzQmj)">
     <rect width="449" height="200" fill="#555"/>
     <rect width="455" height="200" fill="#08C" x="449"/>
-    <rect width="904" height="200" fill="url(#a)"/>
+    <rect width="904" height="200" fill="url(#hKSKs)"/>
   </g>
-  <g aria-hidden="true" fill="#fff" text-anchor="start" font-family="Verdana,DejaVu Sans,sans-serif" font-size="110">
+  <g aria-hidden="true" text-anchor="start" font-family="Verdana,DejaVu Sans,sans-serif" font-size="110">
     <text x="100" y="148" textLength="309" fill="#000" opacity="0.25">TOML</text>
-    <text x="90" y="138" textLength="309">TOML</text>
-    <text x="504" y="148" textLength="355" fill="#000" opacity="0.25">v1.0.0</text>
-    <text x="494" y="138" textLength="355">v1.0.0</text>
+    <text x="90" y="138" textLength="309" fill="#fff">TOML</text>
+    <text x="504" y="148" textLength="355" fill="#000" opacity="0.25">v1.1.0</text>
+    <text x="494" y="138" textLength="355" fill="#fff">v1.1.0</text>
   </g>
   <image x="40" y="35" width="10" height="130" xlink:href="data:image/svg+xml;base64,..."/>
 </svg>

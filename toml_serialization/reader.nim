@@ -328,7 +328,6 @@ proc decodeRecord[T](r: var TomlReader, value: var T) {.raises: [IOError, Serial
         try:
           reader(value, r)
         except TomlError as err:
-          debugEcho "EEE: ", err.msg
           raise (ref TomlFieldReadingError)(field: fieldName, error: err)
         checkEol(r.lex, line)
         r.state = prevState

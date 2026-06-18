@@ -54,6 +54,7 @@ family and provides several operation modes:
   - Since v0.3.0:
     - `tokKind` parser for dynamic runtime parser selection.
     - Flavors for defining multiple TOML serialization styles per Nim type.
+    - TOML v1.1.0 features enabled by default
 
 > **Note**<br>
 On Windows, you might need to increase the stack size as nim-toml-serialization uses the stack to pass the object around.
@@ -61,11 +62,30 @@ Example: add `--passL:"-Wl,--stack,8388608"` to your command line when running t
 But you only need to do this if the object you serializing can produce deep recursion.
 
 ## Spec compliance
-nim-toml-serialization implements [v1.0.0](https://github.com/toml-lang/toml/releases/tag/1.0.0)
+nim-toml-serialization implements [v1.1.0](https://github.com/toml-lang/toml/releases/tag/1.1.0)
 TOML spec and pass these test suites:
 
   - [iarna toml test suite](https://github.com/iarna/toml-spec-tests)
   - [burntsushi toml test suite](https://github.com/BurntSushi/toml-test)
+
+## TOML v1.0.0 features
+- Use Toml_v100 flavor if you want don't want TOML v1.1.0 activated.
+
+- TOML inline table disallows newline inside the table.
+  nim-toml-serialization provides a switch to enable newline in an inline table via `TomlInlineTableNewline`.
+  Enabled by default in TOML v1.1.0
+
+- TOML standard does not support xHH escape sequence, only uHHHH or UHHHHHHHH.
+  Use `TomlHexEscape` to enable this feature otherwise it will raise an exception.
+  Enabled by default in TOML v1.1.0
+
+- TOML standard requires time in HH:MM:SS format, `TomlHourMinute` flags will allow HH:MM format.
+  Enabled by default in TOML v1.1.0
+
+- TOML standard requires array elements be separated by a comma. Whitespaces are ignored.
+  But due to a bug, the array/inline table elements can be separated by both comma and whitespace.
+  Set `TomlStrictComma` flag on to parse in strict mode, by default the strict mode is off.
+  Enabled by default in TOML v1.1.0
 
 ## Nonstandard features
 - TOML key comparison according to the spec is case sensitive and this is the default mode
@@ -75,18 +95,6 @@ TOML spec and pass these test suites:
   - Nim ident sensitivity key comparison mode (only the first char is case sensitive).
 
   TOML key supports Unicode chars but the comparison mentioned above only applies to ASCII chars.
-
-- TOML inline table disallows newline inside the table.
-  nim-toml-serialization provides a switch to enable newline in an inline table via `TomlInlineTableNewline`.
-
-- TOML standard does not support xHH escape sequence, only uHHHH or UHHHHHHHH.
-  Use `TomlHexEscape` to enable this feature otherwise it will raise an exception.
-
-- TOML standard requires time in HH:MM:SS format, `TomlHourMinute` flags will allow HH:MM format.
-
-- TOML standard requires array elements be separated by a comma. Whitespaces are ignored.
-  But due to a bug, the array/inline table elements can be separated by both comma and whitespace.
-  Set `TomlStrictComma` flag on to parse in strict mode, by default the strict mode is off.
 
 ## Keyed mode
 When decoding, only objects, tuples or `TomlValueRef` are allowed at top level.
@@ -162,7 +170,7 @@ to `exit` from the inline table parser in a clean way.
 
 ## Parse inline table with newline
 ```toml
-# This is a nonstandard toml
+# This is a nonstandard toml in TOML v1.0.0
 
 server = {
   ip = "127.0.0.1",
@@ -173,7 +181,7 @@ server = {
 
 ```Nim
   # turn on newline in inline table mode
-  var x = Toml.decode(rawtoml, Server, flags = {TomlInlineTableNewline})
+  var x = Toml_v100.decode(rawtoml, Server, flags = {TomlInlineTableNewline})
 ```
 
 ## Load and save
