@@ -19,11 +19,11 @@ export
   TomlSpecial,
   TomlNotTopLevel
 
-template flavorRuntimeFlags*(_: type Toml, _: distinct type DefaultFlavor): set[TomlFlag] = {}
-template flavorUsesAutomaticObjectSerialization*(_: type Toml, _: distinct type DefaultFlavor): bool = true
-template flavorUsesAutomaticPrimitivesSerialization*(_: type Toml, _: distinct type DefaultFlavor): bool = true
-template flavorAutoSerializationRead*(_: type Toml, _: distinct type DefaultFlavor, _: distinct type): bool = true
-template flavorAutoSerializationWrite*(_: type Toml, _: distinct type DefaultFlavor, _: distinct type): bool = true
+template flavorRuntimeFlags*(_: type Toml): set[TomlFlag] = {}
+template flavorUsesAutomaticObjectSerialization*(_: type Toml): bool = true
+template flavorUsesAutomaticPrimitivesSerialization*(_: type Toml): bool = true
+template flavorAutoSerializationRead*(_: type Toml, _: distinct type): bool = true
+template flavorAutoSerializationWrite*(_: type Toml, _: distinct type): bool = true
 
 template createTomlFlavor*(FlavorName: untyped,
                            mimeTypeValue = "application/toml",
@@ -32,32 +32,30 @@ template createTomlFlavor*(FlavorName: untyped,
                            runtimeFlags: set[TomlFlag] = {}) {.dirty.} =
 
   createFlavor(Toml, FlavorName, mimeTypeValue)
+  template flavorRuntimeFlags*(_: type FlavorName): set[TomlFlag] = runtimeFlags
+  template flavorUsesAutomaticObjectSerialization*(_: type FlavorName): bool = automaticObjectSerialization
+  template flavorUsesAutomaticPrimitivesSerialization*(_: type FlavorName): bool = automaticPrimitivesSerialization
+  template flavorAutoSerializationRead*(_: type FlavorName, _: distinct type): bool = automaticPrimitivesSerialization
+  template flavorAutoSerializationWrite*(_: type FlavorName, _: distinct type): bool = automaticPrimitivesSerialization
 
-  template flavorRuntimeFlags*(_: type Toml, _: distinct type FlavorName): set[TomlFlag] = runtimeFlags
-  template flavorUsesAutomaticObjectSerialization*(_: type Toml, _: distinct type FlavorName): bool = automaticObjectSerialization
-  template flavorUsesAutomaticPrimitivesSerialization*(_: type Toml, _: distinct type FlavorName): bool = automaticPrimitivesSerialization
-  template flavorAutoSerializationRead*(_: type Toml, _: distinct type FlavorName, _: distinct type): bool = automaticPrimitivesSerialization
-  template flavorAutoSerializationWrite*(_: type Toml, _: distinct type FlavorName, _: distinct type): bool = automaticPrimitivesSerialization
-  Toml.setDecoder(FlavorName)
-
-template setAutoSerializationRead*(Flavor: type SerializationFormat, TargetType: distinct type) =
+template setAutoSerializationRead*(Flavor: type Toml, TargetType: distinct type) =
   mixin flavorUsesAutomaticPrimitivesSerialization
-  when flavorUsesAutomaticPrimitivesSerialization(Toml, Flavor):
+  when flavorUsesAutomaticPrimitivesSerialization(Flavor):
     const
       flavorName = typetraits.name(Flavor)
       typeName = typetraits.name(TargetType)
     {.error: flavorName & ": please set automaticPrimitivesSerialization to false".}
-  template flavorAutoSerializationRead*(_: type Toml, _: type Flavor, _: distinct type TargetType): bool = true
+  template flavorAutoSerializationRead*(_: type Flavor, _: distinct type TargetType): bool = true
 
-template setAutoSerializationWrite*(Flavor: type SerializationFormat, TargetType: distinct type) =
+template setAutoSerializationWrite*(Flavor: type Toml, TargetType: distinct type) =
   mixin flavorUsesAutomaticPrimitivesSerialization
-  when flavorUsesAutomaticPrimitivesSerialization(Toml, Flavor):
+  when flavorUsesAutomaticPrimitivesSerialization(Flavor):
     const
       flavorName = typetraits.name(Flavor)
       typeName = typetraits.name(TargetType)
     {.error: flavorName & ": please set automaticPrimitivesSerialization to false".}
-  template flavorAutoSerializationWrite*(_: type Toml, _: type Flavor, _: distinct type TargetType): bool = true
+  template flavorAutoSerializationWrite*(_: type Flavor, _: distinct type TargetType): bool = true
 
-template setAutoSerialization*(Flavor: type SerializationFormat, TargetType: distinct type) =
+template setAutoSerialization*(Flavor: type Toml, TargetType: distinct type) =
   setAutoSerializationRead(Flavor, TargetType)
   setAutoSerializationWrite(Flavor, TargetType)

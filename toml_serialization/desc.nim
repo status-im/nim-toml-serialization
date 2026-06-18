@@ -14,4 +14,9 @@ export
   serialization
 
 serializationFormat Toml,
-                    mimeType = "application/toml"
+                    mimeType = "application/toml",
+                    version = 1
+
+# version 1:
+#   - Reader/Writer using Format as default flavor
+#   - Format is the Flavor parent type
