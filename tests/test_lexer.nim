@@ -192,6 +192,16 @@ suite "numbers test suite":
     expect TomlError:
       testScanEncoding("1234", 43981'u64, base10)
 
+    expect TomlError:
+      testScanEncoding("b", 0'u64, base2)
+
+    expect TomlError:
+      testScanEncoding("o", 0'u64, base8)
+
+    expect TomlError:
+      testScanEncoding("x", 0'u64, base16)
+
+
   test "scanEncoding string":
     testScanEncoding("b101", "101", base2)
     testScanEncoding("o4567", "4567", base8)
@@ -251,8 +261,12 @@ suite "string test suite":
     expect TomlError:
       testBasicString("\"\"hel\nlo\"\"", "hel\nlo")
 
+    expect TomlError:
+      testBasicString("hello\b", "hello\b")
+
     testBasicString("\"\" \" \"\" \"\"\"", " \" \"\" ")
 
+    testBasicString("escaped\\u002edot\"", "escaped" & "\u002e" & "dot")
     testBasicString("hello\\uD7FF\"", "hello\uD7FF")
     testBasicString("hello\\U0010FFFF\"", "hello\u{10FFFF}")
     testBasicString("\\\"\\\\\\b\\e\\f\\n\\r\\t\"", "\"\\\b\e\f\n\r\t")
@@ -415,6 +429,18 @@ suite "integer test suite":
     testScanInt("-0xABCDEF", "0", base10, Sign.Neg)
     testScanInt("-0o7456", "0", base10, Sign.Neg)
     testScanInt("-0b101", "0", base10, Sign.Neg)
+
+    expect TomlError:
+      testScanInt("--99", "99", base10, Sign.Neg)
+
+    expect TomlError:
+      testScanInt("- -99", "99", base10, Sign.Neg)
+
+    expect TomlError:
+      testScanInt("++99", "99", base10, Sign.Pos)
+
+    expect TomlError:
+      testScanInt("+ +99", "99", base10, Sign.Pos)
 
     expect TomlError:
       testScanInt("00", "0", base10, Sign.None)

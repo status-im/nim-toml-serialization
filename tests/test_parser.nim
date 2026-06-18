@@ -88,6 +88,29 @@ suite "test num or date parse to toml":
     var x = TomlValueRef(kind: TomlKind.Int, intVal: 0xABCD)
     testNumOrDate("0xABCD", x)
 
+    x = TomlValueRef(kind: TomlKind.Int, intVal: -99)
+    expect TomlError:
+      testNumOrDate("--99", x)
+
+    expect TomlError:
+      testNumOrDate("- -99", x)
+
+    x = TomlValueRef(kind: TomlKind.Int, intVal: 99)
+    expect TomlError:
+      testNumOrDate("++99", x)
+
+    expect TomlError:
+      testNumOrDate("+ +99", x)
+
+    expect TomlError:
+      testNumOrDate("0b", x)
+
+    expect TomlError:
+      testNumOrDate("0o", x)
+
+    expect TomlError:
+      testNumOrDate("0x", x)
+
     var t = some(TomlTime(hour:7, minute:10, second:11))
     x = TomlValueRef(kind: TomlKind.DateTime, dateTime: TomlDateTime(time: t))
     testNumOrDate("07:10:11", x)
@@ -95,6 +118,9 @@ suite "test num or date parse to toml":
     var d = TomlDate(year:970, month:8, day:8)
     x.dateTime.date = some(d)
     testNumOrDate("0970-08-08 07:10:11", x)
+
+    expect TomlError:
+      testNumOrDate("24:00:00", x)
 
   test "parseNumOrDate toml 2":
     var x = TomlValueRef(kind: TomlKind.Int, intVal: 0)
@@ -186,6 +212,13 @@ suite "test value parser":
     testParseValue("\'literal string\'", "literal string")
     testParseValue("\"\"\"ml basic string\"\"\"", "ml basic string")
     testParseValue("\'\'\'ml literal string\'\'\'", "ml literal string")
+
+    testParseValue("\'\'\'This string has a \' quote character.\'\'\'", "This string has a \' quote character.")
+    testParseValue("\'\'\'\nThis string has a \' quote character.\'\'\'", "This string has a \' quote character.")
+    testParseValue("\'\'\'\nThis string\nhas \' a quote character\nand more than\none newline\nin it.\'\'\'", "This string\nhas ' a quote character\nand more than\none newline\nin it.")
+    testParseValue("\'\'\'First line\n\t Followed by a tab\'\'\'", "First line\n\t Followed by a tab")
+
+    testParseValue("'\'\'\' there\'s one already\n\'\' two more\n\'\'\'\'\'", "\' there\'s one already\n\'\' two more\n\'\'")
 
   test "parseValue toml":
     var x = TomlValueRef(kind: TomlKind.Int, intVal: 0)

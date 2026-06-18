@@ -668,3 +668,13 @@ suite "toml v1.0.0 spec":
     check Toml.decode("  key = 123", int, "key") == 123
     check Toml.decode("  [table]\n  key = 123", int, "table.key") == 123
     check Toml.decode("  key = [  123,   123 ]", array[2, int], "key") == [123, 123]
+
+  test "empty table name":
+    expect TomlError:
+      var x = Toml.decode("[]\nkey = \"hello\"", TomlValueRef)
+      discard x
+
+  test "space between the datetime and '#' isn't lexed":
+    var x = Toml.decode("d = 1979-05-27 # Comment", TomlDateTime, "d")
+    check:
+      x.date == some(TomlDate(year: 1979, month: 5, day: 27))

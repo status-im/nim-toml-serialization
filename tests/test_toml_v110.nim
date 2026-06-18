@@ -56,10 +56,12 @@ suite "Test if TOML v1.1.0 enabled by default":
   test "TomlStrictComma":
     expect TomlError:
       let x = Toml.decode("apple = [\"a\" \"b\" \"c\"]\n", seq[string], key = "apple")
+      discard x
 
   test "TomlUnknownField not enabled":
     expect TomlError:
       let x = Toml.decode(unknownFields1, UnknownField)
+      discard x
 
     # no exception if the unknown fields come after
     # known fields due to internal optimization
