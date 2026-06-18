@@ -52,13 +52,13 @@ suite "Test results":
     let b = OptionalFields(two: some(567))
     let c = OptionalFields(one: Opt.some("burn"), two: some(333))
 
-    let aa = Toml.encode(a)
+    let aa = Toml_v100.encode(a)
     check aa == "one = \"hello\"\n"
 
-    let bb = Toml.encode(b)
+    let bb = Toml_v100.encode(b)
     check bb == "two = 567\n"
 
-    let cc = Toml.encode(c)
+    let cc = Toml_v100.encode(c)
     check cc == "one = \"burn\"\ntwo = 333\n"
 
   test "Result Opt types":
@@ -71,14 +71,14 @@ suite "Test results":
       h1 = HoldsResultOpt(o: Opt[Simple].ok Simple(x: 1, y: "2", distance: Meter(3)))
       h2 = HoldsResultOpt(r: Opt[Simple].ok simple(1, "2", Meter(3)))
 
-    let res = Toml.encode h1
+    let res = Toml_v100.encode h1
     check res == "o = {x = 1, y = \"2\", distance = 3}\n"
-    let ser = Toml.decode(res, HoldsResultOpt)
+    let ser = Toml_v100.decode(res, HoldsResultOpt)
     check ser == h1
 
-    let r2 = Toml.encode h2
+    let r2 = Toml_v100.encode h2
     check r2 == "r = {x = 1, y = \"2\", distance = 3}\n"
-    let s2 = Toml.decode(r2, HoldsResultOpt)
+    let s2 = Toml_v100.decode(r2, HoldsResultOpt)
     check s2 == h2
 
   test "object with optional fields":

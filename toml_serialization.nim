@@ -20,3 +20,9 @@ template supports*(_: type Toml, T: type): bool =
   true
 
 Toml.setDecoder(Toml)
+
+createTomlFlavor Toml_v100,
+  automaticObjectSerialization = true,
+  automaticPrimitivesSerialization = true,
+  runtimeFlags = {},
+  version = TomlVersion_v100

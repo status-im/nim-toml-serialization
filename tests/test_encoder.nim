@@ -52,8 +52,8 @@ type
 
 template runTest(x: untyped, flags: TomlFlags = {}) =
   type T = type x
-  var toml = Toml.encode(x, flags)
-  var z =  Toml.decode(toml, T, flags)
+  var toml = Toml_v100.encode(x, flags)
+  var z =  Toml_v100.decode(toml, T, flags)
   check x == z
 
 template testToHex(x: BiggestInt, len: Positive, expectedOutput: string) =

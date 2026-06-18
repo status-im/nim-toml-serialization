@@ -575,7 +575,7 @@ suite "table array test suite":
         scenes: seq[Scene]
 
     const taof = "tests" / "tomls" / "table-array-optional-fields.toml"
-    let p = Toml.loadFile(taof, Song, flags = {TomlInlineTableNewline})
+    let p = Toml_v100.loadFile(taof, Song, flags = {TomlInlineTableNewline})
     check p.scenes.len == 5
 
 type

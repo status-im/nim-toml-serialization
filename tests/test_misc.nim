@@ -117,28 +117,28 @@ suite "test misc":
 
   # exploiting unguarded array comma bug
   test "TomlStrictComma turned off":
-    let t1 = Toml.decode(arrayDoubleComma, Bools, "bools")
+    let t1 = Toml_v100.decode(arrayDoubleComma, Bools, "bools")
     check t1 == @[1, 0]
 
-    let t2 = Toml.decode(arrayNoComma, Bools, "bools")
+    let t2 = Toml_v100.decode(arrayNoComma, Bools, "bools")
     check t2 == @[1, 0]
 
-    let t3 = Toml.decode(mapDoubleComma, Maps, "maps")
+    let t3 = Toml_v100.decode(mapDoubleComma, Maps, "maps")
     check t3.data[0].id == "a"
     check t3.data[0].txt == "1"
     check t3.data[1].id == "b"
     check t3.data[1].txt == "1"
 
-    let t4 = Toml.decode(mapNoComma, Maps, "maps")
+    let t4 = Toml_v100.decode(mapNoComma, Maps, "maps")
     check t4.data[0].id == "a"
     check t4.data[0].txt == "1"
     check t4.data[1].id == "b"
     check t4.data[1].txt == "1"
 
-    let t5 = Toml.decode(mapDoubleComma, MapAb)
+    let t5 = Toml_v100.decode(mapDoubleComma, MapAb)
     check t5.maps.a == 1
     check t5.maps.b == 1
 
-    let t6 = Toml.decode(mapNoComma, MapAb)
+    let t6 = Toml_v100.decode(mapNoComma, MapAb)
     check t6.maps.a == 1
     check t6.maps.b == 1

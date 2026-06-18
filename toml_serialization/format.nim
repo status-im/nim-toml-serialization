@@ -19,24 +19,43 @@ export
   TomlSpecial,
   TomlNotTopLevel
 
-template flavorRuntimeFlags*(_: type Toml): set[TomlFlag] = {}
+type
+  TomlVersion* = tuple[major: int, minor: int, patch: int]
+
+const
+  TomlVersion_v100* = (1,0,0)
+  TomlVersion_v110* = (1,1,0)
+  Toml_v100_Flags* = {
+    TomlInlineTableNewline,
+    TomlInlineTableTrailingComma,
+    TomlHexEscape,
+    TomlHourMinute,  
+    TomlStrictComma,
+  }
+    
+template flavorRuntimeFlags*(_: type Toml): set[TomlFlag] = Toml_v100_Flags
 template flavorUsesAutomaticObjectSerialization*(_: type Toml): bool = true
 template flavorUsesAutomaticPrimitivesSerialization*(_: type Toml): bool = true
 template flavorAutoSerializationRead*(_: type Toml, _: distinct type): bool = true
 template flavorAutoSerializationWrite*(_: type Toml, _: distinct type): bool = true
+template flavorTomlVersion*(_: type Toml): TomlVersion = TomlVersion_v110
 
 template createTomlFlavor*(FlavorName: untyped,
                            mimeTypeValue = "application/toml",
                            automaticObjectSerialization = false,
                            automaticPrimitivesSerialization = true,
-                           runtimeFlags: set[TomlFlag] = {}) {.dirty.} =
+                           runtimeFlags: set[TomlFlag] = Toml_v100_Flags,
+                           version: TomlVersion = TomlVersion_v110) {.dirty.} =
 
   createFlavor(Toml, FlavorName, mimeTypeValue)
-  template flavorRuntimeFlags*(_: type FlavorName): set[TomlFlag] = runtimeFlags
+  template flavorRuntimeFlags*(_: type FlavorName): set[TomlFlag] = 
+    when version >= TomlVersion_v110: runtimeFlags + Toml_v100_Flags
+    else: runtimeFlags
   template flavorUsesAutomaticObjectSerialization*(_: type FlavorName): bool = automaticObjectSerialization
   template flavorUsesAutomaticPrimitivesSerialization*(_: type FlavorName): bool = automaticPrimitivesSerialization
   template flavorAutoSerializationRead*(_: type FlavorName, _: distinct type): bool = automaticPrimitivesSerialization
   template flavorAutoSerializationWrite*(_: type FlavorName, _: distinct type): bool = automaticPrimitivesSerialization
+  template flavorTomlVersion*(_: type FlavorName): TomlVersion = version
 
 template setAutoSerializationRead*(Flavor: type Toml, TargetType: distinct type) =
   mixin flavorUsesAutomaticPrimitivesSerialization

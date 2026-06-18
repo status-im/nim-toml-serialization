@@ -16,7 +16,7 @@ template validInputTest(inputFolder: string) =
     for fileName in walkDirRec("tests/tomls/" & inputFolder & "/valid"):
       test fileName:
         try:
-          discard Toml.loadFile(fileName, TomlValueRef)
+          discard Toml_v100.loadFile(fileName, TomlValueRef)
           check true
         except TomlError as e:
           debugEcho "ERROR: ", e.msg
@@ -31,7 +31,7 @@ template invalidInputTest(inputFolder: string) =
     for fileName in walkDirRec("tests/tomls/" & inputFolder & "/invalid"):
       test fileName:
         try:
-          discard Toml.loadFile(fileName, TomlValueRef)
+          discard Toml_v100.loadFile(fileName, TomlValueRef)
           inc failed
           check false
         except TomlError:
@@ -41,9 +41,9 @@ template invalidInputTest(inputFolder: string) =
 
 proc roundTrip(fileName: string, flags: set[TomlFlag] = {}): bool =
   let
-    toml = Toml.loadFile(fileName, TomlValueRef, flags)
-    tomlBytes = Toml.encode(toml, flags)
-    tomlVal = Toml.decode(tomlBytes, TomlValueRef, flags)
+    toml = Toml_v100.loadFile(fileName, TomlValueRef, flags)
+    tomlBytes = Toml_v100.encode(toml, flags)
+    tomlVal = Toml_v100.decode(tomlBytes, TomlValueRef, flags)
 
   toml == tomlVal
 
@@ -71,11 +71,11 @@ when not tomlOrderedTable:
   # TODO:
   # the encoder/writer still cannot produce
   # ordered result correctly
-  
+
   when not (defined(windows) and defined(cpp)):
     # TODO: clang cpp still failed
     roundTripTest("iarna")
-    
+
   roundTripTest("burntsushi")
 
   suite "toml-serialization test suite":

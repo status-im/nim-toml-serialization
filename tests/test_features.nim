@@ -188,19 +188,19 @@ suite "features test suite":
     let toml = readFile("tests" / "tomls" / "inline-table-newline.toml")
 
     expect TomlError:
-      discard Toml.decode(toml, Server, "server")
+      discard Toml_v100.decode(toml, Server, "server")
 
-    var server = Toml.decode(toml, Server, "server", TomlCaseInsensitive, {TomlInlineTableNewline})
+    var server = Toml_v100.decode(toml, Server, "server", TomlCaseInsensitive, {TomlInlineTableNewline})
     check server.port == 8005
 
-    var z = Toml.decode(toml, Encoding, "encoding", TomlCaseInsensitive, {TomlInlineTableNewline})
+    var z = Toml_v100.decode(toml, Encoding, "encoding", TomlCaseInsensitive, {TomlInlineTableNewline})
     check z.name == "TOML"
 
-    var w = Toml.decode(toml, TomlValueRef, {TomlInlineTableNewline})
+    var w = Toml_v100.decode(toml, TomlValueRef, {TomlInlineTableNewline})
     check w.tableVal["server"].kind == TomlKind.InlineTable
 
     expect TomlError:
-      discard Toml.decode(toml, TomlValueRef)
+      discard Toml_v100.decode(toml, TomlValueRef)
 
   test "bignum":
     var z = Toml.decode("bignum = 1234567890_1234567890", UInt256, "bignum")
@@ -245,18 +245,18 @@ suite "features test suite":
     check p.data == TomlValueRef(kind: TomlKind.Int, intVal: 1)
 
   test "hex escape sequence":
-    var x = Toml.decode("val = \"H\\x45X\"", string, "val", TomlCaseSensitive, {TomlHexEscape})
+    var x = Toml_v100.decode("val = \"H\\x45X\"", string, "val", TomlCaseSensitive, {TomlHexEscape})
     check x == "HEX"
 
     expect TomlError:
-      discard Toml.decode("val = \"H\\x45X\"", string, "val")
+      discard Toml_v100.decode("val = \"H\\x45X\"", string, "val")
 
-    var z = Toml.decode("val = \"H\\x45X\" \n name = \"skip hex\"",
+    var z = Toml_v100.decode("val = \"H\\x45X\" \n name = \"skip hex\"",
       string, "name", TomlCaseSensitive, {TomlHexEscape})
     check z == "skip hex"
 
     expect TomlError:
-      discard Toml.decode("val = \"H\\x45X\" \n name = \"skip hex\"", string, "name")
+      discard Toml_v100.decode("val = \"H\\x45X\" \n name = \"skip hex\"", string, "name")
 
   test "api test":
     var x = Toml.decode("val = \"H\\x45X\"", string, "val", {TomlHexEscape})
@@ -294,9 +294,9 @@ suite "features test suite":
 
   test "TomlHourMinute flags":
     expect TomlError:
-      discard Toml.decode("x = 12:13", TomlTime, "x")
+      discard Toml_v100.decode("x = 12:13", TomlTime, "x")
 
-    var x = Toml.decode("x = 12:13", TomlTime, "x", {TomlHourMinute})
+    var x = Toml_v100.decode("x = 12:13", TomlTime, "x", {TomlHourMinute})
     check x.hour == 12
     check x.minute == 13
     check x.second == 0
@@ -395,9 +395,9 @@ suite "Additional tests":
       """
 
     let
-      vv = Toml.decode(tomlText, SpecialTypes, flags = {TomlInlineTableNewline})
-      xx = Toml.encode(vv)
-      ww = Toml.decode(xx, SpecialTypes)
+      vv = Toml_v100.decode(tomlText, SpecialTypes, flags = {TomlInlineTableNewline})
+      xx = Toml_v100.encode(vv)
+      ww = Toml_v100.decode(xx, SpecialTypes)
       yy = "two = 13:05:00\nthree = 1970-06-15\n[four]\n  apple = [\"1\", \"true\", \"three\"]\n  banana = {chip = 123, v = false}\n\n"
 
     check:
