@@ -20,4 +20,4 @@ jobs:
         nimble --useSystemNim install -y --depsOnly stint unittest2 results
         nimble list --installed --version
         env NIMLANG=c nimble test
-        spec_test/run_test.sh "$MATRIX_OS $CPU"
+        spec_test/run_test.sh "${{ MATRIX_OS }} ${{ CPU }}"
