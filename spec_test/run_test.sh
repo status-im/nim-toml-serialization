@@ -36,7 +36,7 @@ if [ ! -f "${SPEC_DIR}/${TOML_TEST}" ]; then
   echo "Downloading toml test binary"
   curl -L "${URL}" -o "${SPEC_DIR}/${ARCHIVE}"
   gunzip "${SPEC_DIR}/${ARCHIVE}"
-  chmod +x "${SPEC_DIR}/${ARCHIVE}"
+  chmod +x "${SPEC_DIR}/${TOML_TEST}"
 fi
 
 if [ ! -f "${SPEC_DIR}/${DECODER_v100_BIN}" ]; then
