@@ -13,8 +13,12 @@ import
   std/[json, tables],
   ../toml_serialization
 
-type
-  TomlFlavor = Toml_v100
+when defined(toml_v110):
+  type
+    TomlFlavor = Toml
+else:
+  type
+    TomlFlavor = Toml_v100
 
 proc jsonTag(tomlType: string, tomlValue: string): JsonNode =
   result = %{
