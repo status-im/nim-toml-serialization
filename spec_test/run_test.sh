@@ -9,25 +9,15 @@ SPEC_DIR="${REPO_DIR}/spec_test"
 VERSION="v2.2.0"
 EXE=""
 
-if [[ -z "$1" ]]; then
-  echo "Error, OS param needed"
-  exit 1
-fi
-
-if [[ -z "$2" ]]; then
-  echo "Error, CPU param needed"
-  exit 1
-fi
-
-OS="${1}"
-CPU="${2}"
+OS="$(nim --eval:'echo hostOS' --hints:off)"
+CPU="$(nim --eval:'echo hostCPU' --hints:off)"
 
 if [[ "$CPU" == "i386" ]]; then
   echo "cpu == $CPU not supported, skip spec test"
   exit 0
 fi
 
-if [[ "$OS" == "macos" ]]; then
+if [[ "$OS" == "macosx" ]]; then
   OS="darwin"
 fi
 
@@ -43,13 +33,13 @@ DECODER_BIN="decoder${EXE}"
 
 if [ ! -f "${SPEC_DIR}/${TOML_TEST}" ]; then
   echo "Downloading toml test binary"
-  curl -L "${URL}" -o "${ARCHIVE}"
-  gunzip "${ARCHIVE}"
+  curl -L "${URL}" -o "${SPEC_DIR}/${ARCHIVE}"
+  gunzip "${SPEC_DIR}/${ARCHIVE}"
 fi
 
 if [ ! -f "${SPEC_DIR}/${DECODER_BIN}" ]; then
   echo "Building decoder binary"
-  nim c -d:release "${SPEC_DIR}/decoder.nim"
+  nim c -d:release --hints:off "${SPEC_DIR}/decoder.nim"
 fi
 
 echo "Running TOML decoder test"
