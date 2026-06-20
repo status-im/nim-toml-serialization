@@ -10,7 +10,8 @@
 import
   std/[strutils, strformat, options, tables, math, unicode],
   faststreams/inputs,
-  ./types, ./private/utils
+  ./types,
+  ./private/[utils, utf8_validate]
 
 type
   TomlLexer* = object
@@ -46,7 +47,10 @@ type
     errUnknownIdent       = "unknown identifier"
     errInvalidDateTime    = "invalid date time"
     errDateTimeML         = "date time cannot span multiple lines"
+    errNotLeapYear        = "not a leap year"
+    errInvalidFeb         = "only 28 or 29 days in february"
     errKeyNameMissing     = "key name missing"
+    errTableKeyEmpty      = "table key must not empty"
     errMissingFirstElement= "first array/table element missing"
     errUnterminatedArray  = "unterminatedArray"
     errUnterminatedTable  = "unterminatedTable"
@@ -56,8 +60,11 @@ type
     errKeyNotFound        = "key not found: "
     errInvalidHex         = "invalid hex escape, "
     errExpectDoubleBracket= "expect table array for given key"
-    errValueExpected      = "json value expected, got comma"
+    errValueExpected      = "toml value expected, got comma"
     errCommaExpected      = "',' expected"
+    errInvalidUTF8        = "invalid UTF-8 sequence"
+    errInvalidDocument    = "invalid TOML document"
+    errDigitsExpected     = "digits expected"
 
 const
   CR   = '\r'
@@ -149,6 +156,9 @@ template raiseInvalidHex*(lex: TomlLexer, s: string) =
 template raiseDuplicateTableKey*(lex: TomlLexer, s: string) =
   raiseTomlErr(lex, $errDuplicateTableKey & s & "\'")
 
+template raiseDottedKeyRedefine*(lex: TomlLexer, s: string) =
+  raiseTomlErr(lex, "Dotted key redefine: \'" & s & "\'")
+
 proc init*(T: type TomlLexer, stream: InputStream, flags: TomlFlags = {}): T =
   T(stream: stream,
     line: 1,
@@ -156,13 +166,16 @@ proc init*(T: type TomlLexer, stream: InputStream, flags: TomlFlags = {}): T =
     flags: flags
    )
 
-proc next*(lex: var TomlLexer): char {.raises: [IOError].} =
+proc next*(lex: var TomlLexer): char {.raises: [IOError, TomlError].} =
   ## Return the next available char from the stream associate with
   ## the parser lex, or EOF if there are no characters left.
   if not lex.readable():
     return EOF
 
   result = lex.readChar()
+
+  if result == '\0':
+    raiseInvalidChar(lex, result)
 
   # Update the line and col number
   if result == LF:
@@ -200,6 +213,7 @@ proc nonws*(lex: var TomlLexer, skip: static[LfSkipMode]): char {.raises: [IOErr
     next = peek(lex)
     if next == '#':
       # Skip the comment up to the newline, but do not jump over it
+      var utf8 = UTF8Validator()
       while next != LF:
         if next == CR:
           next = advancePeek(lex)
@@ -211,10 +225,14 @@ proc nonws*(lex: var TomlLexer, skip: static[LfSkipMode]): char {.raises: [IOErr
           raiseIllegalChar(lex, next)
 
         next = advancePeek(lex)
+        utf8.push(next)
 
         if not lex.readable:
-          # rase case
+          # rare case
           break
+
+      if not utf8.valid():
+        raiseTomlErr(lex, errInvalidUTF8)
 
     if next notin whitespaces: break
     advance(lex)
@@ -312,8 +330,14 @@ proc scanUint[T](lex: var TomlLexer, value: var T, base: NumberBase,
 
     firstPos = false
 
+  if firstPos:
+    # no digits
+    raiseTomlErr(lex, errDigitsExpected)
+
 proc scanDigits*[T](lex: var TomlLexer, value: var T,
-                    base: NumberBase, maxDigits = high(int)): int {.raises: [IOError].} =
+                    base: NumberBase,
+                    maxDigits = high(int),
+                    maxStop = 0): int {.raises: [IOError, TomlError].} =
   ## scanUint only accepts `string` or `int` or `TomlVoid`
 
   var next: char
@@ -345,6 +369,9 @@ proc scanDigits*[T](lex: var TomlLexer, value: var T,
     else:
       {.fatal: "`scanDigits` only accepts `string` or `SomeInteger` or `TomlVoid`".}
 
+    if maxStop > 0 and result == maxStop:
+      break
+
     if result == maxDigits:
       # consume the rest of digits
       while true:
@@ -374,7 +401,7 @@ proc scanUnicode[T](lex: var TomlLexer, kind: char, res: var T) {.raises: [IOErr
     {.fatal: "`scanUnicode` only accepts `string` or `TomlVoid`".}
 
   var code: int64
-  let col = scanDigits(lex, code, base16)
+  let col = scanDigits(lex, code, base16, maxStop = if kind == 'u': 4 else: 8)
 
   if kind == 'u' and col != 4:
     raiseInvalidUnicode(lex, "'u' must have 4 character value")
@@ -452,6 +479,7 @@ proc scanMultiLineString[T](lex: var TomlLexer, res: var T, kind: static[StringT
   var
     isFirstChar = true
     next: char
+    utf8 = UTF8Validator()
 
   while true:
     next = peek(lex)
@@ -471,36 +499,30 @@ proc scanMultiLineString[T](lex: var TomlLexer, res: var T, kind: static[StringT
       continue
 
     if next == delimiter:
-      # Are we done?
-      next = advancePeek(lex)
-      if next == delimiter:
+      var count = 0
+      while next == delimiter:
+        inc count
+        if count > 5:
+          raiseIllegalChar(lex, next)
         next = advancePeek(lex)
-        if next == delimiter:
-          next = advancePeek(lex)
-          # Done with this string
-          if next == delimiter:
-            advance(lex)
-            when T is string:
-              res.add delimiter
-          return
-        else:
-          # Just got a double delimiter
-          when T is string:
-            res.add delimiter
-            res.add delimiter
-          continue
-      else:
-        # Just got a lone delimiter
+
+      if count >= 3:
+        # Are we done?
         when T is string:
-          res.add(delimiter)
-        continue
+          for _ in 0..<count-3:
+            res.add delimiter
+        break
+      else:
+        when T is string:
+          for _ in 0..<count:
+            res.add delimiter
 
     isFirstChar = false
     when kind == StringType.Basic:
       if next == '\\':
         # This can either be an escape sequence or a end-of-line char
         next = advancePeek(lex)
-        if next in {LF, CR, SPC}:
+        if next in {LF, CR, SPC, TAB}:
           # We're at the end of a line: skip everything till the
           # next non-whitespace character
           while true:
@@ -519,6 +541,9 @@ proc scanMultiLineString[T](lex: var TomlLexer, res: var T, kind: static[StringT
 
           continue
         else:
+          if not utf8.valid():
+            raiseTomlErr(lex, errInvalidUTF8)
+          utf8.clear()
           # This is just an escape sequence (like "\t")
           lex.scanEscapeChar(lex.next, res)
           continue
@@ -529,9 +554,13 @@ proc scanMultiLineString[T](lex: var TomlLexer, res: var T, kind: static[StringT
     if ord(next) in {16, 31, 127}:
       raiseInvalidChar(lex, next)
 
+    utf8.push(next)
     when T is string:
       res.add(next)
     advance(lex)
+
+  if not utf8.valid():
+    raiseTomlErr(lex, errInvalidUTF8)
 
 proc scanSingleLineString[T](lex: var TomlLexer, res: var T, kind: static[StringType]) {.raises: [IOError, TomlError].} =
   when T isnot (string or TomlVoid):
@@ -544,7 +573,10 @@ proc scanSingleLineString[T](lex: var TomlLexer, res: var T, kind: static[String
 
   const delimiter = stringDelimiter(kind)
 
-  var next: char
+  var
+    next: char
+    utf8 = UTF8Validator()
+
   while true:
     next = lex.next
     if next == delimiter:
@@ -553,17 +585,24 @@ proc scanSingleLineString[T](lex: var TomlLexer, res: var T, kind: static[String
     if next in {CR, LF, EOF}:
       raiseTomlErr(lex, errUnterminatedString)
 
-    if ord(next) in {16, 31, 127}:
+    if ord(next) in {8, 16, 31, 127}:
       raiseInvalidChar(lex, next)
 
     when kind == StringType.Basic:
       if next == '\\':
         next = lex.next
+        if not utf8.valid():
+          raiseTomlErr(lex, errInvalidUTF8)
+        utf8.clear()
         lex.scanEscapeChar(next, res)
         continue
 
+    utf8.push(next)
     when T is string:
       res.add(next)
+
+  if not utf8.valid():
+    raiseTomlErr(lex, errInvalidUTF8)
 
 proc scanString*[T](lex: var TomlLexer, res: var T, kind: static[StringType]): bool {.raises: [IOError, TomlError].} =
   when T isnot (string or TomlVoid):
@@ -606,6 +645,17 @@ proc scanInt*[T](lex: var TomlLexer, value: var T): (Sign, NumberBase) {.raises:
       value.add '0'
     (sign, base10)
 
+  next = peek(lex)
+  case next:
+  of '+':
+    advance(lex)
+    sign = Sign.Pos
+  of '-':
+    advance(lex)
+    sign = Sign.Neg
+  else:
+    discard
+
   while true:
     next = peek(lex)
     case next:
@@ -633,14 +683,6 @@ proc scanInt*[T](lex: var TomlLexer, value: var T): (Sign, NumberBase) {.raises:
     of strutils.Digits - {'0'}:
       scanUint(lex, value, base10, Leading.DenyZero)
       break
-    of '+':
-      advance(lex)
-      sign = Sign.Pos
-      continue
-    of '-':
-      advance(lex)
-      sign = Sign.Neg
-      continue
     else:
       raiseIllegalChar(lex, next)
 
@@ -721,6 +763,10 @@ proc scanTableName*[T](lex: var TomlLexer, res: var T): BracketType {.raises: [I
     result = BracketType.double
   else:
     result = BracketType.single
+
+  next = peek(lex)
+  if next == ']':
+    raiseTomlErr(lex, errTableKeyEmpty)
 
   lex.scanKey(res)
 
@@ -959,7 +1005,9 @@ proc scanFloat*[T](lex: var TomlLexer, value: var T): Sign {.raises: [IOError, T
 
   result = sign
 
-proc scanStrictNum[T](lex: var TomlLexer, res: var T, minVal, maxVal, count: int, msg: string) {.raises: [IOError, TomlError].} =
+proc scanStrictNum[T](lex: var TomlLexer,
+                      res: var T, minVal, maxVal,
+                      count: int, msg: string): int {.raises: [IOError, TomlError].} =
   when T isnot (int or string or TomlVoid):
     {.fatal: "`scanStrictNum` only accepts `int` or `string` or `TomlVoid`".}
 
@@ -976,6 +1024,7 @@ proc scanStrictNum[T](lex: var TomlLexer, res: var T, minVal, maxVal, count: int
     res.add intToStr(val, count)
   elif T is int:
     res = val
+  val
 
 proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, TomlError].} =
   ## `scanTime` assume the two digits of hour already parsed
@@ -997,7 +1046,7 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, 
   else:
     var num: int
 
-  scanStrictNum(lex, num, minVal = 0, maxVal = 59, count = 2,
+  discard scanStrictNum(lex, num, minVal = 0, maxVal = 59, count = 2,
                 "number out of range for `minutes`")
 
   when T is TomlTime:
@@ -1018,7 +1067,7 @@ proc scanMinuteSecond*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, 
     value.add next
 
   # Parse the second. Note that seconds=60 *can* happen (leap second)
-  scanStrictNum(lex, num, minVal = 0, maxVal = 60, count = 2,
+  discard scanStrictNum(lex, num, minVal = 0, maxVal = 60, count = 2,
                 "number out of range for `seconds`")
 
   when T is TomlTime:
@@ -1050,7 +1099,7 @@ proc scanTime*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, TomlErro
   else:
     var num : int
 
-  scanStrictNum(lex, num, minVal = 0, maxVal = 23, count = 2,
+  discard scanStrictNum(lex, num, minVal = 0, maxVal = 23, count = 2,
                 "number out of range for `hours`")
 
   if lex.line != line:
@@ -1061,7 +1110,11 @@ proc scanTime*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, TomlErro
 
   scanMinuteSecond(lex, value)
 
-proc scanMonthDay*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, TomlError].} =
+proc isLeapYear(year: int): bool =
+  # The leap year equation
+  result = year mod 4 == 0 and (year mod 100 != 0 or year mod 400 == 0)
+
+proc scanMonthDay*[T](lex: var TomlLexer, value: var T, yearInt: int) {.raises: [IOError, TomlError].} =
   ## `scanMonthDay` assume the four digits of year already parsed
   when T isnot (TomlDate or string or TomlVoid):
     {.fatal: "`scanMonthDay` only accepts `TomlDate' or string or `TomlVoid`".}
@@ -1079,9 +1132,9 @@ proc scanMonthDay*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, Toml
   elif T is TomlVoid:
     template num: untyped = value
   else:
-    var num : int
+    var num: int
 
-  scanStrictNum(lex, num, minVal = 1, maxVal = 12, count = 2,
+  let monthInt = scanStrictNum(lex, num, minVal = 1, maxVal = 12, count = 2,
                 "number out of range for `month`")
 
   if lex.line != line:
@@ -1096,8 +1149,18 @@ proc scanMonthDay*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, Toml
   elif T is TomlDate:
     value.month = num
 
-  scanStrictNum(lex, num, minVal = 1, maxVal = 31, count = 2,
+  let dayInt = scanStrictNum(lex, num, minVal = 1, maxVal = 31, count = 2,
                 "number out of range for `day`")
+
+  if monthInt == 2:
+    if isLeapYear(yearInt):
+      if dayInt > 29:
+        raiseTomlErr(lex, errInvalidFeb)
+    else:
+      if dayInt == 29:
+        raiseTomlErr(lex, errNotLeapYear)
+      if dayInt > 28:
+        raiseTomlErr(lex, errInvalidFeb)
 
   when T is TomlDate:
     value.day = num
@@ -1105,21 +1168,21 @@ proc scanMonthDay*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, Toml
 proc scanDate*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, TomlError].} =
   var line = lex.line
   when T is (string or TomlVoid):
-    template num: untyped = value
+    template year: untyped = value
   else:
-    var num : int
+    var year: int
 
-  scanStrictNum(lex, num, minVal = 0, maxVal = 9999, count = 4,
+  let yearInt = scanStrictNum(lex, year, minVal = 0, maxVal = 9999, count = 4,
                 "number out of range for `year`")
 
   if lex.line != line:
     raiseTomlErr(lex, errDateTimeML)
 
   when T is (string or TomlVoid):
-    scanMonthDay(lex, value)
+    scanMonthDay(lex, value, yearInt)
   else:
-    value.year = num
-    scanMonthDay(lex, value)
+    value.year = year
+    scanMonthDay(lex, value, yearInt)
 
 proc scanTimeZone*[T](lex: var TomlLexer, value: var T): bool {.raises: [IOError, TomlError].} =
   ## `scanTimeZone` assume the four digits of year already parsed
@@ -1152,7 +1215,7 @@ proc scanTimeZone*[T](lex: var TomlLexer, value: var T): bool {.raises: [IOError
     elif T is TomlTimeZone:
       value.positiveShift = next == '+'
 
-    scanStrictNum(lex, num, minVal = 0, maxVal = 23, count = 2,
+    discard scanStrictNum(lex, num, minVal = 0, maxVal = 23, count = 2,
                 "number out of range for `zone hours`")
 
     if lex.line != line:
@@ -1167,7 +1230,7 @@ proc scanTimeZone*[T](lex: var TomlLexer, value: var T): bool {.raises: [IOError
     elif T is TomlTimeZone:
       value.hourShift = num
 
-    scanStrictNum(lex, num, minVal = 0, maxVal = 59, count = 2,
+    discard scanStrictNum(lex, num, minVal = 0, maxVal = 59, count = 2,
                 "number out of range for `zone minutes`")
 
     when T is TomlTimeZone:
@@ -1177,14 +1240,14 @@ proc scanTimeZone*[T](lex: var TomlLexer, value: var T): bool {.raises: [IOError
   else:
     discard
 
-proc scanLongDate*[T](lex: var TomlLexer, year: int, value: var T) {.raises: [IOError, TomlError].} =
+proc scanLongDate*[T](lex: var TomlLexer, yearInt: int, value: var T) {.raises: [IOError, TomlError].} =
   var line = lex.line
 
   when T is (string or TomlVoid):
-    scanMonthDay(lex, value)
+    scanMonthDay(lex, value, yearInt)
   else:
-    var date = TomlDate(year: year)
-    scanMonthDay(lex, date)
+    var date = TomlDate(year: yearInt)
+    scanMonthDay(lex, date, yearInt)
     value.date = some(date)
 
   if lex.line != line:
@@ -1196,6 +1259,12 @@ proc scanLongDate*[T](lex: var TomlLexer, year: int, value: var T) {.raises: [IO
     return
 
   advance(lex)
+  if delim == ' ':
+    let next = peek(lex)
+    if next == '#':
+      # space between the datetime and '#' isn't lexed
+      return
+
   when T is string:
     value.add delim
     scanTime(lex, value)
@@ -1284,6 +1353,21 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, To
 
   when T is TomlValueRef:
     var uintVal: uint64
+
+  next = peek(lex)
+  case next
+  of '+':
+    advance(lex)
+    sign = Sign.Pos
+    when T is string:
+      value.add '+'
+  of '-':
+    advance(lex)
+    sign = Sign.Neg
+    when T is string:
+      value.add '-'
+  else:
+    discard
 
   while true:
     next = peek(lex)
@@ -1400,9 +1484,8 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, To
 
       when T is string:
         value.add next
-      elif T is TomlValueRef:
-        var curSum = uint64(next) - uint64('0')
 
+      var curSum = uint64(next) - uint64('0')
       while true:
         next = peek(lex)
         if wasUnderscore and next notin strutils.Digits:
@@ -1411,6 +1494,8 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, To
         case next:
         of ':':
           if digits != 2:
+            raiseTomlErr(lex, errInvalidDateTime)
+          if curSum > 23:
             raiseTomlErr(lex, errInvalidDateTime)
           when T is (string or TomlVoid):
             scanMinuteSecond(lex, value)
@@ -1454,20 +1539,16 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, To
           return
         of strutils.Digits:
           advance(lex)
+          if mulOverflow(curSum, 10'u64):
+            raiseTomlErr(lex, errIntegerOverflow)
+          curSum = curSum * 10'u64
+          let digit = (uint64(next) - uint64('0'))
+          if addOverflow(curSum, digit):
+            raiseTomlErr(lex, errIntegerOverflow)
+          curSum = curSum + digit
           when T is string:
             value.add next
-            inc digits
-          elif T is TomlVoid:
-            inc digits
-          else:
-            if mulOverflow(curSum, 10'u64):
-              raiseTomlErr(lex, errIntegerOverflow)
-            curSum = curSum * 10'u64
-            let digit = (uint64(next) - uint64('0'))
-            if addOverflow(curSum, digit):
-              raiseTomlErr(lex, errIntegerOverflow)
-            curSum = curSum + digit
-            inc digits
+          inc digits
           wasUnderscore = false
           continue
         of '_':
@@ -1482,19 +1563,6 @@ proc parseNumOrDate*[T](lex: var TomlLexer, value: var T) {.raises: [IOError, To
           when T is TomlValueRef:
             value = toIntVal(lex, curSum, sign)
           return
-
-    of '+':
-      advance(lex)
-      sign = Sign.Pos
-      when T is string:
-        value.add '+'
-      continue
-    of '-':
-      advance(lex)
-      sign = Sign.Neg
-      when T is string:
-        value.add '-'
-      continue
     of 'i':
       advance(lex)
       let li = lex.lineInfo
@@ -1698,17 +1766,23 @@ proc parseInlineTable[T](lex: var TomlLexer, value: var T) {.raises: [IOError, T
     else:
       var curTable = value
 
-      for i in 1 ..< keys.len:
-        let key = keys[i]
-        let deepestTable = TomlTableRef.new
-        curTable[key] = TomlValueRef(
-          kind: TomlKind.InlineTable,
-          tableVal: deepestTable
-          )
-        curTable = deepestTable
+      if keys.len > 1:
+        for i in 0 ..< keys.len - 1:
+          let key = keys[i]
+          curTable[].withValue(key, _) do:
+            raiseDuplicateTableKey(lex, key)
+          do:
+            let deepestTable = TomlTableRef()
+            curTable[key] = TomlValueRef(
+              kind: TomlKind.InlineTable,
+              tableVal: deepestTable
+              )
+            curTable = deepestTable
 
       var val: TomlValueRef
       parseValue(lex, val)
+      if curTable.hasKey(keys[^1]):
+        raiseDuplicateTableKey(lex, keys[^1])
       curTable[keys[^1]] = val
 
 proc parseValue[T](lex: var TomlLexer, value: var T) {.raises: [IOError, TomlError].} =
@@ -1754,7 +1828,7 @@ proc parseValue[T](lex: var TomlLexer, value: var T) {.raises: [IOError, TomlErr
     advance(lex)
     # An inline table
     when T is TomlValueRef:
-      value = TomlValueRef(kind: TomlKind.InlineTable, tableVal: TomlTableRef.new)
+      value = TomlValueRef(kind: TomlKind.InlineTable, tableVal: TomlTableRef())
       parseInlineTable(lex, value.tableVal)
     else:
       parseInlineTable(lex, value)
@@ -1794,7 +1868,7 @@ proc createOrAppendTableArray(lex: var TomlLexer,
         if node[].kind != TomlKind.Tables:
           raiseNotArray(lex, name)
 
-        var newTable = TomlTableRef.new
+        var newTable = TomlTableRef()
         node[].tablesVal.add(newTable)
         curTable = newTable
       else:
@@ -1805,7 +1879,7 @@ proc createOrAppendTableArray(lex: var TomlLexer,
       # array of tables, otherwise just a table
       if lastTable:
         var newValue = newTableArray(1)
-        var newTable = TomlTableRef.new
+        var newTable = TomlTableRef()
         newValue.tablesVal[0] = newTable
 
         curTable[name] = newValue
@@ -1901,6 +1975,13 @@ proc parseToml*(lex: var TomlLexer): TomlValueRef {.raises: [IOError, TomlError]
     else:
       # Everything else marks the presence of a "key = value" pattern
       parseKeyValue(lex, curTable)
+
+  # Maybe there is some spurious NULL
+  while lex.readable():
+    next = lex.next()
+
+  #if result.tableVal.len == 0 and (lex.line != 1 or lex.col != 1):
+  #  raiseTomlErr(lex, errInvalidDocument)
 
 proc parseKeyValue*(lex: var TomlLexer,
                    names, key: openArray[string],
