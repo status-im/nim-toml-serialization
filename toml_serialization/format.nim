@@ -25,15 +25,15 @@ type
 const
   TomlVersion_v100* = (1,0,0)
   TomlVersion_v110* = (1,1,0)
-  Toml_v100_Flags* = {
+  Toml_v110_Flags* = {
     TomlInlineTableNewline,
     TomlInlineTableTrailingComma,
     TomlHexEscape,
-    TomlHourMinute,  
+    TomlHourMinute,
     TomlStrictComma,
   }
-    
-template flavorRuntimeFlags*(_: type Toml): set[TomlFlag] = Toml_v100_Flags
+
+template flavorRuntimeFlags*(_: type Toml): set[TomlFlag] = Toml_v110_Flags
 template flavorUsesAutomaticObjectSerialization*(_: type Toml): bool = true
 template flavorUsesAutomaticPrimitivesSerialization*(_: type Toml): bool = true
 template flavorAutoSerializationRead*(_: type Toml, _: distinct type): bool = true
@@ -44,12 +44,12 @@ template createTomlFlavor*(FlavorName: untyped,
                            mimeTypeValue = "application/toml",
                            automaticObjectSerialization = false,
                            automaticPrimitivesSerialization = true,
-                           runtimeFlags: set[TomlFlag] = Toml_v100_Flags,
+                           runtimeFlags: set[TomlFlag] = Toml_v110_Flags,
                            version: TomlVersion = TomlVersion_v110) {.dirty.} =
 
   createFlavor(Toml, FlavorName, mimeTypeValue)
-  template flavorRuntimeFlags*(_: type FlavorName): set[TomlFlag] = 
-    when version >= TomlVersion_v110: runtimeFlags + Toml_v100_Flags
+  template flavorRuntimeFlags*(_: type FlavorName): set[TomlFlag] =
+    when version >= TomlVersion_v110: runtimeFlags + Toml_v110_Flags
     else: runtimeFlags
   template flavorUsesAutomaticObjectSerialization*(_: type FlavorName): bool = automaticObjectSerialization
   template flavorUsesAutomaticPrimitivesSerialization*(_: type FlavorName): bool = automaticPrimitivesSerialization
