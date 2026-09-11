@@ -19,7 +19,7 @@ let verbose = getEnv("V", "") notin ["", "0"]
 
 let cfg =
   " --styleCheck:usages --styleCheck:error" &
-  (if verbose: "" else: " --verbosity:0 --hints:off") &
+  (if verbose: "" else: " --verbosity:0") &
   " --outdir:build --nimcache:build/nimcache -f"
 
 proc build(args, path: string) =
@@ -27,8 +27,7 @@ proc build(args, path: string) =
 
 proc run(args, path: string) =
   build args & " --mm:refc -r", path
-  if (NimMajor, NimMinor) > (1, 6):
-    build args & " --mm:orc -r", path
+  build args & " --mm:orc -r", path
 
 task test, "Run all tests":
   for threads in ["--threads:off", "--threads:on"]:
