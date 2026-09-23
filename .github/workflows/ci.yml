@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    uses: status-im/nimbus-common-workflow/.github/workflows/common.yml@minver
+    uses: status-im/nimbus-common-workflow/.github/workflows/common.yml@jiro-nim
     with:
       install-command: 'nimble --resolver:minver install -y --depsOnly stint unittest2 results'
       test-command: |
