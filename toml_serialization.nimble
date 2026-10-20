@@ -1,13 +1,13 @@
 mode = ScriptMode.Verbose
 
 packageName   = "toml_serialization"
-version       = "0.2.20"
+version       = "0.3.0"
 author        = "Status Research & Development GmbH"
 description   = "Flexible TOML serialization [not] relying on run-time type information"
 license       = "Apache License 2.0"
 skipDirs      = @["tests", "assets"]
 
-requires "nim >= 2.0.16",
+requires "nim >= 2.2.2",
          "faststreams >= 0.5.0",
          "serialization >= 0.5.3",
          "stew"
