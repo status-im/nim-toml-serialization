@@ -7,7 +7,7 @@ description   = "Flexible TOML serialization [not] relying on run-time type info
 license       = "Apache License 2.0"
 skipDirs      = @["tests", "assets"]
 
-requires "nim >= 2.2.2",
+requires "nim >= 2.2.8",
          "faststreams >= 0.5.0",
          "serialization >= 0.5.3",
          "stew"
