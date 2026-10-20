@@ -32,6 +32,9 @@ type
     b: Option[string]
     c: int
 
+  HoldsOptSeq = object
+    items: Opt[seq[Simple]]
+
 func `==`(lhs, rhs: Meter): bool =
   int(lhs) == int(rhs)
 
@@ -99,3 +102,20 @@ suite "Test results":
 
     let v = Toml.encode(y)
     check v == "c = 999\n"
+
+  test "Opt seq from array of tables":
+    const toml = """
+[[items]]
+x = 1
+y = "a"
+distance = 2
+
+[[items]]
+x = 3
+y = "b"
+distance = 4
+"""
+    let h = Toml.decode(toml, HoldsOptSeq)
+    check:
+      h.items.isSome
+      h.items.get == @[simple(1, "a", Meter(2)), simple(3, "b", Meter(4))]

@@ -35,7 +35,7 @@ proc readValue*[T](
   value.ok r.readValue(T)
 
 proc readValue*[T](
-  r: var TomlReader, value: var Opt[T], numRead: int
+    r: var TomlReader, value: var Opt[T], numRead: int
 ) {.gcsafe, raises: [SerializationError, IOError].} =
   if value.isNone:
     value.ok default(T)
