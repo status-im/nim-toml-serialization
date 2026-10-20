@@ -16,6 +16,7 @@ let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
 let flags = getEnv("NIMFLAGS", "") # Extra flags for the compiler
 let verbose = getEnv("V", "") notin ["", "0"]
+let platform = getEnv("PLATFORM", "")
 
 let cfg =
   " --styleCheck:usages --styleCheck:error" &
@@ -32,3 +33,19 @@ proc run(args, path: string) =
 task test, "Run all tests":
   for threads in ["--threads:off", "--threads:on"]:
     run threads & " -d:release ", "tests/test_all"
+
+task test_asan, "Run all tests with ASAN":
+  if platform != "x86":
+    # https://clang.llvm.org/docs/AddressSanitizer.html
+    putEnv("ASAN_OPTIONS", "detect_leaks=0:detect_stack_use_after_return=1")
+    # https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
+    putEnv("UBSAN_OPTIONS", "print_stacktrace=1")
+    let asanArgs =
+      " --mm:orc -d:useMalloc --cc:clang --debugger:native" &
+      " --passC:-fsanitize=address,undefined" &
+      " --passL:-fsanitize=address,undefined" &
+      " --passC:-fno-sanitize-recover=undefined" &
+      " --passC:-fno-sanitize-merge" &
+      " --passC:-fno-omit-frame-pointer"
+    for threads in ["--threads:off", "--threads:on"]:
+      build threads & " -d:release" & asanArgs & " -r", "tests/test_all"
