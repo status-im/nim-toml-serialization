@@ -72,7 +72,7 @@ const
   EOF* = '\0'
   TAB  = '\t'
   SPC  = ' '
-  invalidCommentChar = {'\x00'..'\x08', '\x0A'..'\x1F', '\x7F'}
+  invalidControlChar = {'\x00'..'\x08', '\x0A'..'\x1F', '\x7F'}
 
 template readChar*(lex: TomlLexer): char =
   char inputs.read(lex.stream)
@@ -181,7 +181,12 @@ proc next*(lex: var TomlLexer): char {.raises: [IOError, TomlError].} =
   if result == LF:
     inc(lex.line)
     lex.col = 1
-  elif result != CR:
+  elif result == CR:
+    # Carriage returns (U+000D) are only allowed as part of a newline sequence.
+    # Newline means LF (U+000A) or CRLF (U+000D U+000A).
+    if not lex.readable() or lex.peekChar() != LF:
+      raiseIllegalChar(lex, result)
+  else:
     inc(lex.col)
 
 template peek(lex: TomlLexer): char =
@@ -221,7 +226,7 @@ proc nonws*(lex: var TomlLexer, skip: static[LfSkipMode]): char {.raises: [IOErr
             raiseIllegalChar(lex, next)
           else:
             break
-        elif next in invalidCommentChar:
+        elif next in invalidControlChar:
           raiseIllegalChar(lex, next)
 
         next = advancePeek(lex)
@@ -551,7 +556,7 @@ proc scanMultiLineString[T](lex: var TomlLexer, res: var T, kind: static[StringT
     if next == EOF:
       raiseTomlErr(lex, errUnterminatedString)
 
-    if ord(next) in {16, 31, 127}:
+    if next in invalidControlChar - {CR, LF}:
       raiseInvalidChar(lex, next)
 
     utf8.push(next)
@@ -585,7 +590,7 @@ proc scanSingleLineString[T](lex: var TomlLexer, res: var T, kind: static[String
     if next in {CR, LF, EOF}:
       raiseTomlErr(lex, errUnterminatedString)
 
-    if ord(next) in {8, 16, 31, 127}:
+    if next in invalidControlChar:
       raiseInvalidChar(lex, next)
 
     when kind == StringType.Basic:

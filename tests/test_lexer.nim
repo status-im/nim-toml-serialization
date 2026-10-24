@@ -251,9 +251,13 @@ suite "string test suite":
     testBasicString("hello\"", "hello")
     testBasicString("\"\"hello\"\"\"", "hello")
     testBasicString("\"\"hel\\nlo\"\"\"", "hel\nlo")
+    testBasicString("\"\"hel\r\nlo\"\"\"", "hel\r\nlo")
 
     expect TomlError:
       testBasicString("he\nllo\"", "hello")
+
+    expect TomlError:
+      testBasicString("he\rllo\"", "hello")
 
     expect TomlError:
       testBasicString("hello", "hello")
@@ -270,6 +274,8 @@ suite "string test suite":
     testBasicString("hello\\uD7FF\"", "hello\uD7FF")
     testBasicString("hello\\U0010FFFF\"", "hello\u{10FFFF}")
     testBasicString("\\\"\\\\\\b\\e\\f\\n\\r\\t\"", "\"\\\b\e\f\n\r\t")
+    testBasicString("\\u0007\\u001F\\u007F\"", "\x07\x1F\x7F")
+    testBasicString("\"\"\\u0007\\u001F\\u007F\"\"\"", "\x07\x1F\x7F")
 
     # 4 """" delimiter
     testBasicString("\"\"\\\"\\\\\\b\\e\\f\\n\\r\\thel\nlo\"\"\"\"", "\"\\\b\e\f\n\r\thel\nlo\"")
@@ -299,9 +305,13 @@ suite "string test suite":
     testLiteralString("\'", "")
     testLiteralString("hello\'", "hello")
     testLiteralString("\'\'hel\nlo\'\'\'", "hel\nlo")
+    testLiteralString("\'\'hel\r\nlo\'\'\'", "hel\r\nlo")
 
     expect TomlError:
       testLiteralString("hel\nlo\'", "hello")
+
+    expect TomlError:
+      testLiteralString("hel\rlo\'", "hello")
 
     expect TomlError:
       testLiteralString("hello", "hello")
@@ -324,7 +334,6 @@ suite "string test suite":
       "\'That\'s still pointless\', she said.")
 
   test "skip first empty new line in multiline":
-    testBasicString("\"\"\r\"\"\"", "")
     testBasicString("\"\"\n\"\"\"", "")
     testBasicString("\"\"\r\n\"\"\"", "")
 
@@ -475,6 +484,7 @@ suite "name test suite":
     testScanName("\'appleв123\'", "appleв123")
     testScanName("\'\'", "")
     testScanName("\"\"", "")
+    testScanName("\"a\\tb\"", "a\tb")
 
     expect TomlError:
       testScanName("123вapple", "123")
@@ -487,6 +497,12 @@ suite "name test suite":
 
     expect TomlError:
       testScanName("\'\'\'appleв123\'\'\'", "appleв123")
+
+    expect TomlError:
+      testScanName("\"a\x07b\"", "")
+
+    expect TomlError:
+      testScanName("\'a\x07b\'", "")
 
   test "scanKey string":
     testScanKey("family.\"genus\".\'species\'", "family.genus.species")
@@ -723,3 +739,22 @@ suite "test toml v1.0.0-rc.2":
 
     expect TomlError:
       testComment("# TOML \x01 doc\n[miaw]", '[')
+
+  test "control char not allowed in strings":
+    for c in {'\x00'..'\x08', '\x0B'..'\x1F', '\x7F'}:
+      expect TomlError:
+        testBasicString(c & "\"", "")
+      expect TomlError:
+        testLiteralString(c & "\'", "")
+      expect TomlError:
+        testBasicString("\"\"" & c & "\"\"\"", "")
+      expect TomlError:
+        testLiteralString("\'\'" & c & "\'\'\'", "")
+
+    # CR is only allowed as part of a CRLF newline
+    expect TomlError:
+      testBasicString("\"\"a\rb\"\"\"", "")
+    expect TomlError:
+      testLiteralString("\'\'a\rb\'\'\'", "")
+    expect TomlError:
+      testBasicString("\"\"a\\\r \nb\"\"\"", "")
