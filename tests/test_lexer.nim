@@ -251,9 +251,13 @@ suite "string test suite":
     testBasicString("hello\"", "hello")
     testBasicString("\"\"hello\"\"\"", "hello")
     testBasicString("\"\"hel\\nlo\"\"\"", "hel\nlo")
+    testBasicString("\"\"hel\r\nlo\"\"\"", "hel\r\nlo")
 
     expect TomlError:
       testBasicString("he\nllo\"", "hello")
+
+    expect TomlError:
+      testBasicString("he\rllo\"", "hello")
 
     expect TomlError:
       testBasicString("hello", "hello")
@@ -270,6 +274,8 @@ suite "string test suite":
     testBasicString("hello\\uD7FF\"", "hello\uD7FF")
     testBasicString("hello\\U0010FFFF\"", "hello\u{10FFFF}")
     testBasicString("\\\"\\\\\\b\\e\\f\\n\\r\\t\"", "\"\\\b\e\f\n\r\t")
+    testBasicString("\\u0007\\u001F\\u007F\"", "\x07\x1F\x7F")
+    testBasicString("\"\"\\u0007\\u001F\\u007F\"\"\"", "\x07\x1F\x7F")
 
     # 4 """" delimiter
     testBasicString("\"\"\\\"\\\\\\b\\e\\f\\n\\r\\thel\nlo\"\"\"\"", "\"\\\b\e\f\n\r\thel\nlo\"")
@@ -299,9 +305,13 @@ suite "string test suite":
     testLiteralString("\'", "")
     testLiteralString("hello\'", "hello")
     testLiteralString("\'\'hel\nlo\'\'\'", "hel\nlo")
+    testLiteralString("\'\'hel\r\nlo\'\'\'", "hel\r\nlo")
 
     expect TomlError:
       testLiteralString("hel\nlo\'", "hello")
+
+    expect TomlError:
+      testLiteralString("hel\rlo\'", "hello")
 
     expect TomlError:
       testLiteralString("hello", "hello")
@@ -475,6 +485,7 @@ suite "name test suite":
     testScanName("\'appleв123\'", "appleв123")
     testScanName("\'\'", "")
     testScanName("\"\"", "")
+    testScanName("\"a\\tb\"", "a\tb")
 
     expect TomlError:
       testScanName("123вapple", "123")
@@ -487,6 +498,12 @@ suite "name test suite":
 
     expect TomlError:
       testScanName("\'\'\'appleв123\'\'\'", "appleв123")
+
+    expect TomlError:
+      testScanName("\"a\x07b\"", "")
+
+    expect TomlError:
+      testScanName("\'a\x07b\'", "")
 
   test "scanKey string":
     testScanKey("family.\"genus\".\'species\'", "family.genus.species")
@@ -724,98 +741,13 @@ suite "test toml v1.0.0-rc.2":
     expect TomlError:
       testComment("# TOML \x01 doc\n[miaw]", '[')
 
-suite "issue 124: raw control characters in strings":
-  # Regression tests for status-im/nim-toml-serialization#124.
-  #
-  # Every raw (unescaped) byte of invalidCommentChar
-  # {'\x00'..'\x08', '\x0A'..'\x1F', '\x7F'} (C0 controls + DEL) must be
-  # rejected inside basic and literal strings, single-line and multi-line
-  # alike. TAB (0x09) is the only control byte allowed raw inside a string;
-  # LF (0x0A) and CR (0x0D) are structural (line endings) and are covered
-  # by a separate test below.
-  #
-  # Known out-of-scope gap (intentionally NOT asserted here): a lone CR
-  # (0x0D) inside a multi-line string is still accepted by the multi-line
-  # scanner and kept raw in the value; fixing that is outside this change.
-
-  # 0x09 (TAB), 0x0A (LF), 0x0D (CR) are intentionally absent: TAB is
-  # allowed raw, LF/CR are structural.
-  const forbiddenBytes = [
-    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-    0x0B, 0x0C,
-    0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
-    0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
-    0x7F]
-
-  for b in forbiddenBytes:
-    test "raw control byte 0x" & toHex(b, 2) & " rejected in all string forms":
-      let c = chr(b)
-      # single-line basic / literal (first delimiter already consumed)
+  test "control char not allowed in strings":
+    for c in {'\x00'..'\x08', '\x0B', '\x0C', '\x0E'..'\x1F', '\x7F'}:
       expect TomlError:
         testBasicString(c & "\"", "")
       expect TomlError:
         testLiteralString(c & "\'", "")
-      # multi-line basic / literal (two extra leading delimiters)
       expect TomlError:
         testBasicString("\"\"" & c & "\"\"\"", "")
       expect TomlError:
         testLiteralString("\'\'" & c & "\'\'\'", "")
-
-  test "raw NUL (0x00) rejected in all string forms":
-    # NUL aliases the lexer EOF sentinel (EOF == '\0') and is caught by the
-    # global end-of-input guard before the control-character gate.
-    expect TomlError:
-      testBasicString("\x00\"", "")
-    expect TomlError:
-      testLiteralString("\x00\'", "")
-    expect TomlError:
-      testBasicString("\"\"\x00\"\"\"", "")
-    expect TomlError:
-      testLiteralString("\'\'\x00\'\'\'", "")
-
-  test "raw LF and CR end single-line strings (structural)":
-    expect TomlError:
-      testBasicString("a\nb\"", "ab")
-    expect TomlError:
-      testLiteralString("a\nb\'", "ab")
-    expect TomlError:
-      testBasicString("a\rb\"", "ab")
-    expect TomlError:
-      testLiteralString("a\rb\'", "ab")
-
-  test "raw TAB (0x09) accepted in all string forms":
-    testBasicString("\t\"", "\t")
-    testLiteralString("\t\'", "\t")
-    testBasicString("\"\"\t\"\"\"", "\t")
-    testLiteralString("\'\'\t\'\'\'", "\t")
-
-  test "raw LF and CRLF accepted in multi-line strings":
-    testBasicString("\"\"a\nb\"\"\"", "a\nb")
-    testLiteralString("\'\'a\nb\'\'\'", "a\nb")
-    testBasicString("\"\"a\r\nb\"\"\"", "a\r\nb")
-    testLiteralString("\'\'a\r\nb\'\'\'", "a\r\nb")
-
-  test "escaped control characters accepted in basic strings":
-    testBasicString("\\b\"", "\b")
-    testBasicString("\\t\"", "\t")
-    testBasicString("\\n\"", "\n")
-    testBasicString("\\f\"", "\f")
-    testBasicString("\\r\"", "\r")
-    testBasicString("\\u0007\"", "\x07")
-    testBasicString("\\u0008\"", "\x08")
-    testBasicString("\\u001F\"", "\x1F")
-    testBasicString("\\u007F\"", "\x7F")
-
-  test "escaped control characters accepted in multi-line basic strings":
-    testBasicString("\"\"\\b\\t\\n\\f\\r\\u0007\\u0008\\u001F\\u007F\"\"\"",
-      "\b\t\n\f\r\x07\x08\x1F\x7F")
-
-  test "raw control byte rejected in quoted keys":
-    # scanName dispatches quoted keys into scanString (basic for "...",
-    # literal for '...'), so the same control-character gate must fire.
-    expect TomlError:
-      testScanName("\"a\x07b\"", "")
-    expect TomlError:
-      testScanName("\'a\x07b\'", "")
-    # positive control: quoted keys with allowed content still parse
-    testScanName("\"a\\tb\"", "a\tb")
