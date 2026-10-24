@@ -181,7 +181,12 @@ proc next*(lex: var TomlLexer): char {.raises: [IOError, TomlError].} =
   if result == LF:
     inc(lex.line)
     lex.col = 1
-  elif result != CR:
+  elif result == CR:
+    # Carriage returns (U+000D) are only allowed as part of a newline sequence.
+    # Newline means LF (U+000A) or CRLF (U+000D U+000A).
+    if not lex.readable() or lex.peekChar() != LF:
+      raiseIllegalChar(lex, result)
+  else:
     inc(lex.col)
 
 template peek(lex: TomlLexer): char =

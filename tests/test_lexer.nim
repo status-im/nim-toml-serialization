@@ -334,7 +334,6 @@ suite "string test suite":
       "\'That\'s still pointless\', she said.")
 
   test "skip first empty new line in multiline":
-    testBasicString("\"\"\r\"\"\"", "")
     testBasicString("\"\"\n\"\"\"", "")
     testBasicString("\"\"\r\n\"\"\"", "")
 
@@ -742,7 +741,7 @@ suite "test toml v1.0.0-rc.2":
       testComment("# TOML \x01 doc\n[miaw]", '[')
 
   test "control char not allowed in strings":
-    for c in {'\x00'..'\x08', '\x0B', '\x0C', '\x0E'..'\x1F', '\x7F'}:
+    for c in {'\x00'..'\x08', '\x0B'..'\x1F', '\x7F'}:
       expect TomlError:
         testBasicString(c & "\"", "")
       expect TomlError:
@@ -751,3 +750,11 @@ suite "test toml v1.0.0-rc.2":
         testBasicString("\"\"" & c & "\"\"\"", "")
       expect TomlError:
         testLiteralString("\'\'" & c & "\'\'\'", "")
+
+    # CR is only allowed as part of a CRLF newline
+    expect TomlError:
+      testBasicString("\"\"a\rb\"\"\"", "")
+    expect TomlError:
+      testLiteralString("\'\'a\rb\'\'\'", "")
+    expect TomlError:
+      testBasicString("\"\"a\\\r \nb\"\"\"", "")
