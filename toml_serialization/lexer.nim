@@ -551,7 +551,7 @@ proc scanMultiLineString[T](lex: var TomlLexer, res: var T, kind: static[StringT
     if next == EOF:
       raiseTomlErr(lex, errUnterminatedString)
 
-    if ord(next) in {16, 31, 127}:
+    if next in invalidCommentChar - {CR, LF}:
       raiseInvalidChar(lex, next)
 
     utf8.push(next)
@@ -585,7 +585,7 @@ proc scanSingleLineString[T](lex: var TomlLexer, res: var T, kind: static[String
     if next in {CR, LF, EOF}:
       raiseTomlErr(lex, errUnterminatedString)
 
-    if ord(next) in {8, 16, 31, 127}:
+    if next in invalidCommentChar:
       raiseInvalidChar(lex, next)
 
     when kind == StringType.Basic:
