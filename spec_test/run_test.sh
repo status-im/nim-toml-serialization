@@ -53,7 +53,6 @@ echo "Running TOML v1.0.0 decoder test"
   -skip="invalid/table/append-with-dotted-keys-08" \
   -skip="invalid/table/append-with-dotted-keys-02" \
   -skip="invalid/table/append-with-dotted-keys-01" \
-  -skip="invalid/control/bare-cr" \
   -skip="valid/table/array-implicit-and-explicit-after" \
   -skip="valid/spec-1.0.0/float-2" \
   -skip="valid/spec-1.0.0/float-0" \
@@ -97,9 +96,6 @@ echo "Running TOML v1.1.0 decoder test"
   -skip="valid/spec-example-1-compact" \
   -skip="valid/string/hex-escape" \
   -skip="valid/table/array-implicit-and-explicit-after" \
-  -skip="invalid/control/bare-cr" \
-  -skip="invalid/control/multi-cr" \
-  -skip="invalid/control/rawmulti-cr" \
   -skip="invalid/table/append-with-dotted-keys-01" \
   -skip="invalid/table/append-with-dotted-keys-02" \
   -skip="invalid/table/append-with-dotted-keys-08" \
