@@ -18,5 +18,6 @@ jobs:
         gcc --version
         nimble --useSystemNim install -y --depsOnly stint unittest2 results
         nimble list --installed --version
-        env NIMLANG=c nimble test
+        nimble test_asan
+        nimble test
         spec_test/run_test.sh
